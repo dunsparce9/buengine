@@ -17,6 +17,12 @@
         <button class="menu-action" data-action="exit">Exit</button>
       </div>
     </div>
+    <div class="menu-item" data-menu="run">
+      Run
+      <div class="menu-dropdown" id="menu-run">
+        <button class="menu-action" data-action="run-in-tab">Run in new tab</button>
+      </div>
+    </div>
     <div class="menu-item" data-menu="help">
       Help
       <div class="menu-dropdown" id="menu-help">
@@ -56,14 +62,7 @@
     </div>
   </div>
 
-  <!-- ── About modal ──────────────────────────── -->
-  <div id="about-modal" class="modal-overlay hidden">
-    <div class="modal-box">
-      <h2>büegame editor</h2>
-      <p>v0.0</p>
-      <button id="about-close" class="modal-btn">OK</button>
-    </div>
-  </div>
+  <!-- Floating windows are created dynamically by JS -->
 
   <script type="module" src="js/editor.js"></script>
 </body>

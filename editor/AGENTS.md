@@ -65,7 +65,8 @@ The viewport computes pixel dimensions from the scene's `grid.cols` / `grid.rows
 | Editable fields | `addEditablePropGroup()` — direct-bind `<input>` to in-memory data |
 | Export JSON | `exportCurrentJson()` — Blob download of current script |
 | Run preview | Stores all edited scripts into `localStorage` key `buegame_editor_preview`, opens game in new tab with `?preview` |
-| About modal | `#about-modal` with `.hidden` toggle |
+| Floating windows | `createFloatingWindow()` — draggable, optionally resizable panels (`.fw`) |
+| About window | `aboutWindow` — floating window instance opened from Help → About |
 
 ## Coding Rules
 

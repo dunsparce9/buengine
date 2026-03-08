@@ -13,14 +13,157 @@ const viewportWrap   = document.getElementById('viewport');
 const viewport       = document.getElementById('viewport-scene');
 const viewportEmpty  = document.getElementById('viewport-empty');
 const propsContent   = document.getElementById('props-content');
-const aboutModal   = document.getElementById('about-modal');
-const aboutClose   = document.getElementById('about-close');
 
 /* ── State ─────────────────────────────────────── */
 let manifest    = null;  // _game.json data
 let scripts     = {};    // id → parsed JSON
 let selectedId  = null;  // currently selected script id
 let selectedHs  = null;  // currently selected hotspot id (within a scene)
+
+/* ── Floating Window system ──────────────────── */
+
+/**
+ * Creates a draggable floating window.
+ * @param {Object}  opts
+ * @param {string}  opts.title
+ * @param {string}  [opts.icon='']       Emoji or text icon
+ * @param {number}  [opts.width=300]
+ * @param {number}  [opts.height]        If omitted, auto-sized
+ * @param {boolean} [opts.resizable=false]
+ * @returns {{ el: HTMLElement, body: HTMLElement, open(): void, close(): void, destroy(): void }}
+ */
+function createFloatingWindow({ title, icon = '', width = 300, height, resizable = false }) {
+  const el = document.createElement('div');
+  el.className = 'fw hidden';
+  el.style.width = `${width}px`;
+  if (height != null) el.style.height = `${height}px`;
+
+  // Header
+  const header = document.createElement('div');
+  header.className = 'fw-header';
+
+  const iconEl = document.createElement('span');
+  iconEl.className = 'fw-icon';
+  iconEl.textContent = icon;
+
+  const titleEl = document.createElement('span');
+  titleEl.className = 'fw-title';
+  titleEl.textContent = title;
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'fw-close';
+  closeBtn.textContent = '\u00d7';
+
+  header.append(iconEl, titleEl, closeBtn);
+
+  // Body
+  const body = document.createElement('div');
+  body.className = 'fw-body';
+
+  el.append(header, body);
+
+  // -- Drag-to-move via header --
+  let dragStartX, dragStartY, startLeft, startTop;
+
+  function onDragMove(e) {
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    el.style.left = `${startLeft + dx}px`;
+    el.style.top  = `${startTop + dy}px`;
+  }
+  function onDragUp() {
+    document.removeEventListener('mousemove', onDragMove);
+    document.removeEventListener('mouseup', onDragUp);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }
+  header.addEventListener('mousedown', (e) => {
+    if (e.target === closeBtn) return;
+    e.preventDefault();
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    const rect = el.getBoundingClientRect();
+    startLeft = rect.left;
+    startTop  = rect.top;
+    document.body.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onDragMove);
+    document.addEventListener('mouseup', onDragUp);
+  });
+
+  // -- Edge resize (if enabled) --
+  if (resizable) {
+    const edges = ['n','s','e','w','ne','nw','se','sw'];
+    for (const edge of edges) {
+      const handle = document.createElement('div');
+      handle.className = `fw-resize fw-resize-${edge}`;
+      el.appendChild(handle);
+
+      let rsStartX, rsStartY, rsStartRect;
+
+      function onResizeMove(e) {
+        const dx = e.clientX - rsStartX;
+        const dy = e.clientY - rsStartY;
+        let { left, top, width: w, height: h } = rsStartRect;
+
+        if (edge.includes('e')) w = Math.max(180, w + dx);
+        if (edge.includes('w')) { w = Math.max(180, w - dx); left = rsStartRect.left + (rsStartRect.width - w); }
+        if (edge.includes('s')) h = Math.max(100, h + dy);
+        if (edge.includes('n')) { h = Math.max(100, h - dy); top = rsStartRect.top + (rsStartRect.height - h); }
+
+        el.style.left   = `${left}px`;
+        el.style.top    = `${top}px`;
+        el.style.width  = `${w}px`;
+        el.style.height = `${h}px`;
+      }
+      function onResizeUp() {
+        document.removeEventListener('mousemove', onResizeMove);
+        document.removeEventListener('mouseup', onResizeUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+
+      handle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        rsStartX = e.clientX;
+        rsStartY = e.clientY;
+        rsStartRect = el.getBoundingClientRect();
+        document.body.style.cursor = getComputedStyle(handle).cursor;
+        document.body.style.userSelect = 'none';
+        document.addEventListener('mousemove', onResizeMove);
+        document.addEventListener('mouseup', onResizeUp);
+      });
+    }
+  }
+
+  // -- Center on screen --
+  function centerOnScreen() {
+    const w = width;
+    const h = height ?? el.offsetHeight;
+    el.style.left = `${Math.max(0, (window.innerWidth  - w) / 2)}px`;
+    el.style.top  = `${Math.max(0, (window.innerHeight - h) / 2)}px`;
+  }
+
+  function open() {
+    el.classList.remove('hidden');
+    centerOnScreen();
+  }
+
+  function close() {
+    el.classList.add('hidden');
+  }
+
+  function destroy() {
+    el.remove();
+  }
+
+  closeBtn.addEventListener('click', close);
+
+  document.body.appendChild(el);
+
+  return { el, body, open, close, destroy };
+}
 
 /* ── Script loading ────────────────────────────── */
 
@@ -320,6 +463,15 @@ for (const item of document.querySelectorAll('.menu-item')) {
     item.classList.toggle('open');
     e.stopPropagation();
   });
+
+  // While any menu is open, hovering switches to this one
+  item.addEventListener('mouseenter', () => {
+    const anyOpen = document.querySelector('.menu-item.open');
+    if (anyOpen && anyOpen !== item) {
+      anyOpen.classList.remove('open');
+      item.classList.add('open');
+    }
+  });
 }
 
 // Close menus on outside click
@@ -345,7 +497,10 @@ function handleMenuAction(action) {
       window.location.href = '../index.html';
       break;
     case 'about':
-      aboutModal.classList.remove('hidden');
+      aboutWindow.open();
+      break;
+    case 'run-in-tab':
+      runInNewTab();
       break;
   }
 }
@@ -365,22 +520,38 @@ function exportCurrentJson() {
   URL.revokeObjectURL(url);
 }
 
-/* ── About modal ───────────────────────────────── */
-aboutClose.addEventListener('click', () => aboutModal.classList.add('hidden'));
-aboutModal.addEventListener('click', (e) => {
-  if (e.target === aboutModal) aboutModal.classList.add('hidden');
+/* ── About window ────────────────────────────── */
+const aboutWindow = createFloatingWindow({
+  title: 'About',
+  icon: 'ℹ️',
+  width: 280,
+  resizable: false,
 });
+{
+  const c = aboutWindow.body;
+  c.style.textAlign = 'center';
+  c.style.padding = '20px 28px';
+  const h = document.createElement('h2');
+  h.textContent = 'b\u00fcegame editor';
+  h.style.fontSize = '1.3rem';
+  h.style.marginBottom = '6px';
+  const p = document.createElement('p');
+  p.textContent = 'v0.0';
+  p.style.color = '#a89984';
+  c.append(h, p);
+}
 
 /* ── Run in new tab ────────────────────────────── */
-document.getElementById('run-btn').addEventListener('click', () => {
-  // Store all edited scripts into localStorage for the game to pick up
+function runInNewTab() {
   const overrides = {};
   for (const [id, data] of Object.entries(scripts)) {
     overrides[id] = data;
   }
   localStorage.setItem('buegame_editor_preview', JSON.stringify(overrides));
   window.open('../index.html?preview', '_blank');
-});
+}
+
+document.getElementById('run-btn').addEventListener('click', runInNewTab);
 
 /* ── Panel resize handles ──────────────────────── */
 (function initResizeHandles() {
