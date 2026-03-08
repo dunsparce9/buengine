@@ -60,6 +60,8 @@ Actions are objects in an array. Supported commands:
 | Run definition | `{ "run": "definition_name" }` |
 | Exit actions | `{ "exit": true }` |
 | Scene effect | `{ "effect": { "type": "fade-in", "seconds": 1, "blocking": false } }` — scene-level transition (fade-in / fade-out) |
+| Play sound | `{ "playsound": { "id": "bgm", "path": "scripts/sounds/file.opus", "volume": 0.7, "fade": 1, "loop": true, "blocking": false } }` — `volume` (0–1, default 1), `fade` (seconds, default 0), `loop` (default false), `blocking` waits for fade-in to finish |
+| Stop sound | `{ "stopsound": { "id": "bgm", "fade": 1, "blocking": true } }` — stops a playing sound by id; `fade` (seconds, default 0), `blocking` waits for fade-out to finish |
 
 ### Communication between modules
 All modules communicate through `EventBus`. Never import one UI module from another — emit an event instead.

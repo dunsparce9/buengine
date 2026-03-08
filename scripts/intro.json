@@ -21,6 +21,16 @@
         }
       },
       {
+        "playsound": {
+          "id": "introbg",
+          "path": "scripts/sounds/introbg.opus",
+          "volume": 0.09,
+          "fade": 1,
+          "loop": true,
+          "blocking": false
+        }
+      },
+      {
         "say": "Do you wish to proceed?",
         "speaker": "GAME",
         "delay": 6
@@ -112,6 +122,13 @@
   "onEnter": [
     {
       "run": "intro_sequence"
+    },
+    {
+      "stopsound": {
+        "id": "introbg",
+        "fade": 1,
+        "blocking": true
+      }
     },
     {
       "goto": "abode"

@@ -18,6 +18,8 @@
  *   { "show": { "id": "...", "texture": "...", "layer": "overlay", "scaling": "fill", "effect": { "type": "fade-in", "seconds": 2, "blocking": false } } }
  *   { "hide": { "id": "...", "effect": { "type": "fade-out", "seconds": 1, "blocking": true } } }
  *   { "effect": { "type": "fade-in", "seconds": 1, "blocking": false } }  // scene-level transition
+ *   { "playsound": { "id": "...", "path": "...", "volume": 0.7, "fade": 1, "loop": true, "blocking": false } }
+ *   { "stopsound": { "id": "...", "fade": 1, "blocking": true } }
  */
 export class ActionRunner {
   /**
@@ -85,6 +87,10 @@ export class ActionRunner {
           await this._hide(action.hide);
         } else if (action.effect) {
           await this._effect(action.effect);
+        } else if (action.playsound) {
+          await this._playsound(action.playsound);
+        } else if (action.stopsound) {
+          await this._stopsound(action.stopsound);
         } else if (action.exit != null) {
           this._exited = true;
           return;
@@ -151,6 +157,18 @@ export class ActionRunner {
   _effect(effectDef) {
     return new Promise(resolve => {
       this.bus.emit('scene:effect', { ...effectDef, onDone: resolve });
+    });
+  }
+
+  _playsound(def) {
+    return new Promise(resolve => {
+      this.bus.emit('sound:play', { ...def, onDone: resolve });
+    });
+  }
+
+  _stopsound(def) {
+    return new Promise(resolve => {
+      this.bus.emit('sound:stop', { ...def, onDone: resolve });
     });
   }
 
