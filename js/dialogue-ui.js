@@ -119,6 +119,7 @@ export class DialogueUI {
 
   _advance() {
     if (this._locked) return;
+    if (this.box.classList.contains('dialogue-leaving')) return;
     if (this._typing) {
       // Skip to full text — no click sound for skip
       this._stopType();
