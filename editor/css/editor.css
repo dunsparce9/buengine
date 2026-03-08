@@ -283,3 +283,42 @@ html, body {
 
 /* ── Utility ───────────────────────────────────── */
 .hidden { display: none !important; }
+
+/* ── Editable property inputs ──────────────────── */
+.prop-input {
+  flex: 1;
+  min-width: 0;
+  background: #282828;
+  color: #ebdbb2;
+  border: 1px solid #504945;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+.prop-input:focus {
+  border-color: #fe8019;
+}
+
+/* ── Run button ────────────────────────────────── */
+.menu-spacer {
+  flex: 1;
+}
+
+.menu-run-btn {
+  align-self: center;
+  margin-right: 10px;
+  padding: 2px 14px;
+  background: #98971a;
+  color: #ebdbb2;
+  border: none;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+}
+.menu-run-btn:hover {
+  background: #b8bb26;
+}

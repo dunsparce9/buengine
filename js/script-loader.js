@@ -1,12 +1,28 @@
 /**
  * Loads JSON scene/script files from the scripts/ directory.
  * Caches loaded scripts so each file is fetched only once.
+ *
+ * When the page is opened with ?preview, loads override data
+ * from localStorage (set by the editor) instead of fetching files.
  */
 export class ScriptLoader {
   constructor(basePath = 'scripts') {
     this.basePath = basePath;
     /** @type {Map<string, object>} */
     this._cache = new Map();
+
+    // Editor preview mode: pre-populate cache from localStorage
+    if (new URLSearchParams(location.search).has('preview')) {
+      try {
+        const raw = localStorage.getItem('buegame_editor_preview');
+        if (raw) {
+          const overrides = JSON.parse(raw);
+          for (const [id, data] of Object.entries(overrides)) {
+            this._cache.set(id, data);
+          }
+        }
+      } catch { /* ignore corrupt data */ }
+    }
   }
 
   /**

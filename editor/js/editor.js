@@ -194,10 +194,10 @@ function renderProperties() {
 }
 
 function renderGameProps(data) {
-  addPropGroup('Game manifest', [
-    ['title',      data.title      || '—'],
-    ['subtitle',   data.subtitle   || '—'],
-    ['startScene', data.startScene || '—'],
+  addEditablePropGroup('Game manifest', [
+    { key: 'title',      value: data.title      ?? '', onChange: v => { data.title = v; } },
+    { key: 'subtitle',   value: data.subtitle   ?? '', onChange: v => { data.subtitle = v; } },
+    { key: 'startScene', value: data.startScene ?? '', onChange: v => { data.startScene = v; } },
   ]);
 
   if (data.scenes) {
@@ -264,6 +264,38 @@ function addPropGroup(title, rows) {
     row.innerHTML =
       `<span class="prop-key">${escapeHtml(String(key))}</span>` +
       `<span class="prop-val">${escapeHtml(String(val))}</span>`;
+    group.appendChild(row);
+  }
+
+  propsContent.appendChild(group);
+}
+
+/** Utility: append an editable property group to the panel. */
+function addEditablePropGroup(title, fields) {
+  const group = document.createElement('div');
+  group.className = 'prop-group';
+
+  const heading = document.createElement('div');
+  heading.className = 'prop-group-title';
+  heading.textContent = title;
+  group.appendChild(heading);
+
+  for (const { key, value, onChange } of fields) {
+    const row = document.createElement('div');
+    row.className = 'prop-row';
+
+    const label = document.createElement('span');
+    label.className = 'prop-key';
+    label.textContent = key;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'prop-input';
+    input.value = value;
+    input.addEventListener('input', () => onChange(input.value));
+
+    row.appendChild(label);
+    row.appendChild(input);
     group.appendChild(row);
   }
 
@@ -337,6 +369,17 @@ function exportCurrentJson() {
 aboutClose.addEventListener('click', () => aboutModal.classList.add('hidden'));
 aboutModal.addEventListener('click', (e) => {
   if (e.target === aboutModal) aboutModal.classList.add('hidden');
+});
+
+/* ── Run in new tab ────────────────────────────── */
+document.getElementById('run-btn').addEventListener('click', () => {
+  // Store all edited scripts into localStorage for the game to pick up
+  const overrides = {};
+  for (const [id, data] of Object.entries(scripts)) {
+    overrides[id] = data;
+  }
+  localStorage.setItem('buegame_editor_preview', JSON.stringify(overrides));
+  window.open('../index.html?preview', '_blank');
 });
 
 /* ── Panel resize handles ──────────────────────── */
