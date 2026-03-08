@@ -59,6 +59,7 @@ export class DialogueUI {
     clearInterval(this._timer);
     this._typing = false;
     this.text.textContent = this._fullText;
+    this.text.appendChild(this.hint);
     this.hint.classList.remove('hidden');
   }
 
