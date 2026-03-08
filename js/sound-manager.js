@@ -15,6 +15,24 @@ export class SoundManager {
 
     bus.on('sound:play', (p) => this._play(p));
     bus.on('sound:stop', (p) => this._stop(p));
+
+    this._preloadUISounds();
+  }
+
+  /** Speculatively preload common UI sounds so first-play has no network delay. */
+  _preloadUISounds() {
+    /** @type {HTMLAudioElement[]} Keep references to prevent GC before load completes. */
+    this._preloaded = [];
+    const paths = [
+      'scripts/sounds/common/button-click.opus',
+      'scripts/sounds/common/dialogue-click.opus',
+    ];
+    for (const path of paths) {
+      const audio = new Audio();
+      audio.preload = 'auto';
+      audio.src = path; // fetch starts; errors (404) are silently ignored
+      this._preloaded.push(audio);
+    }
   }
 
   /**
@@ -43,18 +61,16 @@ export class SoundManager {
       if (!blocking) onDone?.();
     } else {
       audio.volume = volume;
-      audio.play().then(() => {
-        if (!blocking) onDone?.();
-      }).catch(() => onDone?.());
 
-      if (blocking) {
-        // For non-looping, non-fading sounds, "blocking" waits for playback end
-        if (!loop) {
+      if (blocking && !loop) {
+        // Blocking non-looping sound: wait for playback to finish
+        audio.play().then(() => {
           audio.addEventListener('ended', () => onDone?.(), { once: true });
-        } else {
-          // Looping + blocking + no fade doesn't really make sense; resolve immediately
-          onDone?.();
-        }
+        }).catch(() => onDone?.());
+      } else {
+        // Non-blocking (or looping+blocking): fire-and-forget
+        audio.play().catch(() => {});
+        onDone?.();
       }
     }
 

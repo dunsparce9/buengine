@@ -23,6 +23,7 @@ export class ChoiceUI {
       btn.className = 'choice-btn';
       btn.textContent = opt.text;
       btn.addEventListener('click', () => {
+        this.bus.emit('sound:play', { id: '__ui_btn', path: 'scripts/sounds/common/button-click.opus' });
         this.hide();
         onPick(opt);
       });

@@ -91,9 +91,10 @@ export class DialogueUI {
   _advance() {
     if (this._locked) return;
     if (this._typing) {
-      // Skip to full text
+      // Skip to full text — no click sound for skip
       this._stopType();
     } else {
+      this.bus.emit('sound:play', { id: '__ui_dlg', path: 'scripts/sounds/common/dialogue-click.opus' });
       this.hide();
       if (this._onDone) this._onDone();
     }
