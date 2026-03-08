@@ -1,0 +1,7 @@
+{
+  "title": "BÜE ARG (functioning title)",
+  "subtitle": "The renowned classic Büe™ alternate reality game.",
+  "startScene": "intro",
+  "scenes": ["intro"],
+  "skipTitleScreen": false
+}

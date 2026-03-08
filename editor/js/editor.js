@@ -4,7 +4,7 @@
  * Imports all editor modules, wires render hooks, and boots the app.
  */
 
-import { state, hooks } from './state.js';
+import { state, hooks, GAME_ID } from './state.js';
 import { createFloatingWindow } from './floating-window.js';
 import { discoverScripts } from './script-loader.js';
 import { renderFileList, selectScript } from './file-panel.js';
@@ -66,13 +66,20 @@ function runInNewTab() {
     overrides[id] = data;
   }
   localStorage.setItem('buegame_editor_preview', JSON.stringify(overrides));
-  window.open('../index.html?preview', '_blank');
+  const params = new URLSearchParams({ preview: '' });
+  if (GAME_ID) params.set('game', GAME_ID);
+  window.open(`../index.html?${params}`, '_blank');
 }
 
 /* ── Menu setup ────────────────────────────────── */
 initMenu({
   export:       exportCurrentJson,
-  exit:         () => { window.location.href = '../index.html'; },
+  exit:         () => {
+    const params = new URLSearchParams();
+    if (GAME_ID) params.set('game', GAME_ID);
+    const qs = params.toString();
+    window.location.href = qs ? `../index.html?${qs}` : '../index.html';
+  },
   about:        () => aboutWindow.open(),
   'run-in-tab': runInNewTab,
 });

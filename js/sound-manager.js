@@ -13,10 +13,21 @@ export class SoundManager {
     /** @type {Map<string, { audio: HTMLAudioElement, fade?: number }>} */
     this._sounds = new Map();
 
+    /** Base path for resolving relative sound URLs. */
+    this._basePath = '';
+
+    bus.on('game:basepath', (bp) => {
+      this._basePath = bp;
+      this._preloadUISounds();
+    });
     bus.on('sound:play', (p) => this._play(p));
     bus.on('sound:stop', (p) => this._stop(p));
+  }
 
-    this._preloadUISounds();
+  /** Resolve a relative sound path against the game's base directory. */
+  _resolve(path) {
+    if (!this._basePath || !path) return path;
+    return `${this._basePath}/${path}`;
   }
 
   /** Speculatively preload common UI sounds so first-play has no network delay. */
@@ -24,13 +35,13 @@ export class SoundManager {
     /** @type {HTMLAudioElement[]} Keep references to prevent GC before load completes. */
     this._preloaded = [];
     const paths = [
-      'scripts/sounds/common/button-click.opus',
-      'scripts/sounds/common/dialogue-click.opus',
+      'sounds/common/button-click.opus',
+      'sounds/common/dialogue-click.opus',
     ];
     for (const path of paths) {
       const audio = new Audio();
       audio.preload = 'auto';
-      audio.src = path; // fetch starts; errors (404) are silently ignored
+      audio.src = this._resolve(path);
       this._preloaded.push(audio);
     }
   }
@@ -49,7 +60,7 @@ export class SoundManager {
     // Stop any existing sound with this id first
     this._stopImmediate(id);
 
-    const audio = new Audio(path);
+    const audio = new Audio(this._resolve(path));
     audio.loop = loop;
 
     if (fade > 0) {

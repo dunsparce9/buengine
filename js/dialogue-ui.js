@@ -19,7 +19,9 @@ export class DialogueUI {
     this._timer   = null;
     this._locked  = false;
     this._lockTimer = null;
+    this._basePath = '';
 
+    this.bus.on('game:basepath', (bp) => { this._basePath = bp; });
     this.box.addEventListener('click', () => this._advance());
     this.bus.on('dialogue:show', (data) => this.show(data));
   }
@@ -94,7 +96,7 @@ export class DialogueUI {
       // Skip to full text — no click sound for skip
       this._stopType();
     } else {
-      this.bus.emit('sound:play', { id: '__ui_dlg', path: 'scripts/sounds/common/dialogue-click.opus' });
+      this.bus.emit('sound:play', { id: '__ui_dlg', path: 'sounds/common/dialogue-click.opus' });
       this.hide();
       if (this._onDone) this._onDone();
     }

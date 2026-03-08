@@ -6,15 +6,15 @@ applyTo: "**"
 # büegame — Agent Instructions
 
 ## Project Overview
-büegame is a **static, browser-only, 2D point-and-click adventure game engine**. There is no server, no build step, no bundler — just ES modules served from files. The game is entirely data-driven by JSON "script" files in `scripts/`.
+büegame is a **static, browser-only, 2D point-and-click adventure game engine**. There is no server, no build step, no bundler — just ES modules served from files. Games are stored in `games/` as self-contained folders, each with its own JSON scripts and assets.
 
 ## Architecture
 
 ```
-index.html              ← single entry point
+index.html              ← single entry point (game selector + engine)
 css/style.css           ← all styles
 js/
-  main.js               ← bootstrap, wires subsystems together
+  main.js               ← bootstrap, game selector, wires subsystems together
   event-bus.js           ← pub/sub decoupling
   game-state.js          ← flags, current scene, history
   script-loader.js       ← fetches & caches JSON scripts
@@ -23,10 +23,16 @@ js/
   dialogue-ui.js         ← dialogue box with typewriter effect
   choice-ui.js           ← multiple-choice modal
   overlay-ui.js          ← title screen & pause menu
-scripts/
-  _game.json             ← game manifest (title, startScene)
-  intro.json             ← example scene
-  hallway.json           ← example scene
+  sound-manager.js       ← audio playback, fade in/out
+games/
+  index.json             ← list of available game folder names
+  playground/            ← example game
+    _game.json           ← game manifest (title, startScene)
+    intro.json           ← scene
+    sounds/              ← audio assets
+      common/            ← shared UI sounds (button-click, dialogue-click)
+  lmaooo/               ← another game
+    ...
 ```
 
 ## Key Conventions
@@ -35,7 +41,7 @@ scripts/
 All JS is vanilla ES-module (`type="module"`). No TypeScript, no bundler. Keep it simple — a layperson should be able to open `index.html` from a local server.
 
 ### Script format
-Scene scripts are JSON files in `scripts/`. Each has:
+Scene scripts are JSON files in each game's folder (e.g. `games/playground/`). Each has:
 - `id` — unique scene identifier (matches filename)
 - `background` / `backgroundColor` — visual backdrop
 - `grid` — `{ "cols": N, "rows": N }` tile grid dimensions (default 16×9)

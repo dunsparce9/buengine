@@ -6,7 +6,9 @@
  * after all modules are imported.
  */
 
-export const SCRIPTS_BASE = '../scripts';
+const _params = new URLSearchParams(location.search);
+export const GAME_ID = _params.get('game') || '';
+export const SCRIPTS_BASE = GAME_ID ? `../games/${GAME_ID}` : '../scripts';
 
 /* ── Mutable application state ─────────────────── */
 export const state = {

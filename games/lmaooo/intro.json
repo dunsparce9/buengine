@@ -1,0 +1,137 @@
+{
+  "id": "intro",
+  "background": "prof-oak.png",
+  "grid": {
+    "cols": 20,
+    "rows": 10
+  },
+  "definitions": {
+    "intro_sequence": [
+      {
+        "playsound": {
+          "id": "bg",
+          "path": "sounds/Protectors of the Earth.opus",
+          "volume": 0.15,
+          "loop": true,
+          "blocking": false
+        }
+      },
+      {
+        "say": "HELLO",
+        "speaker": "PROF. OAK"
+      },
+      {
+        "say": "WELCOME TO THE WORLD RENOWNED BÜE ARG",
+        "speaker": "PROF. OAK"
+      },
+      {
+        "choice": {
+          "prompt": "You will pick.",
+          "options": [
+            {
+              "text": "What the fuck is a büe",
+              "actions": [
+                {
+                  "show": {
+                    "id": "seal",
+                    "texture": "lmao.jpg",
+                    "layer": "overlay",
+                    "scaling": "fill"
+                  }
+                },
+                {
+                  "say": "THİS İS A BÜE",
+                  "speaker": "PROF. OAK"
+                },
+                {
+                  "say": "ARE WE CLEAR ON THIS",
+                  "speaker": "PROF. OAK"
+                },
+                {
+                  "choice": {
+                    "prompt": "You will pick again",
+                    "options": [
+                      {
+                        "text": "YES",
+                        "actions": [
+                          {
+                            "say": "GOOD",
+                            "speaker": "STILL PROF. OAK"
+                          },
+                          {
+                            "run": "intro_sequence"
+                          }
+                        ]
+                      },
+                      {
+                        "text": "NO",
+                        "actions": [
+                          {
+                            "say": "YEA WELL I DON'T CARE",
+                            "speaker": "STILL PROF. OAK"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "text": "What the fuck is an ARG",
+              "actions": []
+            },
+            {
+              "text": "ok thank you",
+              "actions": [
+                {
+                  "say": "WOULD YOU NOW LIKE TO start the Büe ARG?",
+                  "speaker": "PROFESÖR MEŞE"
+                },
+                {
+                  "choice": {
+                    "prompt": "PİCK",
+                    "options": [
+                      {
+                        "text": "YES",
+                        "actions": [
+                          {
+                            "stopsound": {
+                              "id": "bg",
+                              "blocking": false
+                            }
+                          },
+                          {
+                            "goto": "flashbang"
+                          }
+                        ]
+                      },
+                      {
+                        "text": "NO",
+                        "actions": []
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "text": "Daha sonra hatırlat",
+              "actions": [
+                {
+                  "exit": true
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "hotspots": [],
+  "onEnter": [
+    {
+      "run": "intro_sequence"
+    }
+  ]
+}

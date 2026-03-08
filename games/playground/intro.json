@@ -10,7 +10,7 @@
       {
         "show": {
           "id": "dream-overlay",
-          "texture": "scripts/dream.png",
+          "texture": "dream.png",
           "layer": "overlay",
           "scaling": "fill",
           "effect": {
@@ -23,7 +23,7 @@
       {
         "playsound": {
           "id": "introbg",
-          "path": "scripts/sounds/introbg.opus",
+          "path": "sounds/introbg.opus",
           "volume": 0.09,
           "fade": 1,
           "loop": true,

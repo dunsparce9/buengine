@@ -12,7 +12,7 @@ import { SoundManager }  from './sound-manager.js';
 
 const bus         = new EventBus();
 const state       = new GameState();
-const loader      = new ScriptLoader('scripts');
+const loader      = new ScriptLoader();        // basePath set by selectGame()
 const scene       = new SceneRenderer(document.getElementById('scene-layer'), bus);
 const runner      = new ActionRunner({ bus, state });
 const gridOverlay = document.getElementById('grid-overlay');
@@ -25,6 +25,10 @@ new SoundManager(bus);
 
 /** Currently loaded scene data keyed by id. */
 let currentSceneData = null;
+
+/* ── Game selector ──────────────────────────────── */
+const selectorOverlay = document.getElementById('game-selector');
+const gameListEl      = document.getElementById('game-list');
 
 /* ── Scene navigation ───────────────────────────── */
 
@@ -101,6 +105,53 @@ bus.on('hotspot:click', async (hs) => {
 
 /* ── Scene goto (from action runner) ────────────── */
 bus.on('scene:goto', (id) => gotoScene(id));
+
+/* ── Game selector ──────────────────────────────── */
+
+async function showGameSelector() {
+  try {
+    const res = await fetch('games/index.json');
+    if (!res.ok) throw new Error('Failed to load game list');
+    const gameIds = await res.json();
+
+    // Fetch all manifests in parallel for display
+    const entries = await Promise.all(gameIds.map(async (id) => {
+      try {
+        const r = await fetch(`games/${encodeURIComponent(id)}/_game.json`);
+        return { id, manifest: await r.json() };
+      } catch { return { id, manifest: {} }; }
+    }));
+
+    gameListEl.innerHTML = '';
+    for (const { id, manifest } of entries) {
+      const entry = document.createElement('div');
+      entry.className = 'game-entry';
+      const title = document.createElement('div');
+      title.className = 'game-entry-title';
+      title.textContent = manifest.title || id;
+      entry.appendChild(title);
+      if (manifest.subtitle) {
+        const sub = document.createElement('div');
+        sub.className = 'game-entry-subtitle';
+        sub.textContent = manifest.subtitle;
+        entry.appendChild(sub);
+      }
+      entry.addEventListener('click', () => selectGame(id));
+      gameListEl.appendChild(entry);
+    }
+  } catch {
+    gameListEl.innerHTML = '<p style="opacity:0.7">No games found.</p>';
+  }
+  selectorOverlay.classList.remove('hidden');
+}
+
+function selectGame(id) {
+  const basePath = `games/${id}`;
+  loader.setBasePath(basePath);
+  bus.emit('game:basepath', basePath);
+  selectorOverlay.classList.add('hidden');
+  showTitle();
+}
 
 /* ── Game lifecycle ─────────────────────────────── */
 
@@ -185,4 +236,11 @@ sceneLayer.addEventListener('mouseleave', () => {
 });
 
 /* ── Initial boot ───────────────────────────────── */
-showTitle();
+const _params = new URLSearchParams(location.search);
+const _urlGame = _params.get('game');
+
+if (_urlGame) {
+  selectGame(_urlGame);
+} else {
+  showGameSelector();
+}

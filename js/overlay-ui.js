@@ -7,6 +7,7 @@ export class OverlayUI {
    */
   constructor(bus) {
     this.bus = bus;
+    this._basePath = '';
 
     // Title screen elements
     this.title        = document.getElementById('title-screen');
@@ -27,7 +28,10 @@ export class OverlayUI {
       this.bus.emit('game:start');
     });
     this.editBtn.addEventListener('click', () => {
-      window.location.href = 'editor/index.html';
+      const gameId = this._basePath.split('/').pop();
+      window.location.href = gameId
+        ? `editor/index.html?game=${encodeURIComponent(gameId)}`
+        : 'editor/index.html';
     });
     this.resumeBtn.addEventListener('click', () => this.hidePause());
     this.toTitleBtn.addEventListener('click', () => {
@@ -44,6 +48,7 @@ export class OverlayUI {
     });
 
     // Listen for engine events
+    this.bus.on('game:basepath', (bp) => { this._basePath = bp; });
     this.bus.on('overlay:title', (cfg) => this.showTitle(cfg));
     this.bus.on('overlay:pause', () => this.showPause());
   }

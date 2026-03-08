@@ -1,0 +1,20 @@
+{
+  "id": "flashbang",
+  "backgroundColor": "#FFFFFF",
+  "grid": {
+    "cols": 16,
+    "rows": 9
+  },
+  "hotspots": [],
+  "onEnter": [
+    {
+      "playsound": {
+        "id": "bang",
+        "path": "sounds/Flashbang.opus",
+        "volume": 0.3,
+        "loop": false,
+        "blocking": false
+      }
+    }
+  ]
+}

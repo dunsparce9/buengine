@@ -46,7 +46,7 @@ export function renderViewport() {
 
   // Background
   if (data.background) {
-    viewport.style.backgroundImage = `url('${SCRIPTS_BASE}/${data.background.replace(/^scripts\//, '')}')`;
+    viewport.style.backgroundImage = `url('${SCRIPTS_BASE}/${data.background}')`;
   } else {
     viewport.style.backgroundColor = data.backgroundColor || '#111';
   }
@@ -65,7 +65,7 @@ export function renderViewport() {
 
       if (hs.texture) {
         div.classList.add('editor-hotspot-textured');
-        div.style.backgroundImage = `url('${SCRIPTS_BASE}/${hs.texture.replace(/^scripts\//, '')}')`;
+        div.style.backgroundImage = `url('${SCRIPTS_BASE}/${hs.texture}')`;
       }
 
       const label = document.createElement('span');

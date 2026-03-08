@@ -6,7 +6,7 @@
  * from localStorage (set by the editor) instead of fetching files.
  */
 export class ScriptLoader {
-  constructor(basePath = 'scripts') {
+  constructor(basePath = '') {
     this.basePath = basePath;
     /** @type {Map<string, object>} */
     this._cache = new Map();
@@ -25,15 +25,31 @@ export class ScriptLoader {
     }
   }
 
+  /** Update the base path (e.g. when a different game is selected). */
+  setBasePath(path) {
+    this.basePath = path;
+  }
+
+  /**
+   * Resolve a relative asset path against the current base.
+   * @param {string} relativePath
+   * @returns {string}
+   */
+  resolvePath(relativePath) {
+    if (!this.basePath || !relativePath) return relativePath;
+    return `${this.basePath}/${relativePath}`;
+  }
+
   /**
    * Load a script by ID (filename without extension).
-   * @param {string} id  e.g. "intro" loads scripts/intro.json
+   * @param {string} id  e.g. "intro" → {basePath}/intro.json
    * @returns {Promise<object>}
    */
   async load(id) {
     if (this._cache.has(id)) return this._cache.get(id);
 
-    const url = `${this.basePath}/${encodeURIComponent(id)}.json`;
+    const prefix = this.basePath ? `${this.basePath}/` : '';
+    const url = `${prefix}${encodeURIComponent(id)}.json`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Script not found: ${url} (${res.status})`);
     const data = await res.json();

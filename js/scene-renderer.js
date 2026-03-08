@@ -20,8 +20,12 @@ export class SceneRenderer {
     /** @type {Map<string, HTMLElement>} active image overlays keyed by id */
     this._overlays = new Map();
 
+    /** Base path for resolving relative asset URLs. */
+    this._basePath = '';
+
     window.addEventListener('resize', () => this._fitToContainer());
 
+    bus.on('game:basepath', (bp) => { this._basePath = bp; });
     bus.on('scene:effect',  (payload) => this._applyEffect(payload));
     bus.on('overlay:show',  (payload) => this._showOverlay(payload));
     bus.on('overlay:hide',  (payload) => this._hideOverlay(payload));
@@ -56,12 +60,18 @@ export class SceneRenderer {
    * @param {object} scene  Parsed scene JSON
    * @returns {Promise<void>}
    */
+  /** Resolve a relative asset path against the game's base directory. */
+  _resolve(path) {
+    if (!this._basePath || !path) return path;
+    return `${this._basePath}/${path}`;
+  }
+
   preload(scene) {
     const urls = [];
-    if (scene.background) urls.push(scene.background);
+    if (scene.background) urls.push(this._resolve(scene.background));
     if (Array.isArray(scene.hotspots)) {
       for (const hs of scene.hotspots) {
-        if (hs.texture) urls.push(hs.texture);
+        if (hs.texture) urls.push(this._resolve(hs.texture));
       }
     }
     if (urls.length === 0) return Promise.resolve();
@@ -83,7 +93,7 @@ export class SceneRenderer {
 
     // Background
     if (scene.background) {
-      this.el.style.backgroundImage = `url('${CSS.escape(scene.background)}')`;
+      this.el.style.backgroundImage = `url('${CSS.escape(this._resolve(scene.background))}')`;
     } else {
       this.el.style.backgroundImage = '';
       this.el.style.backgroundColor = scene.backgroundColor || '#111';
@@ -110,7 +120,7 @@ export class SceneRenderer {
 
         if (hs.texture) {
           div.classList.add('hotspot-textured');
-          div.style.backgroundImage = `url('${CSS.escape(hs.texture)}')`;
+          div.style.backgroundImage = `url('${CSS.escape(this._resolve(hs.texture))}')`;  
         }
 
         if (hs.cursor) div.style.cursor = hs.cursor;
@@ -187,7 +197,7 @@ export class SceneRenderer {
     const el = document.createElement('div');
     el.className = 'image-overlay';
     el.dataset.overlayId = id;
-    el.style.backgroundImage = `url('${CSS.escape(texture)}')`;
+    el.style.backgroundImage = `url('${CSS.escape(this._resolve(texture))}')`;  
 
     if (scaling === 'fill' || scaling === 'cover') {
       el.style.backgroundSize = 'cover';
