@@ -33,6 +33,9 @@ export class ChoiceUI {
     }
 
     this.modal.classList.remove('hidden');
+    void this.modal.offsetHeight; // force reflow so animation restarts
+    this.modal.classList.add('choice-entering');
+    setTimeout(() => this.modal.classList.remove('choice-entering'), 300);
   }
 
   hide() {

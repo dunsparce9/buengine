@@ -19,6 +19,7 @@ export class DialogueUI {
     this._timer   = null;
     this._locked  = false;
     this._lockTimer = null;
+    this._hideTimer = null;
     this._basePath = '';
 
     this.bus.on('game:basepath', (bp) => { this._basePath = bp; });
@@ -39,8 +40,21 @@ export class DialogueUI {
     this._fullText = text;
     this._onDone = onDone;
     this.text.textContent = '';
-    this.box.classList.remove('hidden');
+
+    const wasHidden = this.box.classList.contains('hidden');
+    if (this._hideTimer) {
+      clearTimeout(this._hideTimer);
+      this._hideTimer = null;
+    }
+    this.box.classList.remove('hidden', 'dialogue-leaving');
     this.sceneLayer.classList.add('dialogue-active');
+
+    if (wasHidden) {
+      void this.box.offsetHeight; // force reflow so animation restarts
+      this.box.classList.add('dialogue-entering');
+      setTimeout(() => this.box.classList.remove('dialogue-entering'), 300);
+    }
+
     this._typewrite(text);
 
     if (delay > 0) {
@@ -58,11 +72,18 @@ export class DialogueUI {
   }
 
   hide() {
-    this.box.classList.add('hidden');
+    if (this.box.classList.contains('hidden')) return;
+    this._stopType();
     this.hint.classList.add('hidden');
     this.sceneLayer.classList.remove('dialogue-active');
-    this._stopType();
     this._clearLock();
+    this.box.classList.remove('dialogue-entering');
+    this.box.classList.add('dialogue-leaving');
+    this._hideTimer = setTimeout(() => {
+      this.box.classList.remove('dialogue-leaving');
+      this.box.classList.add('hidden');
+      this._hideTimer = null;
+    }, 300);
   }
 
   /* ── internals ───────────────────────────────── */
