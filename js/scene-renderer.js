@@ -35,20 +35,18 @@ export class SceneRenderer {
     // Grid dimensions (default 16×9)
     const cols = scene.grid?.cols ?? 16;
     const rows = scene.grid?.rows ?? 9;
-    const containerW = this.el.clientWidth;
-    const containerH = this.el.clientHeight;
-    const tileW = containerW / cols;
-    const tileH = containerH / rows;
+    const tilePctW = 100 / cols;
+    const tilePctH = 100 / rows;
 
     // Hotspots
     if (Array.isArray(scene.hotspots)) {
       for (const hs of scene.hotspots) {
         const div = document.createElement('div');
         div.className = 'hotspot';
-        div.style.left   = `${hs.x * tileW}px`;
-        div.style.top    = `${hs.y * tileH}px`;
-        div.style.width  = `${hs.w * tileW}px`;
-        div.style.height = `${hs.h * tileH}px`;
+        div.style.left   = `${hs.x * tilePctW}%`;
+        div.style.top    = `${hs.y * tilePctH}%`;
+        div.style.width  = `${hs.w * tilePctW}%`;
+        div.style.height = `${hs.h * tilePctH}%`;
 
         if (hs.texture) {
           div.classList.add('hotspot-textured');
@@ -60,10 +58,8 @@ export class SceneRenderer {
         if (hs.label) {
           div.addEventListener('mouseenter', () => {
             this._tooltip.textContent = hs.label;
-            const cx = hs.x * tileW + (hs.w * tileW) / 2;
-            const ty = hs.y * tileH;
-            this._tooltip.style.left = `${cx}px`;
-            this._tooltip.style.top  = `${ty}px`;
+            this._tooltip.style.left = `${hs.x * tilePctW + (hs.w * tilePctW) / 2}%`;
+            this._tooltip.style.top  = `${hs.y * tilePctH}%`;
             this._tooltip.classList.remove('hidden');
           });
           div.addEventListener('mouseleave', () => {
