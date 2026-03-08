@@ -12,6 +12,7 @@ import { renderViewport } from './viewport.js';
 import { renderProperties } from './properties.js';
 import { initMenu } from './menu.js';
 import { initResizeHandles } from './resize.js';
+import './action-viewer.js';
 
 /* ── Wire render hooks ─────────────────────────── */
 hooks.renderFileList   = renderFileList;

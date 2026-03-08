@@ -3,6 +3,7 @@
  */
 
 import { state, dom, hooks, escapeHtml, markDirty } from './state.js';
+import { openActionViewer } from './action-viewer.js';
 
 export function renderProperties() {
   dom.propsContent.innerHTML = '';
@@ -57,14 +58,14 @@ function renderSceneProps(data) {
   );
 
   if (data.onEnter?.length) {
-    addPropGroup('onEnter', [['actions', `${data.onEnter.length} action(s)`]]);
+    addActionLinkGroup('onEnter', [['actions', data.onEnter.length]],
+      () => openActionViewer(`${data.id} — onEnter`, data.onEnter)
+    );
   }
 
   if (data.definitions) {
     const names = Object.keys(data.definitions);
-    addPropGroup(`Definitions (${names.length})`,
-      names.map(n => [n, `${data.definitions[n].length} action(s)`])
-    );
+    addDefinitionsGroup(data, names);
   }
 }
 
@@ -92,7 +93,9 @@ function renderHotspotProps(hs) {
     addPropGroup('Texture', [['src', hs.texture]]);
   }
   if (hs.actions?.length) {
-    addPropGroup('Actions', [['count', `${hs.actions.length} action(s)`]]);
+    addActionLinkGroup('Actions', [['count', hs.actions.length]],
+      () => openActionViewer(`${hs.id} — actions`, hs.actions)
+    );
   }
 }
 
@@ -113,6 +116,67 @@ function addPropGroup(title, rows) {
     row.innerHTML =
       `<span class="prop-key">${escapeHtml(String(key))}</span>` +
       `<span class="prop-val">${escapeHtml(String(val))}</span>`;
+    group.appendChild(row);
+  }
+
+  dom.propsContent.appendChild(group);
+}
+
+function addActionLinkGroup(title, rows, onClick) {
+  const group = document.createElement('div');
+  group.className = 'prop-group';
+
+  const heading = document.createElement('div');
+  heading.className = 'prop-group-title';
+  heading.textContent = title;
+  group.appendChild(heading);
+
+  for (const [key, count] of rows) {
+    const row = document.createElement('div');
+    row.className = 'prop-row';
+
+    const keyEl = document.createElement('span');
+    keyEl.className = 'prop-key';
+    keyEl.textContent = key;
+
+    const link = document.createElement('span');
+    link.className = 'prop-action-link';
+    link.textContent = `${count} action(s)`;
+    link.addEventListener('click', onClick);
+
+    row.append(keyEl, link);
+    group.appendChild(row);
+  }
+
+  dom.propsContent.appendChild(group);
+}
+
+function addDefinitionsGroup(data, names) {
+  const group = document.createElement('div');
+  group.className = 'prop-group';
+
+  const heading = document.createElement('div');
+  heading.className = 'prop-group-title';
+  heading.textContent = `Definitions (${names.length})`;
+  group.appendChild(heading);
+
+  for (const name of names) {
+    const actions = data.definitions[name];
+    const row = document.createElement('div');
+    row.className = 'prop-row';
+
+    const keyEl = document.createElement('span');
+    keyEl.className = 'prop-key';
+    keyEl.textContent = name;
+
+    const link = document.createElement('span');
+    link.className = 'prop-action-link';
+    link.textContent = `${actions.length} action(s)`;
+    link.addEventListener('click', () =>
+      openActionViewer(`${data.id} — ${name}`, actions)
+    );
+
+    row.append(keyEl, link);
     group.appendChild(row);
   }
 

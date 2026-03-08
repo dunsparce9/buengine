@@ -417,3 +417,287 @@ html, body {
 .menu-run-btn:hover {
   background: #b8bb26;
 }
+
+/* ── Action Viewer ─────────────────────────────── */
+
+.av-empty {
+  color: #7c6f64;
+  font-size: 13px;
+  text-align: center;
+  padding: 24px 0;
+}
+
+.av-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.av-list.av-nested {
+  margin-left: 16px;
+  padding-left: 8px;
+  border-left: 2px solid #3c3836;
+}
+
+/* ── Action block ──────────────────────────────── */
+
+.av-block {
+  border-radius: 4px;
+  background: #1d2021;
+  border: 1px solid #3c3836;
+  border-left: 3px solid var(--av-accent, #7c6f64);
+  overflow: hidden;
+}
+
+.av-block-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: rgba(0,0,0,0.15);
+  min-height: 28px;
+}
+
+.av-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #3c3836;
+  font-size: 10px;
+  color: #a89984;
+  flex-shrink: 0;
+}
+
+.av-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.av-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #a89984;
+}
+
+.av-badge {
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(254, 128, 25, 0.15);
+  color: #fe8019;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.av-badge + .av-badge {
+  margin-left: 4px;
+}
+
+/* ── Action body ───────────────────────────────── */
+
+.av-body {
+  padding: 6px 10px 8px;
+}
+
+/* Say */
+.av-speaker {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #83a598;
+  margin-bottom: 2px;
+}
+
+.av-say-text {
+  font-size: 13px;
+  color: #ebdbb2;
+  line-height: 1.4;
+  font-style: italic;
+}
+
+/* Choice */
+.av-choice-prompt {
+  font-size: 12px;
+  color: #d3869b;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.av-choice-option {
+  margin-bottom: 4px;
+  border-radius: 3px;
+  background: rgba(211, 134, 155, 0.06);
+  border: 1px solid #3c3836;
+  overflow: hidden;
+}
+
+.av-choice-option-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: rgba(211, 134, 155, 0.08);
+}
+
+.av-choice-option-idx {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #3c3836;
+  font-size: 9px;
+  color: #d3869b;
+  flex-shrink: 0;
+}
+
+.av-choice-option-text {
+  font-size: 12px;
+  color: #ebdbb2;
+  font-weight: 500;
+}
+
+.av-choice-option > .av-list.av-nested {
+  margin: 4px 4px 6px 12px;
+  border-left-color: rgba(211, 134, 155, 0.3);
+}
+
+/* Set flag */
+.av-set-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.av-flag-name {
+  color: #fabd2f;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.av-set-arrow {
+  color: #7c6f64;
+}
+
+.av-flag-value {
+  color: #ebdbb2;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+/* If / then / else */
+.av-if-condition {
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.av-if-condition code {
+  background: rgba(254, 128, 25, 0.1);
+  color: #fe8019;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.av-if-keyword {
+  font-weight: 700;
+  color: #fe8019;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.av-branch-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+  margin-bottom: 2px;
+  padding-left: 2px;
+}
+
+.av-branch-then { color: #8ec07c; }
+.av-branch-else { color: #fb4934; }
+
+/* Chip (goto, run, emit) */
+.av-chip {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--chip-color, #7c6f64);
+  color: var(--chip-color, #ebdbb2);
+  font-size: 12px;
+  font-family: monospace;
+}
+
+/* Simple value (wait) */
+.av-simple-val {
+  font-size: 13px;
+  color: #ebdbb2;
+  font-family: monospace;
+}
+
+/* Property rows (show, hide, effect, playsound, stopsound) */
+.av-prop-row {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  padding: 1px 0;
+}
+
+.av-prop-key {
+  color: #a89984;
+  min-width: 58px;
+  flex-shrink: 0;
+}
+
+.av-prop-val {
+  color: #ebdbb2;
+  word-break: break-all;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.av-sub-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #a89984;
+  margin-top: 4px;
+  margin-bottom: 2px;
+}
+
+/* Raw JSON fallback */
+.av-raw {
+  font-size: 11px;
+  color: #a89984;
+  font-family: monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ── Clickable action link in properties ───────── */
+
+.prop-action-link {
+  color: #83a598;
+  cursor: pointer;
+  font-size: 13px;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+.prop-action-link:hover {
+  color: #bdae93;
+}
