@@ -51,10 +51,14 @@ bus.on('scene:goto', (id) => gotoScene(id));
 
 /* ── Game lifecycle ─────────────────────────────── */
 
-/** Load manifest and show title overlay. */
+/** Load manifest and show title overlay (or skip straight to game). */
 async function showTitle() {
   try {
     const manifest = await loader.load('_game');
+    if (manifest.skipTitleScreen) {
+      bus.emit('game:start');
+      return;
+    }
     overlay.showTitle({ title: manifest.title, subtitle: manifest.subtitle });
   } catch {
     overlay.showTitle({ title: 'büeARG', subtitle: 'A point-and-click adventure' });

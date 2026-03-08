@@ -1,5 +1,6 @@
 {
-  "title": "ğğğğğğğ",
+  "title": "büegame",
   "subtitle": "A point-and-click adventure",
-  "startScene": "intro"
+  "startScene": "intro",
+  "skipTitleScreen": true
 }
