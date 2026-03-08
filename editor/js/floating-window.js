@@ -2,6 +2,11 @@
  * Draggable (optionally resizable) floating window component.
  */
 
+let _zTop = 1000;
+function bringToFront(el) {
+  el.style.zIndex = ++_zTop;
+}
+
 /**
  * @param {Object}  opts
  * @param {string}  opts.title
@@ -42,14 +47,19 @@ export function createFloatingWindow({ title, icon = '', iconClass = '', width =
 
   el.append(header, body);
 
+  // -- Bring to front on click --
+  el.addEventListener('mousedown', () => bringToFront(el));
+
   // -- Drag-to-move via header --
   let dragStartX, dragStartY, startLeft, startTop;
 
   function onDragMove(e) {
     const dx = e.clientX - dragStartX;
     const dy = e.clientY - dragStartY;
-    el.style.left = `${startLeft + dx}px`;
-    el.style.top  = `${startTop + dy}px`;
+    const newLeft = Math.min(Math.max(0, startLeft + dx), window.innerWidth  - el.offsetWidth);
+    const newTop  = Math.min(Math.max(0, startTop  + dy), window.innerHeight - el.offsetHeight);
+    el.style.left = `${newLeft}px`;
+    el.style.top  = `${newTop}px`;
   }
   function onDragUp() {
     document.removeEventListener('mousemove', onDragMove);
@@ -91,6 +101,12 @@ export function createFloatingWindow({ title, icon = '', iconClass = '', width =
         if (edge.includes('s')) h = Math.max(100, h + dy);
         if (edge.includes('n')) { h = Math.max(100, h - dy); top = rsStartRect.top + (rsStartRect.height - h); }
 
+        // Clamp to viewport
+        if (left < 0)                         { w = Math.max(180, w + left); left = 0; }
+        if (top  < 0)                         { h = Math.max(100, h + top);  top  = 0; }
+        if (left + w > window.innerWidth)  w = Math.max(180, window.innerWidth  - left);
+        if (top  + h > window.innerHeight) h = Math.max(100, window.innerHeight - top);
+
         el.style.left   = `${left}px`;
         el.style.top    = `${top}px`;
         el.style.width  = `${w}px`;
@@ -128,19 +144,28 @@ export function createFloatingWindow({ title, icon = '', iconClass = '', width =
   function open() {
     el.classList.remove('hidden');
     centerOnScreen();
+    bringToFront(el);
   }
+
+  let _onClose = null;
 
   function close() {
     el.classList.add('hidden');
+    if (_onClose) _onClose();
   }
 
   function destroy() {
     el.remove();
+    if (_onClose) _onClose();
+  }
+
+  function onClose(fn) {
+    _onClose = fn;
   }
 
   closeBtn.addEventListener('click', close);
 
   document.body.appendChild(el);
 
-  return { el, body, open, close, destroy };
+  return { el, body, open, close, destroy, onClose };
 }
