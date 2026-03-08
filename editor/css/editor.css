@@ -2,7 +2,7 @@
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 html, body {
   width: 100%; height: 100%; overflow: hidden;
-  background: #1e1e2e; color: #cdd6f4;
+  background: #282828; color: #ebdbb2;
   font-family: 'Segoe UI', system-ui, sans-serif;
   font-size: 14px;
 }
@@ -11,8 +11,8 @@ html, body {
 #menu-bar {
   display: flex;
   height: 30px;
-  background: #181825;
-  border-bottom: 1px solid #313244;
+  background: #1d2021;
+  border-bottom: 1px solid #3c3836;
   user-select: none;
 }
 
@@ -24,7 +24,7 @@ html, body {
   font-size: 13px;
 }
 .menu-item:hover {
-  background: #313244;
+  background: #3c3836;
 }
 
 .menu-dropdown {
@@ -33,10 +33,10 @@ html, body {
   top: 100%;
   left: 0;
   min-width: 160px;
-  background: #1e1e2e;
-  border: 1px solid #313244;
+  background: #282828;
+  border: 1px solid #3c3836;
   z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
 }
 .menu-item.open .menu-dropdown {
   display: block;
@@ -49,12 +49,12 @@ html, body {
   text-align: left;
   background: none;
   border: none;
-  color: #cdd6f4;
+  color: #ebdbb2;
   font-size: 13px;
   cursor: pointer;
 }
 .menu-action:hover {
-  background: #313244;
+  background: #3c3836;
 }
 
 /* ── Editor layout (3-column + 2 resize handles) ── */
@@ -66,19 +66,19 @@ html, body {
 }
 
 .resize-handle {
-  background: #313244;
+  background: #3c3836;
   cursor: col-resize;
   transition: background 0.15s;
   z-index: 10;
 }
 .resize-handle:hover,
 .resize-handle.dragging {
-  background: #89b4fa;
+  background: #fe8019;
 }
 
 /* ── Left panel ────────────────────────────────── */
 #file-panel {
-  background: #181825;
+  background: #1d2021;
   border-right: none;
   display: flex;
   flex-direction: column;
@@ -91,8 +91,8 @@ html, body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #a6adc8;
-  border-bottom: 1px solid #313244;
+  color: #a89984;
+  border-bottom: 1px solid #3c3836;
   flex-shrink: 0;
 }
 
@@ -112,12 +112,12 @@ html, body {
   text-overflow: ellipsis;
 }
 #file-list li:hover {
-  background: #313244;
+  background: #3c3836;
 }
 #file-list li.selected {
-  background: #313244;
-  border-left-color: #89b4fa;
-  color: #fff;
+  background: #3c3836;
+  border-left-color: #fe8019;
+  color: #ebdbb2;
 }
 
 .file-icon {
@@ -127,7 +127,7 @@ html, body {
 
 /* ── Viewport ──────────────────────────────────── */
 #viewport {
-  background: #11111b;
+  background: #1d2021;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -139,8 +139,8 @@ html, body {
   position: relative;
   background-size: cover;
   background-position: center;
-  background-color: #181825;
-  border: 1px solid #313244;
+  background-color: #282828;
+  border: 1px solid #504945;
   overflow: hidden;
   /* Size is set dynamically by JS to preserve scene aspect ratio */
 }
@@ -151,24 +151,24 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #585b70;
+  color: #7c6f64;
   font-size: 15px;
 }
 
 /* Hotspot outlines in viewport */
 .editor-hotspot {
   position: absolute;
-  border: 2px dashed #89b4fa;
-  background: rgba(137, 180, 250, 0.08);
+  border: 2px dashed #fe8019;
+  background: rgba(254, 128, 25, 0.08);
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
 .editor-hotspot:hover {
-  background: rgba(137, 180, 250, 0.18);
+  background: rgba(254, 128, 25, 0.18);
 }
 .editor-hotspot.selected {
-  border-color: #f9e2af;
-  background: rgba(249, 226, 175, 0.12);
+  border-color: #fabd2f;
+  background: rgba(250, 189, 47, 0.12);
 }
 
 .editor-hotspot-label {
@@ -176,18 +176,18 @@ html, body {
   top: 2px;
   left: 4px;
   font-size: 10px;
-  color: #89b4fa;
+  color: #fe8019;
   text-shadow: 0 1px 3px rgba(0,0,0,0.8);
   pointer-events: none;
   white-space: nowrap;
 }
 .editor-hotspot.selected .editor-hotspot-label {
-  color: #f9e2af;
+  color: #fabd2f;
 }
 
 /* ── Right panel ───────────────────────────────── */
 #props-panel {
-  background: #181825;
+  background: #1d2021;
   border-left: none;
   display: flex;
   flex-direction: column;
@@ -201,7 +201,7 @@ html, body {
 }
 
 .props-empty {
-  color: #585b70;
+  color: #7c6f64;
   font-size: 13px;
   padding: 8px 0;
 }
@@ -215,10 +215,10 @@ html, body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #a6adc8;
+  color: #a89984;
   margin-bottom: 6px;
   padding-bottom: 4px;
-  border-bottom: 1px solid #313244;
+  border-bottom: 1px solid #3c3836;
 }
 
 .prop-row {
@@ -228,12 +228,12 @@ html, body {
   gap: 8px;
 }
 .prop-key {
-  color: #a6adc8;
+  color: #a89984;
   min-width: 70px;
   flex-shrink: 0;
 }
 .prop-val {
-  color: #cdd6f4;
+  color: #ebdbb2;
   word-break: break-all;
 }
 
@@ -252,33 +252,33 @@ html, body {
 }
 
 .modal-box {
-  background: #1e1e2e;
-  border: 1px solid #313244;
+  background: #282828;
+  border: 1px solid #504945;
   border-radius: 8px;
   padding: 28px 36px;
   text-align: center;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
 }
 .modal-box h2 {
   font-size: 1.3rem;
   margin-bottom: 6px;
 }
 .modal-box p {
-  color: #a6adc8;
+  color: #a89984;
   margin-bottom: 18px;
 }
 
 .modal-btn {
   padding: 6px 28px;
-  background: #313244;
-  color: #cdd6f4;
-  border: 1px solid #45475a;
+  background: #3c3836;
+  color: #ebdbb2;
+  border: 1px solid #504945;
   border-radius: 4px;
   cursor: pointer;
   font-size: 13px;
 }
 .modal-btn:hover {
-  background: #45475a;
+  background: #504945;
 }
 
 /* ── Utility ───────────────────────────────────── */
