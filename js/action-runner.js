@@ -30,6 +30,7 @@ export class ActionRunner {
     this.state = state;
     this._aborted = false;
     this._exited = false;
+    this._gotoFired = false;
     this.running = false;
     /** @type {Record<string, object[]>} Named action sequences from the current scene. */
     this.definitions = {};
@@ -47,18 +48,20 @@ export class ActionRunner {
     if (!_nested) {
       this._aborted = false;
       this._exited = false;
+      this._gotoFired = false;
       this.running = true;
     }
 
     try {
       for (const action of actions) {
-        if (this._aborted || this._exited) return;
+        if (this._aborted || this._exited || this._gotoFired) return;
 
         if (action.say != null) {
           await this._say(action);
         } else if (action.choice) {
           await this._choice(action.choice);
         } else if (action.goto) {
+          this._gotoFired = true;
           this.bus.emit('scene:goto', action.goto);
           return; // scene change ends this sequence
         } else if (action.set) {
@@ -113,7 +116,8 @@ export class ActionRunner {
           if (option.actions) await this.run(option.actions, true);
           // `exit` inside a choice branch should only break out of that
           // branch, not kill the parent sequence.
-          this._exited = false;
+          // But if a goto fired, keep everything stopped — we're changing scenes.
+          if (!this._gotoFired) this._exited = false;
           resolve();
         },
       });
