@@ -9,7 +9,9 @@
 <body>
   <div id="game-container">
     <!-- Scene layer: background + clickable hotspots -->
-    <div id="scene-layer"></div>
+    <div id="scene-layer">
+      <div id="grid-overlay" class="hidden"></div>
+    </div>
 
     <!-- UI overlay layer: title, pause, dialogues, choices -->
     <div id="ui-layer">
@@ -38,6 +40,12 @@
       <div id="choice-modal" class="overlay hidden">
         <div id="choice-prompt"></div>
         <div id="choice-list"></div>
+      </div>
+
+      <div id="debug-box" class="hidden">
+        <div id="debug-tile">Tile: —, —</div>
+        <div id="debug-hotspot">Hotspot: —</div>
+        <div id="debug-scene">Scene: —</div>
       </div>
     </div>
   </div>

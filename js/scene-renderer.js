@@ -10,6 +10,10 @@ export class SceneRenderer {
   constructor(sceneLayer, bus) {
     this.el = sceneLayer;
     this.bus = bus;
+
+    this._tooltip = document.createElement('div');
+    this._tooltip.className = 'hotspot-tooltip hidden';
+    this.el.appendChild(this._tooltip);
   }
 
   /**
@@ -52,7 +56,20 @@ export class SceneRenderer {
         }
 
         if (hs.cursor) div.style.cursor = hs.cursor;
-        if (hs.label)  div.title = hs.label;
+
+        if (hs.label) {
+          div.addEventListener('mouseenter', () => {
+            this._tooltip.textContent = hs.label;
+            const cx = hs.x * tileW + (hs.w * tileW) / 2;
+            const ty = hs.y * tileH;
+            this._tooltip.style.left = `${cx}px`;
+            this._tooltip.style.top  = `${ty}px`;
+            this._tooltip.classList.remove('hidden');
+          });
+          div.addEventListener('mouseleave', () => {
+            this._tooltip.classList.add('hidden');
+          });
+        }
 
         div.addEventListener('click', () => {
           this.bus.emit('hotspot:click', hs);
@@ -68,5 +85,6 @@ export class SceneRenderer {
     this.el.style.backgroundImage = '';
     this.el.style.backgroundColor = '#111';
     this.el.querySelectorAll('.hotspot').forEach(h => h.remove());
+    this._tooltip.classList.add('hidden');
   }
 }

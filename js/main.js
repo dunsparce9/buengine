@@ -9,11 +9,12 @@ import { OverlayUI }     from './overlay-ui.js';
 
 /* ── Bootstrap ──────────────────────────────────── */
 
-const bus    = new EventBus();
-const state  = new GameState();
-const loader = new ScriptLoader('scripts');
-const scene  = new SceneRenderer(document.getElementById('scene-layer'), bus);
-const runner = new ActionRunner({ bus, state });
+const bus         = new EventBus();
+const state       = new GameState();
+const loader      = new ScriptLoader('scripts');
+const scene       = new SceneRenderer(document.getElementById('scene-layer'), bus);
+const runner      = new ActionRunner({ bus, state });
+const gridOverlay = document.getElementById('grid-overlay');
 
 // UI subsystems (they self-register on the bus)
 new DialogueUI(bus);
@@ -32,6 +33,13 @@ async function gotoScene(id) {
   runner.definitions = data.definitions || {};
   state.pushScene(id);
   scene.render(data);
+  debugScene.textContent = `Scene: ${id}`;
+
+  // Keep grid overlay CSS vars in sync with the scene's tile dimensions
+  const cols = data.grid?.cols ?? 16;
+  const rows = data.grid?.rows ?? 9;
+  gridOverlay.style.setProperty('--grid-cols', cols);
+  gridOverlay.style.setProperty('--grid-rows', rows);
 
   // Run the scene's entry actions, if any
   if (Array.isArray(data.onEnter)) {
@@ -82,6 +90,54 @@ bus.on('game:title', () => {
   runner.abort();
   scene.clear();
   showTitle();
+});
+
+/* ── Debug mode (key 1) ─────────────────────────── */
+const debugBox     = document.getElementById('debug-box');
+const debugTile    = document.getElementById('debug-tile');
+const debugHotspot = document.getElementById('debug-hotspot');
+const debugScene   = document.getElementById('debug-scene');
+let debugActive = false;
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === '1') {
+    debugActive = !debugActive;
+    gridOverlay.classList.toggle('hidden', !debugActive);
+    debugBox.classList.toggle('hidden', !debugActive);
+  }
+});
+
+const sceneLayer = document.getElementById('scene-layer');
+
+sceneLayer.addEventListener('mousemove', (e) => {
+  if (!debugActive || !currentSceneData) return;
+  const rect = sceneLayer.getBoundingClientRect();
+  const cols = currentSceneData.grid?.cols ?? 16;
+  const rows = currentSceneData.grid?.rows ?? 9;
+  const tileW = rect.width / cols;
+  const tileH = rect.height / rows;
+  const tileX = Math.floor((e.clientX - rect.left) / tileW);
+  const tileY = Math.floor((e.clientY - rect.top) / tileH);
+  debugTile.textContent = `Tile: ${tileX}, ${tileY}`;
+
+  // Find hovered hotspot
+  let hoveredLabel = '—';
+  if (Array.isArray(currentSceneData.hotspots)) {
+    for (const hs of currentSceneData.hotspots) {
+      if (tileX >= hs.x && tileX < hs.x + hs.w &&
+          tileY >= hs.y && tileY < hs.y + hs.h) {
+        hoveredLabel = hs.id || hs.label || '(unnamed)';
+        break;
+      }
+    }
+  }
+  debugHotspot.textContent = `Hotspot: ${hoveredLabel}`;
+});
+
+sceneLayer.addEventListener('mouseleave', () => {
+  if (!debugActive) return;
+  debugTile.textContent = 'Tile: —, —';
+  debugHotspot.textContent = 'Hotspot: —';
 });
 
 /* ── Initial boot ───────────────────────────────── */
