@@ -81,6 +81,16 @@
         { "say": "It's beer.", "speaker": "Narrator" }
         ]}
       ]
+    },
+    {
+      "id": "seal",
+      "label": "Seal!",
+      "texture": "scripts/seal.png",
+      "x": 12, "y": 4, "w": 2, "h": 1,
+      "actions": [
+        { "say": "Büe...", "speaker": "Seal" },
+        { "say": "The cute seal pup bües at you, respectfully.", "speaker": "Narrator" }
+      ]
     }
   ],
   "onEnter": [
