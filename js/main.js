@@ -70,7 +70,7 @@ async function showTitle() {
     }
     overlay.showTitle({ title: manifest.title, subtitle: manifest.subtitle });
   } catch {
-    overlay.showTitle({ title: 'büeARG', subtitle: 'A point-and-click adventure' });
+    overlay.showTitle({ title: 'büegame', subtitle: 'A point-and-click adventure' });
   }
 }
 

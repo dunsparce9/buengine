@@ -1,12 +1,12 @@
 ---
-description: Project-wide instructions for the büeARG point-and-click game engine.
+description: Project-wide instructions for the büegame point-and-click game engine.
 applyTo: "**"
 ---
 
-# büeARG — Agent Instructions
+# büegame — Agent Instructions
 
 ## Project Overview
-büeARG is a **static, browser-only, 2D point-and-click adventure game engine**. There is no server, no build step, no bundler — just ES modules served from files. The game is entirely data-driven by JSON "script" files in `scripts/`.
+büegame is a **static, browser-only, 2D point-and-click adventure game engine**. There is no server, no build step, no bundler — just ES modules served from files. The game is entirely data-driven by JSON "script" files in `scripts/`.
 
 ## Architecture
 
