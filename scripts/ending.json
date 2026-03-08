@@ -1,6 +1,6 @@
 {
   "id": "ending",
-  "backgroundColor": "#0e0e1a",
+  "backgroundColor": "#000000",
   "grid": { "cols": 16, "rows": 9 },
   "hotspots": [
   ],
