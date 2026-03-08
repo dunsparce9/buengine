@@ -182,8 +182,26 @@
           "speaker": "Seal"
         },
         {
-          "say": "The cute seal pup bües at you, respectfully.",
-          "speaker": "Narrator"
+          "if": "abode.ladder.clicks >= 1",
+          "then": [
+            {
+              "say": "The seal noticed your humble attempt at going down the ominous ladder.",
+              "speaker": "Narrator"
+            },
+            {
+              "say": "It lets out a curious and suggestive büe. You start feeling like you should check other parts of the room before going down.",
+              "speaker": "Narrator"
+            }
+          ]
+        },
+        {
+          "if": "abode.ladder.clicks == 0",
+          "then": [
+            {
+              "say": "The cute seal pup bües at you, respectfully.",
+              "speaker": "Narrator"
+            }
+          ]
         }
       ]
     }
