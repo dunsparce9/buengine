@@ -10,10 +10,36 @@ export class SceneRenderer {
   constructor(sceneLayer, bus) {
     this.el = sceneLayer;
     this.bus = bus;
+    this._cols = 16;
+    this._rows = 9;
 
     this._tooltip = document.createElement('div');
     this._tooltip.className = 'hotspot-tooltip hidden';
     this.el.appendChild(this._tooltip);
+
+    window.addEventListener('resize', () => this._fitToContainer());
+  }
+
+  /** Resize the scene layer to fit its parent while preserving the grid aspect ratio. */
+  _fitToContainer() {
+    const container = this.el.parentElement;
+    if (!container) return;
+    const sceneRatio = this._cols / this._rows;
+    const availW = container.clientWidth;
+    const availH = container.clientHeight;
+    const containerRatio = availW / availH;
+
+    let w, h;
+    if (sceneRatio > containerRatio) {
+      w = availW;
+      h = availW / sceneRatio;
+    } else {
+      h = availH;
+      w = availH * sceneRatio;
+    }
+
+    this.el.style.width  = `${Math.round(w)}px`;
+    this.el.style.height = `${Math.round(h)}px`;
   }
 
   /**
@@ -35,6 +61,9 @@ export class SceneRenderer {
     // Grid dimensions (default 16×9)
     const cols = scene.grid?.cols ?? 16;
     const rows = scene.grid?.rows ?? 9;
+    this._cols = cols;
+    this._rows = rows;
+    this._fitToContainer();
     const tilePctW = 100 / cols;
     const tilePctH = 100 / rows;
 
@@ -80,6 +109,8 @@ export class SceneRenderer {
   clear() {
     this.el.style.backgroundImage = '';
     this.el.style.backgroundColor = '#111';
+    this.el.style.width  = '';
+    this.el.style.height = '';
     this.el.querySelectorAll('.hotspot').forEach(h => h.remove());
     this._tooltip.classList.add('hidden');
   }
