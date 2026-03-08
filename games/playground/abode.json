@@ -178,6 +178,15 @@
       "h": 1,
       "actions": [
         {
+          "playsound": {
+            "id": "büe",
+            "path": "sounds/büe.opus",
+            "volume": 0.1,
+            "loop": false,
+            "blocking": false
+          }
+        },
+        {
           "say": "Büe...",
           "speaker": "Seal"
         },
