@@ -31,6 +31,7 @@ export class ActionRunner {
     this._aborted = false;
     this._exited = false;
     this._gotoFired = false;
+    this._gotoTarget = null;
     this.running = false;
     /** @type {Record<string, object[]>} Named action sequences from the current scene. */
     this.definitions = {};
@@ -49,6 +50,7 @@ export class ActionRunner {
       this._aborted = false;
       this._exited = false;
       this._gotoFired = false;
+      this._gotoTarget = null;
       this.running = true;
     }
 
@@ -62,8 +64,8 @@ export class ActionRunner {
           await this._choice(action.choice);
         } else if (action.goto) {
           this._gotoFired = true;
-          this.bus.emit('scene:goto', action.goto);
-          return; // scene change ends this sequence
+          this._gotoTarget = action.goto;
+          return; // scene change — emitted after the full chain unwinds
         } else if (action.set) {
           this._applySet(action.set);
         } else if (action.if != null) {
@@ -91,6 +93,11 @@ export class ActionRunner {
     } finally {
       if (!_nested) {
         this.running = false;
+        // Emit scene change only after the entire action chain has unwound,
+        // so gotoScene's fresh runner.run() can't reset flags mid-unwind.
+        if (this._gotoFired && this._gotoTarget) {
+          this.bus.emit('scene:goto', this._gotoTarget);
+        }
       }
     }
   }
@@ -102,6 +109,7 @@ export class ActionRunner {
       this.bus.emit('dialogue:show', {
         speaker: action.speaker || '',
         text: action.say,
+        delay: action.delay || 0,
         onDone: resolve,
       });
     });

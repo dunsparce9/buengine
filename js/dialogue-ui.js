@@ -17,13 +17,16 @@ export class DialogueUI {
     this._typing  = false;
     this._fullText = '';
     this._timer   = null;
+    this._locked  = false;
+    this._lockTimer = null;
 
     this.box.addEventListener('click', () => this._advance());
     this.bus.on('dialogue:show', (data) => this.show(data));
   }
 
-  show({ speaker, text, onDone }) {
+  show({ speaker, text, delay, onDone }) {
     this._stopType();
+    this._clearLock();
     this.speaker.textContent = speaker;
     this._fullText = text;
     this._onDone = onDone;
@@ -31,6 +34,19 @@ export class DialogueUI {
     this.box.classList.remove('hidden');
     this.sceneLayer.classList.add('dialogue-active');
     this._typewrite(text);
+
+    if (delay > 0) {
+      this._locked = true;
+      this.box.classList.add('dialogue-locked');
+      this.hint.classList.add('hidden');
+      this._lockTimer = setTimeout(() => {
+        this._clearLock();
+        if (!this._typing) {
+          this.text.appendChild(this.hint);
+          this.hint.classList.remove('hidden');
+        }
+      }, delay * 1000);
+    }
   }
 
   hide() {
@@ -38,6 +54,7 @@ export class DialogueUI {
     this.hint.classList.add('hidden');
     this.sceneLayer.classList.remove('dialogue-active');
     this._stopType();
+    this._clearLock();
   }
 
   /* ── internals ───────────────────────────────── */
@@ -59,11 +76,20 @@ export class DialogueUI {
     clearInterval(this._timer);
     this._typing = false;
     this.text.textContent = this._fullText;
-    this.text.appendChild(this.hint);
-    this.hint.classList.remove('hidden');
+    if (!this._locked) {
+      this.text.appendChild(this.hint);
+      this.hint.classList.remove('hidden');
+    }
+  }
+
+  _clearLock() {
+    clearTimeout(this._lockTimer);
+    this._locked = false;
+    this.box.classList.remove('dialogue-locked');
   }
 
   _advance() {
+    if (this._locked) return;
     if (this._typing) {
       // Skip to full text
       this._stopType();

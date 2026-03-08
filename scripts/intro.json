@@ -15,14 +15,15 @@
           "scaling": "fill",
           "effect": {
             "type": "fade-in",
-            "seconds": 10,
+            "seconds": 6,
             "blocking": false
           }
         }
       },
       {
         "say": "Do you wish to proceed?",
-        "speaker": "GAME"
+        "speaker": "GAME",
+        "delay": 6
       },
       {
         "choice": {

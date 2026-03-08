@@ -149,6 +149,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font
   cursor: pointer;
   z-index: 50;
 }
+#dialogue-box.dialogue-locked {
+  cursor: default;
+}
 #dialogue-speaker {
   font-weight: bold;
   font-size: 1rem;

@@ -47,7 +47,7 @@ Scene scripts are JSON files in `scripts/`. Each has:
 Actions are objects in an array. Supported commands:
 | Command | Example |
 |---------|---------|
-| Dialogue | `{ "say": "Hello!", "speaker": "Ada" }` |
+| Dialogue | `{ "say": "Hello!", "speaker": "Ada" }` — optional `"delay": N` (seconds) locks input & hides advance hint for N seconds |
 | Choice | `{ "choice": { "prompt": "...", "options": [{ "text": "...", "actions": [...] }] } }` |
 | Scene change | `{ "goto": "scene_id" }` |
 | Set flag | `{ "set": { "flag_name": true } }` |
