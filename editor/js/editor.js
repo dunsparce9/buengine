@@ -19,6 +19,7 @@ let manifest    = null;  // _game.json data
 let scripts     = {};    // id → parsed JSON
 let selectedId  = null;  // currently selected script id
 let selectedHs  = null;  // currently selected hotspot id (within a scene)
+const dirtySet  = new Set(); // script ids with unsaved edits
 
 /* ── Floating Window system ──────────────────── */
 
@@ -32,7 +33,7 @@ let selectedHs  = null;  // currently selected hotspot id (within a scene)
  * @param {boolean} [opts.resizable=false]
  * @returns {{ el: HTMLElement, body: HTMLElement, open(): void, close(): void, destroy(): void }}
  */
-function createFloatingWindow({ title, icon = '', width = 300, height, resizable = false }) {
+function createFloatingWindow({ title, icon = '', iconClass = '', width = 300, height, resizable = false }) {
   const el = document.createElement('div');
   el.className = 'fw hidden';
   el.style.width = `${width}px`;
@@ -43,7 +44,7 @@ function createFloatingWindow({ title, icon = '', width = 300, height, resizable
   header.className = 'fw-header';
 
   const iconEl = document.createElement('span');
-  iconEl.className = 'fw-icon';
+  iconEl.className = iconClass ? `fw-icon ${iconClass}` : 'fw-icon';
   iconEl.textContent = icon;
 
   const titleEl = document.createElement('span');
@@ -200,7 +201,8 @@ function renderFileList() {
   for (const id of ids) {
     const li = document.createElement('li');
     const icon = id === '_game' ? '⚙️' : '🌎️';
-    li.innerHTML = `<span class="file-icon">${icon}</span>${id}.json`;
+    li.innerHTML = `<span class="file-icon">${icon}</span>${escapeHtml(id)}.json`;
+    if (dirtySet.has(id)) li.classList.add('dirty');
     li.dataset.id = id;
 
     if (id === selectedId) li.classList.add('selected');
@@ -338,9 +340,9 @@ function renderProperties() {
 
 function renderGameProps(data) {
   addEditablePropGroup('Game manifest', [
-    { key: 'title',      value: data.title      ?? '', onChange: v => { data.title = v; } },
-    { key: 'subtitle',   value: data.subtitle   ?? '', onChange: v => { data.subtitle = v; } },
-    { key: 'startScene', value: data.startScene ?? '', onChange: v => { data.startScene = v; } },
+    { key: 'title',      value: data.title      ?? '', onChange: v => { data.title = v; markDirty('_game'); } },
+    { key: 'subtitle',   value: data.subtitle   ?? '', onChange: v => { data.subtitle = v; markDirty('_game'); } },
+    { key: 'startScene', value: data.startScene ?? '', onChange: v => { data.startScene = v; markDirty('_game'); } },
   ]);
 
   if (data.scenes) {
@@ -451,6 +453,13 @@ function escapeHtml(s) {
   return div.innerHTML;
 }
 
+function markDirty(id) {
+  if (!dirtySet.has(id)) {
+    dirtySet.add(id);
+    renderFileList();
+  }
+}
+
 /* ── Menu bar ──────────────────────────────────── */
 
 // Toggle dropdowns
@@ -523,7 +532,8 @@ function exportCurrentJson() {
 /* ── About window ────────────────────────────── */
 const aboutWindow = createFloatingWindow({
   title: 'About',
-  icon: 'ℹ️',
+  icon: 'info',
+  iconClass: 'material-symbols-outlined',
   width: 280,
   resizable: false,
 });

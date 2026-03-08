@@ -103,6 +103,8 @@ html, body {
 }
 
 #file-list li {
+  display: flex;
+  align-items: center;
   padding: 6px 12px;
   cursor: pointer;
   font-size: 13px;
@@ -123,6 +125,17 @@ html, body {
 .file-icon {
   margin-right: 6px;
   opacity: 0.6;
+}
+
+#file-list li.dirty::after {
+  content: '';
+  display: block;
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #fe8019;
+  margin-left: auto;
 }
 
 /* ── Viewport ──────────────────────────────────── */
@@ -271,6 +284,9 @@ html, body {
   font-size: 13px;
   opacity: 0.7;
   flex-shrink: 0;
+}
+.fw-icon.material-symbols-outlined {
+  font-size: 18px;
 }
 
 .fw-title {
