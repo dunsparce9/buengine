@@ -57,9 +57,12 @@ function renderSceneProps(data) {
     (data.hotspots || []).map(hs => [hs.id || '?', hs.label || '—'])
   );
 
-  if (data.onEnter?.length) {
+  {
+    if (!data.onEnter) data.onEnter = [];
     addActionLinkGroup('onEnter', [['actions', data.onEnter.length]],
-      () => openActionViewer(`${data.id} — onEnter`, data.onEnter)
+      () => openActionViewer(`${data.id} — onEnter`, data.onEnter, {
+        onChange: () => markDirty(data.id),
+      })
     );
   }
 
@@ -92,9 +95,12 @@ function renderHotspotProps(hs) {
   if (hs.texture) {
     addPropGroup('Texture', [['src', hs.texture]]);
   }
-  if (hs.actions?.length) {
+  {
+    if (!hs.actions) hs.actions = [];
     addActionLinkGroup('Actions', [['count', hs.actions.length]],
-      () => openActionViewer(`${hs.id} — actions`, hs.actions)
+      () => openActionViewer(`${hs.id} — actions`, hs.actions, {
+        onChange: () => markDirty(sceneId),
+      })
     );
   }
 }
@@ -173,7 +179,9 @@ function addDefinitionsGroup(data, names) {
     link.className = 'prop-action-link';
     link.textContent = `${actions.length} action(s)`;
     link.addEventListener('click', () =>
-      openActionViewer(`${data.id} — ${name}`, actions)
+      openActionViewer(`${data.id} — ${name}`, actions, {
+        onChange: () => markDirty(data.id),
+      })
     );
 
     row.append(keyEl, link);

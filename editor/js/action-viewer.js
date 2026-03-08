@@ -1,8 +1,9 @@
 /**
- * Action Viewer — read-only visual display of action arrays.
+ * Action Viewer & Editor — visual display and editing of action arrays.
  *
  * Opens a floating window and renders each action as a styled block
  * with distinct icons and accent colours per action type.
+ * Supports inline editing, drag-to-reorder, add and delete.
  */
 
 import { createFloatingWindow } from './floating-window.js';
@@ -28,112 +29,111 @@ const ACTION_META = {
   unknown:   { icon: 'help_outline',        color: '#7c6f64', label: 'Unknown' },
 };
 
+/* ── Full field schemas per action type ────────── */
+
+const ACTION_SCHEMAS = {
+  say: [
+    { key: 'say',     label: 'Text',       type: 'textarea', required: true },
+    { key: 'speaker', label: 'Speaker',    type: 'string' },
+    { key: 'delay',   label: 'Delay (s)',  type: 'number', step: 0.5 },
+  ],
+  choice: [
+    { key: 'choice.prompt', label: 'Prompt', type: 'string' },
+  ],
+  goto: [
+    { key: 'goto', label: 'Scene ID', type: 'string', required: true },
+  ],
+  set: [],
+  if: [
+    { key: 'if', label: 'Condition', type: 'string', required: true },
+  ],
+  wait: [
+    { key: 'wait', label: 'Duration (ms)', type: 'number', required: true, step: 100 },
+  ],
+  emit: [
+    { key: 'emit', label: 'Event name', type: 'string', required: true },
+  ],
+  run: [
+    { key: 'run', label: 'Definition', type: 'string', required: true },
+  ],
+  exit: [
+    { key: 'exit', label: 'Exit', type: 'boolean', fixed: true },
+  ],
+  show: [
+    { key: 'show.id',              label: 'ID',              type: 'string', required: true },
+    { key: 'show.texture',         label: 'Texture',         type: 'string' },
+    { key: 'show.layer',           label: 'Layer',           type: 'select', options: ['', 'overlay', 'background'] },
+    { key: 'show.scaling',         label: 'Scaling',         type: 'select', options: ['', 'fill', 'contain', 'cover'] },
+    { key: 'show.effect.type',     label: 'Effect type',     type: 'select', options: ['', 'fade-in', 'fade-out'] },
+    { key: 'show.effect.seconds',  label: 'Effect secs',     type: 'number', step: 0.5 },
+    { key: 'show.effect.blocking', label: 'Effect blocking', type: 'boolean' },
+  ],
+  hide: [
+    { key: 'hide.id',              label: 'ID',              type: 'string', required: true },
+    { key: 'hide.effect.type',     label: 'Effect type',     type: 'select', options: ['', 'fade-in', 'fade-out'] },
+    { key: 'hide.effect.seconds',  label: 'Effect secs',     type: 'number', step: 0.5 },
+    { key: 'hide.effect.blocking', label: 'Effect blocking', type: 'boolean' },
+  ],
+  effect: [
+    { key: 'effect.type',     label: 'Type',         type: 'select', options: ['', 'fade-in', 'fade-out'], required: true },
+    { key: 'effect.seconds',  label: 'Duration (s)', type: 'number', step: 0.5 },
+    { key: 'effect.blocking', label: 'Blocking',     type: 'boolean' },
+  ],
+  playsound: [
+    { key: 'playsound.id',       label: 'ID',       type: 'string', required: true },
+    { key: 'playsound.path',     label: 'Path',     type: 'string' },
+    { key: 'playsound.volume',   label: 'Volume',   type: 'number', step: 0.1, min: 0, max: 1 },
+    { key: 'playsound.fade',     label: 'Fade (s)', type: 'number', step: 0.5 },
+    { key: 'playsound.loop',     label: 'Loop',     type: 'boolean' },
+    { key: 'playsound.blocking', label: 'Blocking', type: 'boolean' },
+  ],
+  stopsound: [
+    { key: 'stopsound.id',       label: 'ID',       type: 'string', required: true },
+    { key: 'stopsound.fade',     label: 'Fade (s)', type: 'number', step: 0.5 },
+    { key: 'stopsound.blocking', label: 'Blocking', type: 'boolean' },
+  ],
+};
+
 /* ── Open viewer registry (dedup by title) ─────── */
 
-/** @type {Map<string, ReturnType<typeof createFloatingWindow>>} */
+/** @type {Map<string, {fw: ReturnType<typeof createFloatingWindow>, rebuild: Function}>} */
 const _openViewers = new Map();
 
 /* ── Public API ────────────────────────────────── */
 
 /**
- * Open the action viewer with the given action array.
- * If a viewer with the same title is already open, focus it instead.
- * @param {string} title  Header text (e.g. "hotspot: torch → actions")
- * @param {Array}  actions  The action array to display
+ * Open the action viewer/editor for the given action array.
+ * @param {string}   title    Header text
+ * @param {Array}    actions  The action array (mutated in place on edits)
+ * @param {Object}   [opts]
+ * @param {Function} [opts.onChange]  Called after any mutation
  */
-export function openActionViewer(title, actions) {
+export function openActionViewer(title, actions, opts = {}) {
   const key = title || 'Actions';
 
   const existing = _openViewers.get(key);
-  if (existing && !existing.el.classList.contains('hidden')) {
-    existing.open(); // brings to front
+  if (existing && !existing.fw.el.classList.contains('hidden')) {
+    existing.fw.open();
     return;
   }
 
   const fw = createFloatingWindow({
-    title: title || 'Actions',
+    title: key,
     icon: 'list_alt',
     iconClass: 'material-symbols-outlined',
-    width: 460,
-    height: 520,
+    width: 480,
+    height: 540,
     resizable: true,
   });
 
-  // Register and clean up on close
-  _openViewers.set(key, fw);
+  _openViewers.set(key, { fw });
   fw.onClose(() => _openViewers.delete(key));
 
-  if (!actions || actions.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'av-empty';
-    empty.textContent = 'No actions';
-    fw.body.appendChild(empty);
-    fw.open();
-    return;
-  }
-
-  const list = renderActionList(actions);
-  fw.body.appendChild(list);
+  buildEditorContent(fw.body, actions, fw, opts);
   fw.open();
 }
 
-/* ── Rendering ─────────────────────────────────── */
-
-function renderActionList(actions) {
-  const container = document.createElement('div');
-  container.className = 'av-list';
-  for (let i = 0; i < actions.length; i++) {
-    container.appendChild(renderAction(actions[i], i));
-  }
-  return container;
-}
-
-function renderAction(action, index) {
-  const type = detectType(action);
-  const meta = ACTION_META[type] || ACTION_META.unknown;
-
-  const block = document.createElement('div');
-  block.className = `av-block av-block-${type}`;
-  block.style.setProperty('--av-accent', meta.color);
-
-  // Header row: index + icon + label
-  const header = document.createElement('div');
-  header.className = 'av-block-header';
-
-  const idx = document.createElement('span');
-  idx.className = 'av-index';
-  idx.textContent = index + 1;
-
-  const icon = document.createElement('span');
-  icon.className = 'av-icon material-symbols-outlined';
-  icon.style.color = meta.color;
-  icon.textContent = meta.icon;
-
-  const label = document.createElement('span');
-  label.className = 'av-label';
-  label.textContent = meta.label;
-
-  header.append(idx, icon, label);
-
-  // Badges (blocking, delay, loop, etc.)
-  const badges = getBadges(action, type);
-  for (const badge of badges) {
-    const el = document.createElement('span');
-    el.className = 'av-badge';
-    el.textContent = badge;
-    header.appendChild(el);
-  }
-
-  block.appendChild(header);
-
-  // Body content (type-specific)
-  const body = renderActionBody(action, type);
-  if (body) {
-    block.appendChild(body);
-  }
-
-  return block;
-}
+/* ── View-mode body renderer ───────────────────── */
 
 function renderActionBody(action, type) {
   switch (type) {
@@ -201,7 +201,7 @@ function renderChoice(choice) {
       optBlock.appendChild(optHeader);
 
       if (Array.isArray(opt.actions) && opt.actions.length > 0) {
-        const nested = renderActionList(opt.actions);
+        const nested = buildReadOnlyList(opt.actions);
         nested.className += ' av-nested';
         optBlock.appendChild(nested);
       }
@@ -263,7 +263,7 @@ function renderIf(action) {
     thenLabel.textContent = 'then';
     body.appendChild(thenLabel);
 
-    const thenList = renderActionList(action.then);
+    const thenList = buildReadOnlyList(action.then);
     thenList.className += ' av-nested';
     body.appendChild(thenList);
   }
@@ -274,7 +274,7 @@ function renderIf(action) {
     elseLabel.textContent = 'else';
     body.appendChild(elseLabel);
 
-    const elseList = renderActionList(action.else);
+    const elseList = buildReadOnlyList(action.else);
     elseList.className += ' av-nested';
     body.appendChild(elseList);
   }
@@ -427,4 +427,683 @@ function getBadges(action, type) {
   if (type === 'hide' && action.hide?.effect?.blocking) badges.push('blocking');
 
   return badges;
+}
+
+/* ── Editor content builder ────────────────────── */
+
+function buildEditorContent(container, actions, fw, opts) {
+  if (actions && actions.length > 0) {
+    const list = buildEditableList(actions, fw, opts);
+    container.appendChild(list);
+  } else {
+    const empty = document.createElement('div');
+    empty.className = 'av-empty';
+    empty.textContent = 'No actions yet';
+    container.appendChild(empty);
+  }
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'av-toolbar';
+  const addBtn = document.createElement('button');
+  addBtn.className = 'av-add-btn';
+  addBtn.innerHTML = '<span class="material-symbols-outlined">add_circle</span> Add action';
+  addBtn.addEventListener('click', async () => {
+    const type = await pickActionType(fw);
+    if (!type) return;
+    actions.push(createDefaultAction(type));
+    if (opts.onChange) opts.onChange();
+    container.innerHTML = '';
+    buildEditorContent(container, actions, fw, opts);
+  });
+  toolbar.appendChild(addBtn);
+  container.appendChild(toolbar);
+}
+
+/* ── Editable list with drag-and-drop ──────────── */
+
+function buildEditableList(actions, fw, opts) {
+  const container = document.createElement('div');
+  container.className = 'av-list';
+  let editingIdx = null;
+
+  function renderBlocks() {
+    container.innerHTML = '';
+    for (let i = 0; i < actions.length; i++) {
+      container.appendChild(buildEditableBlock(actions[i], i, {
+        actions, fw, opts, editingIdx,
+        onEdit(idx) {
+          if (editingIdx === idx) {
+            cleanAction(actions[editingIdx], detectType(actions[editingIdx]));
+            editingIdx = null;
+          } else {
+            if (editingIdx != null) cleanAction(actions[editingIdx], detectType(actions[editingIdx]));
+            editingIdx = idx;
+          }
+          renderBlocks();
+        },
+        onDelete(idx) {
+          actions.splice(idx, 1);
+          if (editingIdx === idx) editingIdx = null;
+          else if (editingIdx != null && editingIdx > idx) editingIdx--;
+          if (opts.onChange) opts.onChange();
+          fw.body.innerHTML = '';
+          buildEditorContent(fw.body, actions, fw, opts);
+        },
+        onFieldChange() {
+          if (opts.onChange) opts.onChange();
+        },
+      }));
+    }
+  }
+
+  renderBlocks();
+  setupDragAndDrop(container, (from, to) => {
+    const [item] = actions.splice(from, 1);
+    actions.splice(to, 0, item);
+    if (editingIdx === from) editingIdx = to;
+    else if (editingIdx != null) {
+      if (from < editingIdx && to >= editingIdx) editingIdx--;
+      else if (from > editingIdx && to <= editingIdx) editingIdx++;
+    }
+    if (opts.onChange) opts.onChange();
+    renderBlocks();
+  });
+
+  return container;
+}
+
+/* ── Single editable action block ──────────────── */
+
+function buildEditableBlock(action, index, ctx) {
+  const type = detectType(action);
+  const meta = ACTION_META[type] || ACTION_META.unknown;
+  const isEditing = ctx.editingIdx === index;
+
+  const block = document.createElement('div');
+  block.className = `av-block av-block-${type}${isEditing ? ' av-editing' : ''}`;
+  block.style.setProperty('--av-accent', meta.color);
+  block.dataset.index = index;
+
+  const header = document.createElement('div');
+  header.className = 'av-block-header';
+  header.setAttribute('draggable', 'true');
+
+  const dragHandle = document.createElement('span');
+  dragHandle.className = 'av-drag-handle material-symbols-outlined';
+  dragHandle.textContent = 'drag_indicator';
+
+  const idx = document.createElement('span');
+  idx.className = 'av-index';
+  idx.textContent = index + 1;
+
+  const icon = document.createElement('span');
+  icon.className = 'av-icon material-symbols-outlined';
+  icon.style.color = meta.color;
+  icon.textContent = meta.icon;
+
+  const label = document.createElement('span');
+  label.className = 'av-label';
+  label.textContent = meta.label;
+
+  header.append(dragHandle, idx, icon, label);
+
+  const badges = getBadges(action, type);
+  for (const b of badges) {
+    const el = document.createElement('span');
+    el.className = 'av-badge';
+    el.textContent = b;
+    header.appendChild(el);
+  }
+
+  const editBtn = document.createElement('button');
+  editBtn.className = 'av-header-btn av-edit-btn';
+  editBtn.title = isEditing ? 'Done' : 'Edit';
+  editBtn.innerHTML = `<span class="material-symbols-outlined">${isEditing ? 'check' : 'edit'}</span>`;
+  editBtn.addEventListener('click', (e) => { e.stopPropagation(); ctx.onEdit(index); });
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'av-header-btn av-delete-btn';
+  delBtn.title = 'Delete';
+  delBtn.innerHTML = '<span class="material-symbols-outlined">delete</span>';
+  delBtn.addEventListener('click', (e) => { e.stopPropagation(); ctx.onDelete(index); });
+
+  header.append(editBtn, delBtn);
+  block.appendChild(header);
+
+  if (isEditing) {
+    block.appendChild(buildEditForm(action, type, ctx));
+  } else {
+    const body = renderActionBody(action, type);
+    if (body) block.appendChild(body);
+  }
+
+  return block;
+}
+
+/* ── Edit form builder ─────────────────────────── */
+
+function buildEditForm(action, type, ctx) {
+  const form = document.createElement('div');
+  form.className = 'av-edit-form';
+
+  const schema = ACTION_SCHEMAS[type];
+  if (schema) {
+    for (const field of schema) {
+      form.appendChild(buildFieldRow(action, field, ctx));
+    }
+  }
+
+  if (type === 'set')    form.appendChild(buildSetEditor(action, ctx));
+  if (type === 'choice') form.appendChild(buildChoiceEditor(action, ctx));
+  if (type === 'if')     form.appendChild(buildIfBranchesEditor(action, ctx));
+
+  return form;
+}
+
+function buildFieldRow(action, field, ctx) {
+  const row = document.createElement('div');
+  row.className = 'av-field-row';
+
+  const lbl = document.createElement('label');
+  lbl.className = 'av-field-label';
+  lbl.textContent = field.label;
+  if (field.required) {
+    const req = document.createElement('span');
+    req.className = 'av-field-required';
+    req.textContent = ' *';
+    lbl.appendChild(req);
+  }
+  row.appendChild(lbl);
+
+  const val = getNestedValue(action, field.key);
+
+  switch (field.type) {
+    case 'string': {
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.className = 'av-field-input';
+      inp.value = val ?? '';
+      if (field.fixed) inp.readOnly = true;
+      inp.addEventListener('input', () => {
+        setNestedValue(action, field.key, inp.value || undefined);
+        ctx.onFieldChange();
+      });
+      row.appendChild(inp);
+      break;
+    }
+    case 'textarea': {
+      const ta = document.createElement('textarea');
+      ta.className = 'av-field-input av-field-textarea';
+      ta.value = val ?? '';
+      ta.rows = 3;
+      ta.addEventListener('input', () => {
+        setNestedValue(action, field.key, ta.value || undefined);
+        ctx.onFieldChange();
+      });
+      row.appendChild(ta);
+      break;
+    }
+    case 'number': {
+      const inp = document.createElement('input');
+      inp.type = 'number';
+      inp.className = 'av-field-input av-field-number';
+      inp.value = val ?? '';
+      if (field.step != null) inp.step = field.step;
+      if (field.min  != null) inp.min  = field.min;
+      if (field.max  != null) inp.max  = field.max;
+      inp.addEventListener('input', () => {
+        const v = inp.value === '' ? undefined : parseFloat(inp.value);
+        setNestedValue(action, field.key, v);
+        ctx.onFieldChange();
+      });
+      row.appendChild(inp);
+      break;
+    }
+    case 'boolean': {
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'av-field-checkbox';
+      cb.checked = !!val;
+      if (field.fixed) cb.disabled = true;
+      cb.addEventListener('change', () => {
+        setNestedValue(action, field.key, cb.checked || undefined);
+        ctx.onFieldChange();
+      });
+      row.appendChild(cb);
+      break;
+    }
+    case 'select': {
+      const sel = document.createElement('select');
+      sel.className = 'av-field-input av-field-select';
+      for (const opt of (field.options || [])) {
+        const o = document.createElement('option');
+        o.value = opt;
+        o.textContent = opt || '(none)';
+        if (opt === (val ?? '')) o.selected = true;
+        sel.appendChild(o);
+      }
+      sel.addEventListener('change', () => {
+        setNestedValue(action, field.key, sel.value || undefined);
+        ctx.onFieldChange();
+      });
+      row.appendChild(sel);
+      break;
+    }
+  }
+
+  return row;
+}
+
+/* ── Set flag editor ───────────────────────────── */
+
+function buildSetEditor(action, ctx) {
+  const wrap = document.createElement('div');
+  wrap.className = 'av-set-editor';
+  if (!action.set || typeof action.set !== 'object') action.set = {};
+
+  function render() {
+    wrap.innerHTML = '';
+    for (const [flag, value] of Object.entries(action.set)) {
+      const row = document.createElement('div');
+      row.className = 'av-set-edit-row';
+
+      const nameInp = document.createElement('input');
+      nameInp.type = 'text';
+      nameInp.className = 'av-field-input';
+      nameInp.value = flag;
+      nameInp.placeholder = 'flag name';
+
+      const valInp = document.createElement('input');
+      valInp.type = 'text';
+      valInp.className = 'av-field-input';
+      valInp.value = typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
+      valInp.placeholder = 'value';
+
+      const rmBtn = document.createElement('button');
+      rmBtn.className = 'av-mini-btn av-mini-btn-danger';
+      rmBtn.innerHTML = '<span class="material-symbols-outlined">close</span>';
+      rmBtn.title = 'Remove';
+
+      nameInp.addEventListener('change', () => {
+        const nk = nameInp.value.trim();
+        if (!nk || nk === flag) return;
+        const v = action.set[flag];
+        delete action.set[flag];
+        action.set[nk] = v;
+        ctx.onFieldChange();
+        render();
+      });
+
+      valInp.addEventListener('change', () => {
+        action.set[nameInp.value || flag] = parseSetValue(valInp.value);
+        ctx.onFieldChange();
+      });
+
+      rmBtn.addEventListener('click', () => {
+        delete action.set[flag];
+        ctx.onFieldChange();
+        render();
+      });
+
+      row.append(nameInp, valInp, rmBtn);
+      wrap.appendChild(row);
+    }
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'av-mini-btn';
+    addBtn.innerHTML = '<span class="material-symbols-outlined">add</span> Add flag';
+    addBtn.addEventListener('click', () => {
+      let n = 'new_flag'; let i = 1;
+      while (action.set[n]) n = `new_flag_${i++}`;
+      action.set[n] = true;
+      ctx.onFieldChange();
+      render();
+    });
+    wrap.appendChild(addBtn);
+  }
+
+  render();
+  return wrap;
+}
+
+function parseSetValue(raw) {
+  const s = raw.trim();
+  if (s === 'true') return true;
+  if (s === 'false') return false;
+  if (/^[+-]\d+$/.test(s)) return s;
+  const n = Number(s);
+  if (!isNaN(n) && s !== '') return n;
+  try { return JSON.parse(s); } catch { /* ignore */ }
+  return s;
+}
+
+/* ── Choice editor ─────────────────────────────── */
+
+function buildChoiceEditor(action, ctx) {
+  const wrap = document.createElement('div');
+  wrap.className = 'av-choice-editor';
+  if (!action.choice) action.choice = { prompt: '', options: [] };
+  if (!action.choice.options) action.choice.options = [];
+
+  function render() {
+    wrap.innerHTML = '';
+    const choiceOpts = action.choice.options;
+    for (let i = 0; i < choiceOpts.length; i++) {
+      const opt = choiceOpts[i];
+      const row = document.createElement('div');
+      row.className = 'av-choice-edit-option';
+
+      const hdr = document.createElement('div');
+      hdr.className = 'av-choice-edit-option-header';
+
+      const badge = document.createElement('span');
+      badge.className = 'av-choice-option-idx';
+      badge.textContent = i + 1;
+
+      const textInp = document.createElement('input');
+      textInp.type = 'text';
+      textInp.className = 'av-field-input';
+      textInp.value = opt.text || '';
+      textInp.placeholder = 'Option text';
+      textInp.addEventListener('input', () => {
+        opt.text = textInp.value;
+        ctx.onFieldChange();
+      });
+
+      const actBtn = document.createElement('button');
+      actBtn.className = 'av-mini-btn';
+      actBtn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${opt.actions?.length || 0}`;
+      actBtn.title = 'Edit option actions';
+      actBtn.addEventListener('click', () => {
+        if (!opt.actions) opt.actions = [];
+        openActionViewer(`Option ${i + 1}: ${opt.text || '\u2026'}`, opt.actions, {
+          onChange() {
+            ctx.onFieldChange();
+            actBtn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${opt.actions.length}`;
+          },
+        });
+      });
+
+      const rmBtn = document.createElement('button');
+      rmBtn.className = 'av-mini-btn av-mini-btn-danger';
+      rmBtn.innerHTML = '<span class="material-symbols-outlined">close</span>';
+      rmBtn.addEventListener('click', () => {
+        choiceOpts.splice(i, 1);
+        ctx.onFieldChange();
+        render();
+      });
+
+      hdr.append(badge, textInp, actBtn, rmBtn);
+      row.appendChild(hdr);
+      wrap.appendChild(row);
+    }
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'av-mini-btn';
+    addBtn.innerHTML = '<span class="material-symbols-outlined">add</span> Add option';
+    addBtn.addEventListener('click', () => {
+      choiceOpts.push({ text: '', actions: [] });
+      ctx.onFieldChange();
+      render();
+    });
+    wrap.appendChild(addBtn);
+  }
+
+  render();
+  return wrap;
+}
+
+/* ── If branches editor ────────────────────────── */
+
+function buildIfBranchesEditor(action, ctx) {
+  const wrap = document.createElement('div');
+  wrap.className = 'av-if-editor';
+
+  function branchRow(label, cssClass, key) {
+    const row = document.createElement('div');
+    row.className = 'av-branch-edit-row';
+    const lbl = document.createElement('span');
+    lbl.className = `av-branch-label ${cssClass}`;
+    lbl.textContent = label;
+    const btn = document.createElement('button');
+    btn.className = 'av-mini-btn';
+    btn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${action[key]?.length || 0} action(s)`;
+    btn.addEventListener('click', () => {
+      if (!action[key]) action[key] = [];
+      openActionViewer(label, action[key], {
+        onChange() {
+          ctx.onFieldChange();
+          btn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${action[key].length} action(s)`;
+        },
+      });
+    });
+    row.append(lbl, btn);
+    return row;
+  }
+
+  wrap.appendChild(branchRow('then', 'av-branch-then', 'then'));
+  wrap.appendChild(branchRow('else', 'av-branch-else', 'else'));
+  return wrap;
+}
+
+/* ── Type picker modal ─────────────────────────── */
+
+function pickActionType(parentFw) {
+  return new Promise(resolve => {
+    let resolved = false;
+    const fw = createFloatingWindow({
+      title: 'Add Action',
+      icon: 'add_circle',
+      iconClass: 'material-symbols-outlined',
+      width: 420,
+      height: 480,
+      resizable: false,
+      modal: true,
+      parent: parentFw,
+    });
+
+    const grid = document.createElement('div');
+    grid.className = 'av-type-grid';
+
+    for (const [type, meta] of Object.entries(ACTION_META)) {
+      if (type === 'unknown') continue;
+      const card = document.createElement('button');
+      card.className = 'av-type-card';
+      card.style.setProperty('--av-accent', meta.color);
+      const ci = document.createElement('span');
+      ci.className = 'material-symbols-outlined';
+      ci.style.color = meta.color;
+      ci.textContent = meta.icon;
+      const cl = document.createElement('span');
+      cl.className = 'av-type-card-label';
+      cl.textContent = meta.label;
+      card.append(ci, cl);
+      card.addEventListener('click', () => {
+        if (resolved) return;
+        resolved = true;
+        fw.destroy();
+        resolve(type);
+      });
+      grid.appendChild(card);
+    }
+
+    fw.body.style.padding = '12px';
+    fw.body.appendChild(grid);
+    fw.onClose(() => { if (!resolved) { resolved = true; resolve(null); } });
+    fw.open();
+  });
+}
+
+/* ── Default action constructors ───────────────── */
+
+function createDefaultAction(type) {
+  switch (type) {
+    case 'say':       return { say: '', speaker: '' };
+    case 'choice':    return { choice: { prompt: '', options: [{ text: '', actions: [] }] } };
+    case 'goto':      return { goto: '' };
+    case 'set':       return { set: {} };
+    case 'if':        return { if: '', then: [], else: [] };
+    case 'wait':      return { wait: 500 };
+    case 'emit':      return { emit: '' };
+    case 'run':       return { run: '' };
+    case 'exit':      return { exit: true };
+    case 'show':      return { show: { id: '' } };
+    case 'hide':      return { hide: { id: '' } };
+    case 'effect':    return { effect: { type: 'fade-in', seconds: 1 } };
+    case 'playsound': return { playsound: { id: '', path: '' } };
+    case 'stopsound': return { stopsound: { id: '' } };
+    default:          return {};
+  }
+}
+
+/* ── Drag-and-drop reorder ─────────────────────── */
+
+function setupDragAndDrop(container, onReorder) {
+  let dragIdx = null;
+  let indicator = null;
+
+  container.addEventListener('dragstart', (e) => {
+    const block = e.target.closest('.av-block');
+    if (!block) return;
+    dragIdx = parseInt(block.dataset.index);
+    block.classList.add('av-dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', '');
+  });
+
+  container.addEventListener('dragend', (e) => {
+    const block = e.target.closest('.av-block');
+    if (block) block.classList.remove('av-dragging');
+    removeIndicator();
+    dragIdx = null;
+  });
+
+  container.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragIdx == null) return;
+    const target = e.target.closest('.av-block');
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    const before = e.clientY < rect.top + rect.height / 2;
+    showIndicator(target, before);
+  });
+
+  container.addEventListener('dragleave', (e) => {
+    if (!container.contains(e.relatedTarget)) removeIndicator();
+  });
+
+  container.addEventListener('drop', (e) => {
+    e.preventDefault();
+    removeIndicator();
+    if (dragIdx == null) return;
+    const target = e.target.closest('.av-block');
+    if (!target) return;
+    let to = parseInt(target.dataset.index);
+    const rect = target.getBoundingClientRect();
+    if (e.clientY >= rect.top + rect.height / 2) to++;
+    if (dragIdx < to) to--;
+    if (dragIdx !== to) onReorder(dragIdx, to);
+    dragIdx = null;
+  });
+
+  function showIndicator(target, before) {
+    if (!indicator) {
+      indicator = document.createElement('div');
+      indicator.className = 'av-drop-indicator';
+    }
+    container.insertBefore(indicator, before ? target : target.nextSibling);
+  }
+
+  function removeIndicator() {
+    if (indicator?.parentNode) indicator.remove();
+  }
+}
+
+/* ── Read-only action list (nested views) ──────── */
+
+function buildReadOnlyList(actions) {
+  const c = document.createElement('div');
+  c.className = 'av-list';
+  for (let i = 0; i < actions.length; i++) {
+    const type = detectType(actions[i]);
+    const meta = ACTION_META[type] || ACTION_META.unknown;
+    const block = document.createElement('div');
+    block.className = `av-block av-block-${type}`;
+    block.style.setProperty('--av-accent', meta.color);
+    const hdr = document.createElement('div');
+    hdr.className = 'av-block-header';
+    const idxEl = document.createElement('span');
+    idxEl.className = 'av-index';
+    idxEl.textContent = i + 1;
+    const iconEl = document.createElement('span');
+    iconEl.className = 'av-icon material-symbols-outlined';
+    iconEl.style.color = meta.color;
+    iconEl.textContent = meta.icon;
+    const lblEl = document.createElement('span');
+    lblEl.className = 'av-label';
+    lblEl.textContent = meta.label;
+    hdr.append(idxEl, iconEl, lblEl);
+    const bgs = getBadges(actions[i], type);
+    for (const b of bgs) {
+      const el = document.createElement('span');
+      el.className = 'av-badge';
+      el.textContent = b;
+      hdr.appendChild(el);
+    }
+    block.appendChild(hdr);
+    const body = renderActionBody(actions[i], type);
+    if (body) block.appendChild(body);
+    c.appendChild(block);
+  }
+  return c;
+}
+
+/* ── Nested value helpers ──────────────────────── */
+
+function getNestedValue(obj, path) {
+  let cur = obj;
+  for (const p of path.split('.')) {
+    if (cur == null || typeof cur !== 'object') return undefined;
+    cur = cur[p];
+  }
+  return cur;
+}
+
+function setNestedValue(obj, path, value) {
+  const parts = path.split('.');
+  let cur = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (cur[parts[i]] == null || typeof cur[parts[i]] !== 'object') cur[parts[i]] = {};
+    cur = cur[parts[i]];
+  }
+  if (value === undefined) delete cur[parts[parts.length - 1]];
+  else cur[parts[parts.length - 1]] = value;
+}
+
+/* ── Post-edit cleanup ─────────────────────────── */
+
+function cleanAction(action, type) {
+  const schema = ACTION_SCHEMAS[type];
+  if (!schema) return;
+  for (const field of schema) {
+    if (field.required) continue;
+    const v = getNestedValue(action, field.key);
+    if (v === undefined || v === '' || v === null || (field.type === 'boolean' && v === false)) {
+      setNestedValue(action, field.key, undefined);
+    }
+  }
+  cleanEmptyObjects(action);
+}
+
+function cleanEmptyObjects(obj) {
+  if (!obj || typeof obj !== 'object') return;
+  for (const k of Object.keys(obj)) {
+    if (obj[k] && typeof obj[k] === 'object' && !Array.isArray(obj[k])) {
+      cleanEmptyObjects(obj[k]);
+      if (Object.keys(obj[k]).length === 0) delete obj[k];
+    } else if (obj[k] === undefined) {
+      delete obj[k];
+    }
+  }
 }
