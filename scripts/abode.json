@@ -1,6 +1,7 @@
 {
   "id": "abode",
   "background": "scripts/abode.jpg",
+  "backgroundColor": "#000000",
   "grid": {
     "cols": 20,
     "rows": 10
