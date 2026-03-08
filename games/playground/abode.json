@@ -122,6 +122,15 @@
       "h": 1,
       "actions": [
         {
+          "playsound": {
+            "id": "beer",
+            "path": "sounds/objects/clink.opus",
+            "volume": 0.1,
+            "loop": false,
+            "blocking": false
+          }
+        },
+        {
           "if": "abode.beer.clicks >= 5",
           "then": [
             {
@@ -180,7 +189,7 @@
         {
           "playsound": {
             "id": "büe",
-            "path": "sounds/büe.opus",
+            "path": "sounds/objects/büe.opus",
             "volume": 0.1,
             "loop": false,
             "blocking": false
