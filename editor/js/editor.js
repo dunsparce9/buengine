@@ -56,7 +56,7 @@ function renderFileList() {
 
   for (const id of ids) {
     const li = document.createElement('li');
-    const icon = id === '_game' ? '⚙' : '🗺';
+    const icon = id === '_game' ? '⚙️' : '🌎️';
     li.innerHTML = `<span class="file-icon">${icon}</span>${id}.json`;
     li.dataset.id = id;
 
