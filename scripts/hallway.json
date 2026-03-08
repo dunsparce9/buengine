@@ -4,6 +4,7 @@
   "grid": { "cols": 16, "rows": 9 },
   "hotspots": [
     {
+      "id": "torch",
       "label": "Flickering torch",
       "x": 2, "y": 2, "w": 1, "h": 2,
       "actions": [
@@ -20,6 +21,7 @@
       ]
     },
     {
+      "id": "hallway_continue",
       "label": "Continue down the hallway",
       "x": 6, "y": 3, "w": 3, "h": 4,
       "actions": [

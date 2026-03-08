@@ -50,6 +50,11 @@ async function gotoScene(id) {
 /* ── Hotspot clicks → run attached actions ──────── */
 bus.on('hotspot:click', async (hs) => {
   if (runner.running) return;
+  // Auto-track clicks per hotspot ID
+  if (hs.id) {
+    const key = `${hs.id}_clicks`;
+    state.setFlag(key, (state.getFlag(key) ?? 0) + 1);
+  }
   if (Array.isArray(hs.actions)) {
     await runner.run(hs.actions);
   }

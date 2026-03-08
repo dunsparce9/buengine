@@ -39,7 +39,7 @@ Scene scripts are JSON files in `scripts/`. Each has:
 - `id` — unique scene identifier (matches filename)
 - `background` / `backgroundColor` — visual backdrop
 - `grid` — `{ "cols": N, "rows": N }` tile grid dimensions (default 16×9)
-- `hotspots[]` — clickable regions with `{ x, y, w, h, label, texture?, actions[] }` where `x`, `y` are tile coordinates and `w`, `h` are tile counts. Optional `texture` renders an image snapped to the grid.
+- `hotspots[]` — clickable regions with `{ id, x, y, w, h, label?, texture?, actions[] }` where `id` is a unique identifier (within the scene), `x`, `y` are tile coordinates and `w`, `h` are tile counts. Optional `label` shows a tooltip on hover. Optional `texture` renders an image snapped to the grid. Each click auto-increments the flag `{id}_clicks`, so scripts can check click counts via conditions (e.g. `"if": "beer_clicks >= 3"`) without manual `set` actions.
 - `definitions` — `{ "name": [...actions] }` named action sequences callable via `{ "run": "name" }`. Supports recursion.
 - `onEnter[]` — action array run when the scene is entered
 
@@ -51,7 +51,10 @@ Actions are objects in an array. Supported commands:
 | Choice | `{ "choice": { "prompt": "...", "options": [{ "text": "...", "actions": [...] }] } }` |
 | Scene change | `{ "goto": "scene_id" }` |
 | Set flag | `{ "set": { "flag_name": true } }` |
-| Conditional | `{ "if": "flag_name", "then": [...], "else": [...] }` |
+| Increment flag | `{ "set": { "flag_name": "+1" } }` — string `"+N"` / `"-N"` adds to current value (init 0) |
+| Increment (clamped) | `{ "set": { "flag_name": { "add": 1, "max": 5 } } }` — increment with optional `min`/`max` clamp |
+| Conditional (bool) | `{ "if": "flag_name", "then": [...], "else": [...] }` — truthiness check |
+| Conditional (cmp) | `{ "if": "flag_name >= 3", "then": [...], "else": [...] }` — numeric comparison (`==`, `!=`, `>`, `>=`, `<`, `<=`) |
 | Wait | `{ "wait": 500 }` |
 | Custom event | `{ "emit": "event_name" }` |
 | Run definition | `{ "run": "definition_name" }` |
