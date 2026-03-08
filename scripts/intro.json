@@ -42,10 +42,10 @@
       "label": "Mysterious ladder",
       "x": 12, "y": 5, "w": 5, "h": 4,
       "actions": [
-        { "if": "ladder_clicks >= 2", "then": [
+        { "if": "intro.ladder.clicks >= 2", "then": [
           { "say": "Yep, ladder still there. What do?", "speaker": "Ominous voice" }
         ]},
-        { "if": "ladder_clicks == 1", "then": [
+        { "if": "intro.ladder.clicks == 1", "then": [
           { "say": "You find a huge mysterious ladder that probably leads somewhere.", "speaker": "Ominous voice" }
         ]},
         { "run": "ladder_choice" }
@@ -65,19 +65,19 @@
       "label": "Mug of ber",
       "x": 9, "y": 4, "w": 1, "h": 1,
       "actions": [
-        { "if": "beer_clicks >= 5", "then": [
+        { "if": "intro.beer.clicks >= 5", "then": [
           { "say": "STOP. TOUCHING. THE BEER.", "speaker": "Narrator" },
           { "exit": true }
         ]},
-        { "if": "beer_clicks == 4", "then": [
+        { "if": "intro.beer.clicks == 4", "then": [
           { "say": "I swear, if you click on this one more time…", "speaker": "Narrator" },
           { "exit": true }
         ]},
-        { "if": "beer_clicks == 3", "then": [
+        { "if": "intro.beer.clicks == 3", "then": [
           { "say": "YES. It is STILL beer. What do you WANT from me?", "speaker": "Narrator" },
           { "exit": true }
         ]},
-        { "if": "beer_clicks == 2", "then": [
+        { "if": "intro.beer.clicks == 2", "then": [
           { "say": "It's beer. Again. You already looked at this.", "speaker": "Narrator" },
           { "exit": true }
         ]},

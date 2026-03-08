@@ -39,7 +39,7 @@ Scene scripts are JSON files in `scripts/`. Each has:
 - `id` — unique scene identifier (matches filename)
 - `background` / `backgroundColor` — visual backdrop
 - `grid` — `{ "cols": N, "rows": N }` tile grid dimensions (default 16×9)
-- `hotspots[]` — clickable regions with `{ id, x, y, w, h, label?, texture?, actions[] }` where `id` is a unique identifier (within the scene), `x`, `y` are tile coordinates and `w`, `h` are tile counts. Optional `label` shows a tooltip on hover. Optional `texture` renders an image snapped to the grid. Each click auto-increments the flag `{id}_clicks`, so scripts can check click counts via conditions (e.g. `"if": "beer_clicks >= 3"`) without manual `set` actions.
+- `hotspots[]` — clickable regions with `{ id, x, y, w, h, label?, texture?, actions[] }` where `id` is a unique identifier (within the scene), `x`, `y` are tile coordinates and `w`, `h` are tile counts. Optional `label` shows a tooltip on hover. Optional `texture` renders an image snapped to the grid. Each click auto-increments the flag `{sceneId}.{id}.clicks`, so scripts can check click counts via conditions (e.g. `"if": "intro.beer.clicks >= 3"`) without manual `set` actions.
 - `definitions` — `{ "name": [...actions] }` named action sequences callable via `{ "run": "name" }`. Supports recursion.
 - `onEnter[]` — action array run when the scene is entered
 
