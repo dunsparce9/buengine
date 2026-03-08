@@ -375,15 +375,24 @@ function renderSceneProps(data) {
 }
 
 function renderHotspotProps(hs) {
+  const sceneId = selectedId;
+
+  function setHsProp(prop, raw) {
+    const v = parseFloat(raw);
+    if (Number.isFinite(v)) hs[prop] = v;
+    markDirty(sceneId);
+    renderViewport();
+  }
+
   addPropGroup('Hotspot', [
     ['id',    hs.id    || '—'],
     ['label', hs.label || '—'],
   ]);
-  addPropGroup('Position', [
-    ['x', hs.x],
-    ['y', hs.y],
-    ['w', hs.w],
-    ['h', hs.h],
+  addEditablePropGroup('Position', [
+    { key: 'x', value: hs.x, type: 'number', step: 1, min: 0, onChange: v => setHsProp('x', v) },
+    { key: 'y', value: hs.y, type: 'number', step: 1, min: 0, onChange: v => setHsProp('y', v) },
+    { key: 'w', value: hs.w, type: 'number', step: 1, min: 1, onChange: v => setHsProp('w', v) },
+    { key: 'h', value: hs.h, type: 'number', step: 1, min: 1, onChange: v => setHsProp('h', v) },
   ]);
   if (hs.texture) {
     addPropGroup('Texture', [['src', hs.texture]]);
@@ -425,7 +434,7 @@ function addEditablePropGroup(title, fields) {
   heading.textContent = title;
   group.appendChild(heading);
 
-  for (const { key, value, onChange } of fields) {
+  for (const { key, value, type, step, min, max, onChange } of fields) {
     const row = document.createElement('div');
     row.className = 'prop-row';
 
@@ -434,9 +443,12 @@ function addEditablePropGroup(title, fields) {
     label.textContent = key;
 
     const input = document.createElement('input');
-    input.type = 'text';
+    input.type = type || 'text';
     input.className = 'prop-input';
     input.value = value;
+    if (step != null) input.step = step;
+    if (min  != null) input.min  = min;
+    if (max  != null) input.max  = max;
     input.addEventListener('input', () => onChange(input.value));
 
     row.appendChild(label);
