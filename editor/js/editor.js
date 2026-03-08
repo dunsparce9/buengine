@@ -535,10 +535,14 @@ const aboutWindow = createFloatingWindow({
   h.textContent = 'b\u00fcegame editor';
   h.style.fontSize = '1.3rem';
   h.style.marginBottom = '6px';
-  const p = document.createElement('p');
-  p.textContent = 'v0.0';
-  p.style.color = '#a89984';
-  c.append(h, p);
+  const p1 = document.createElement('p');
+  p1.textContent = 'v0.0';
+  p1.style.color = '#e1c8a4';
+  const p2 = document.createElement('p');
+  p2.textContent = 'All rights reserved?';
+  p2.style.color = '#a89984';
+  p2.style.fontSize = '12px';
+  c.append(h, p1, p2);
 }
 
 /* ── Run in new tab ────────────────────────────── */
