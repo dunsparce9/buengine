@@ -205,6 +205,17 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font
 }
 .choice-btn:hover { background: rgba(255,255,255,0.2); }
 
+/* ── Image overlays (show/hide actions) ────────── */
+.image-overlay {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: 5;
+  pointer-events: none;
+}
+
 /* ── Debug box ─────────────────────────────────── */
 #debug-box {
   position: absolute;

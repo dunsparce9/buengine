@@ -1,99 +1,110 @@
 {
   "id": "intro",
-  "background": "scripts/abode.jpg",
-  "grid": { "cols": 20, "rows": 10 },
+  "grid": {
+    "cols": 20,
+    "rows": 10
+  },
   "definitions": {
-    "ladder_choice": [
+    "intro_sequence": [
+      {
+        "show": {
+          "id": "dream-overlay",
+          "texture": "scripts/dream.png",
+          "layer": "overlay",
+          "scaling": "fill",
+          "effect": {
+            "type": "fade-in",
+            "seconds": 10,
+            "blocking": false
+          }
+        }
+      },
+      {
+        "say": "Do you wish to proceed?",
+        "speaker": "GAME"
+      },
       {
         "choice": {
-          "prompt": "What do you do?",
+          "prompt": "",
           "options": [
             {
-              "text": "Try to open it",
+              "text": "Yes.",
               "actions": [
-                { "say": "You push the hatch. It creaks open…", "speaker": "Ominous voice" },
-                { "set": { "clicked_ladder": true } },
-                { "say": "Nothing interesting happens.", "speaker": "Ominous voice" },
-                { "exit": true }
+                {
+                  "say": "Understood. They will not act upon thee.",
+                  "speaker": "GAME"
+                },
+                {
+                  "choice": {
+                    "prompt": "",
+                    "options": [
+                      {
+                        "text": "I accept this arrangement.",
+                        "actions": [
+                          {
+                            "say": "Understood. You may proceed.",
+                            "speaker": "GAME"
+                          },
+                          {
+                            "exit": true
+                          }
+                        ]
+                      },
+                      {
+                        "text": "I do not accept this arrangement.",
+                        "actions": [
+                          {
+                            "say": "Very well.",
+                            "speaker": "GAME"
+                          },
+                          {
+                            "say": "...",
+                            "speaker": "GAME"
+                          },
+                          {
+                            "goto": "ending"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
               ]
             },
             {
-              "text": "Wait, you're not the narrator?",
+              "text": "No.",
               "actions": [
-                { "say": "*coughs* Ahem sorry", "speaker": "Narrator" },
-                { "run": "ladder_choice" }
-              ]
-            },
-            {
-              "text": "Walk away",
-              "actions": [
-                { "say": "You turn around. There's nowhere else to go.", "speaker": "Narrator" },
-                { "exit": true }
+                {
+                  "say": "Do as you please.",
+                  "speaker": "GAME"
+                },
+                {
+                  "goto": "ending"
+                }
               ]
             }
           ]
         }
+      },
+      {
+        "hide": {
+          "id": "dream-overlay",
+          "effect": {
+            "type": "fade-out",
+            "seconds": 1,
+            "blocking": true
+          }
+        }
       }
     ]
   },
-  "hotspots": [
-    {
-      "id": "ladder",
-      "label": "Mysterious ladder",
-      "x": 12, "y": 5, "w": 5, "h": 4,
-      "actions": [
-        { "if": "intro.ladder.clicks >= 2", "then": [
-          { "say": "Yep, ladder still there. What do?", "speaker": "Ominous voice" }
-        ]},
-        { "if": "intro.ladder.clicks == 1", "then": [
-          { "say": "You find a huge mysterious ladder that probably leads somewhere.", "speaker": "Ominous voice" }
-        ]},
-        { "run": "ladder_choice" }
-      ]
-    },
-    {
-      "id": "spaghetti",
-      "label": "Stale spaghetti",
-      "x": 7, "y": 5, "w": 2, "h": 1,
-      "actions": [
-        { "say": "A disgusting(LY GOOD) plate of spaghetti and meatballs.", "speaker": "Narrator" },
-        { "set": { "found_spaghetti": true } }
-      ]
-    },
-    {
-      "id": "beer",
-      "label": "Mug of ber",
-      "x": 9, "y": 4, "w": 1, "h": 1,
-      "actions": [
-        { "if": "intro.beer.clicks >= 5", "then": [
-          { "say": "STOP. TOUCHING. THE BEER.", "speaker": "Narrator" }
-        ]},
-        { "if": "intro.beer.clicks == 4", "then": [
-          { "say": "I swear, if you click on this one more time…", "speaker": "Narrator" }
-        ]},
-        { "if": "intro.beer.clicks == 3", "then": [
-          { "say": "YES. It is STILL beer. What do you WANT from me?", "speaker": "Narrator" }
-        ]},
-        { "if": "intro.beer.clicks == 2", "then": [
-          { "say": "It's beer. Again. You already looked at this.", "speaker": "Narrator" }
-        ]},
-        { "if": "intro.beer.clicks == 1", "then": [
-        { "say": "It's beer.", "speaker": "Narrator" }
-        ]}
-      ]
-    },
-    {
-      "id": "seal",
-      "label": "Seal!",
-      "texture": "scripts/seal.png",
-      "x": 12, "y": 4, "w": 2, "h": 1,
-      "actions": [
-        { "say": "Büe...", "speaker": "Seal" },
-        { "say": "The cute seal pup bües at you, respectfully.", "speaker": "Narrator" }
-      ]
-    }
-  ],
+  "hotspots": [],
   "onEnter": [
-    { "say": "You awaken in a humble abode. There's beer (ber!), and spaghetti with meatballs.", "speaker": "Narrator" }
+    {
+      "run": "intro_sequence"
+    },
+    {
+      "goto": "abode"
+    }
   ]
 }

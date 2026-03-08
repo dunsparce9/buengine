@@ -6,6 +6,7 @@ import { ActionRunner }  from './action-runner.js';
 import { DialogueUI }    from './dialogue-ui.js';
 import { ChoiceUI }      from './choice-ui.js';
 import { OverlayUI }     from './overlay-ui.js';
+import { ImageOverlayUI } from './image-overlay-ui.js';
 
 /* ── Bootstrap ──────────────────────────────────── */
 
@@ -20,11 +21,44 @@ const gridOverlay = document.getElementById('grid-overlay');
 new DialogueUI(bus);
 new ChoiceUI(bus);
 const overlay = new OverlayUI(bus);
+new ImageOverlayUI(bus);
 
 /** Currently loaded scene data keyed by id. */
 let currentSceneData = null;
 
 /* ── Scene navigation ───────────────────────────── */
+
+/**
+ * Collect all `goto` scene IDs reachable from an action array (recursive).
+ * @param {object[]} actions
+ * @param {Set<string>} out
+ */
+function collectGotos(actions, out) {
+  if (!Array.isArray(actions)) return;
+  for (const a of actions) {
+    if (a.goto) out.add(a.goto);
+    if (a.then) collectGotos(a.then, out);
+    if (a.else) collectGotos(a.else, out);
+    if (a.choice?.options) {
+      for (const opt of a.choice.options) collectGotos(opt.actions, out);
+    }
+  }
+}
+
+/** Fire-and-forget: preload JSON + images for scenes reachable from `data`. */
+function preloadNeighbors(data) {
+  const ids = new Set();
+  if (Array.isArray(data.onEnter)) collectGotos(data.onEnter, ids);
+  if (Array.isArray(data.hotspots)) {
+    for (const hs of data.hotspots) collectGotos(hs.actions, ids);
+  }
+  if (data.definitions) {
+    for (const actions of Object.values(data.definitions)) collectGotos(actions, ids);
+  }
+  for (const id of ids) {
+    loader.load(id).then(d => scene.preload(d)).catch(() => {});
+  }
+}
 
 async function gotoScene(id) {
   runner.abort();
@@ -32,6 +66,8 @@ async function gotoScene(id) {
   currentSceneData = data;
   runner.definitions = data.definitions || {};
   state.pushScene(id);
+  bus.emit('overlay:clear');
+  await scene.preload(data);
   scene.render(data);
   debugScene.textContent = `Scene: ${id}`;
 
@@ -40,6 +76,9 @@ async function gotoScene(id) {
   const rows = data.grid?.rows ?? 9;
   gridOverlay.style.setProperty('--grid-cols', cols);
   gridOverlay.style.setProperty('--grid-rows', rows);
+
+  // Preload neighboring scenes in the background
+  preloadNeighbors(data);
 
   // Run the scene's entry actions, if any
   if (Array.isArray(data.onEnter)) {

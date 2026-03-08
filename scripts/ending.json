@@ -1,0 +1,9 @@
+{
+  "id": "ending",
+  "backgroundColor": "#0e0e1a",
+  "grid": { "cols": 16, "rows": 9 },
+  "hotspots": [
+  ],
+  "onEnter": [
+  ]
+}

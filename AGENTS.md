@@ -59,6 +59,7 @@ Actions are objects in an array. Supported commands:
 | Custom event | `{ "emit": "event_name" }` |
 | Run definition | `{ "run": "definition_name" }` |
 | Exit actions | `{ "exit": true }` |
+| Scene effect | `{ "effect": { "type": "fade-in", "seconds": 1, "blocking": false } }` — scene-level transition (fade-in / fade-out) |
 
 ### Communication between modules
 All modules communicate through `EventBus`. Never import one UI module from another — emit an event instead.

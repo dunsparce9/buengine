@@ -18,6 +18,8 @@ export class SceneRenderer {
     this.el.appendChild(this._tooltip);
 
     window.addEventListener('resize', () => this._fitToContainer());
+
+    bus.on('scene:effect', (payload) => this._applyEffect(payload));
   }
 
   /** Resize the scene layer to fit its parent while preserving the grid aspect ratio. */
@@ -40,6 +42,29 @@ export class SceneRenderer {
 
     this.el.style.width  = `${Math.round(w)}px`;
     this.el.style.height = `${Math.round(h)}px`;
+  }
+
+  /**
+   * Preload all images used by a scene (background + hotspot textures).
+   * Resolves once every image is loaded (or fails gracefully).
+   * @param {object} scene  Parsed scene JSON
+   * @returns {Promise<void>}
+   */
+  preload(scene) {
+    const urls = [];
+    if (scene.background) urls.push(scene.background);
+    if (Array.isArray(scene.hotspots)) {
+      for (const hs of scene.hotspots) {
+        if (hs.texture) urls.push(hs.texture);
+      }
+    }
+    if (urls.length === 0) return Promise.resolve();
+    return Promise.all(urls.map(url => new Promise(resolve => {
+      const img = new Image();
+      img.onload = resolve;
+      img.onerror = resolve; // don't block on broken images
+      img.src = url;
+    })));
   }
 
   /**
@@ -105,12 +130,49 @@ export class SceneRenderer {
     }
   }
 
+  /**
+   * Apply a visual effect to the entire scene layer.
+   * @param {object} p
+   * @param {string} p.type       "fade-in" | "fade-out"
+   * @param {number} p.seconds    duration
+   * @param {boolean} p.blocking  whether to block actions until done
+   * @param {function} [p.onDone]
+   */
+  _applyEffect({ type, seconds = 1, blocking, onDone }) {
+    if (type === 'fade-in' && seconds > 0) {
+      this.el.style.transition = 'none';
+      this.el.style.opacity = '0';
+      this.el.offsetWidth; // force reflow
+      this.el.style.transition = `opacity ${seconds}s ease`;
+      this.el.style.opacity = '1';
+
+      if (blocking) {
+        this.el.addEventListener('transitionend', () => onDone?.(), { once: true });
+      } else {
+        onDone?.();
+      }
+    } else if (type === 'fade-out' && seconds > 0) {
+      this.el.style.transition = `opacity ${seconds}s ease`;
+      this.el.style.opacity = '0';
+
+      if (blocking) {
+        this.el.addEventListener('transitionend', () => onDone?.(), { once: true });
+      } else {
+        onDone?.();
+      }
+    } else {
+      onDone?.();
+    }
+  }
+
   /** Remove all hotspots and background. */
   clear() {
     this.el.style.backgroundImage = '';
     this.el.style.backgroundColor = '#111';
     this.el.style.width  = '';
     this.el.style.height = '';
+    this.el.style.opacity = '';
+    this.el.style.transition = '';
     this.el.querySelectorAll('.hotspot').forEach(h => h.remove());
     this._tooltip.classList.add('hidden');
   }

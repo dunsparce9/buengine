@@ -15,6 +15,9 @@
  *   { "emit": "custom:event" } // fire a bus event
  *   { "run": "definition_name" } // call a named definition (supports recursion)
  *   { "exit": true }           // stop the entire action chain
+ *   { "show": { "id": "...", "texture": "...", "layer": "overlay", "scaling": "fill", "effect": { "type": "fade-in", "seconds": 2, "blocking": false } } }
+ *   { "hide": { "id": "...", "effect": { "type": "fade-out", "seconds": 1, "blocking": true } } }
+ *   { "effect": { "type": "fade-in", "seconds": 1, "blocking": false } }  // scene-level transition
  */
 export class ActionRunner {
   /**
@@ -71,6 +74,12 @@ export class ActionRunner {
         } else if (action.run) {
           const def = this.definitions[action.run];
           if (def) await this.run(def, true);
+        } else if (action.show) {
+          await this._show(action.show);
+        } else if (action.hide) {
+          await this._hide(action.hide);
+        } else if (action.effect) {
+          await this._effect(action.effect);
         } else if (action.exit != null) {
           this._exited = true;
           return;
@@ -102,6 +111,9 @@ export class ActionRunner {
         options: choiceDef.options,
         onPick: async (option) => {
           if (option.actions) await this.run(option.actions, true);
+          // `exit` inside a choice branch should only break out of that
+          // branch, not kill the parent sequence.
+          this._exited = false;
           resolve();
         },
       });
@@ -110,6 +122,24 @@ export class ActionRunner {
 
   _delay(ms) {
     return new Promise(r => setTimeout(r, ms));
+  }
+
+  _show(showDef) {
+    return new Promise(resolve => {
+      this.bus.emit('overlay:show', { ...showDef, onDone: resolve });
+    });
+  }
+
+  _hide(hideDef) {
+    return new Promise(resolve => {
+      this.bus.emit('overlay:hide', { ...hideDef, onDone: resolve });
+    });
+  }
+
+  _effect(effectDef) {
+    return new Promise(resolve => {
+      this.bus.emit('scene:effect', { ...effectDef, onDone: resolve });
+    });
   }
 
   /**
