@@ -54,33 +54,10 @@ export class SceneRenderer {
     this.el.style.height = `${Math.round(h)}px`;
   }
 
-  /**
-   * Preload all images used by a scene (background + hotspot textures).
-   * Resolves once every image is loaded (or fails gracefully).
-   * @param {object} scene  Parsed scene JSON
-   * @returns {Promise<void>}
-   */
   /** Resolve a relative asset path against the game's base directory. */
   _resolve(path) {
     if (!this._basePath || !path) return path;
     return `${this._basePath}/${path}`;
-  }
-
-  preload(scene) {
-    const urls = [];
-    if (scene.background) urls.push(this._resolve(scene.background));
-    if (Array.isArray(scene.hotspots)) {
-      for (const hs of scene.hotspots) {
-        if (hs.texture) urls.push(this._resolve(hs.texture));
-      }
-    }
-    if (urls.length === 0) return Promise.resolve();
-    return Promise.all(urls.map(url => new Promise(resolve => {
-      const img = new Image();
-      img.onload = resolve;
-      img.onerror = resolve; // don't block on broken images
-      img.src = url;
-    })));
   }
 
   /**

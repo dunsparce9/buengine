@@ -49,37 +49,41 @@ function collectGotos(actions, out) {
   }
 }
 
-/**
- * Collect all `playsound` paths reachable from an action array (recursive).
- * @param {object[]} actions
- * @param {Set<string>} out
- */
-function collectPlaysounds(actions, out) {
-  if (!Array.isArray(actions)) return;
-  for (const a of actions) {
-    if (a.playsound?.path) out.add(a.playsound.path);
-    if (a.then)  collectPlaysounds(a.then, out);
-    if (a.else)  collectPlaysounds(a.else, out);
-    if (a.choice?.options) {
-      for (const opt of a.choice.options) collectPlaysounds(opt.actions, out);
-    }
-  }
-}
+const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp)$/i;
+const FILE_EXT  = /\.(png|jpe?g|gif|webp|svg|bmp|opus|mp3|ogg|wav|webm|m4a|aac|flac)$/i;
 
-/** Emit `sound:preload` for every playsound path found in a scene. */
-function preloadSceneSounds(data) {
+/** Walk a scene object and collect every string that looks like an asset path. */
+function collectAssetPaths(data) {
   const paths = new Set();
-  if (Array.isArray(data.onEnter)) collectPlaysounds(data.onEnter, paths);
-  if (Array.isArray(data.hotspots)) {
-    for (const hs of data.hotspots) collectPlaysounds(hs.actions, paths);
-  }
-  if (data.definitions) {
-    for (const actions of Object.values(data.definitions)) collectPlaysounds(actions, paths);
-  }
-  if (paths.size > 0) bus.emit('sound:preload', [...paths]);
+  (function walk(obj) {
+    if (typeof obj === 'string') { if (FILE_EXT.test(obj)) paths.add(obj); return; }
+    if (Array.isArray(obj)) { for (const item of obj) walk(item); return; }
+    if (obj && typeof obj === 'object') { for (const v of Object.values(obj)) walk(v); }
+  })(data);
+  return paths;
 }
 
-/** Fire-and-forget: preload JSON + images for scenes reachable from `data`. */
+/** Preload all assets referenced in a scene (images + sounds). */
+function preloadAssets(data) {
+  const paths = collectAssetPaths(data);
+  if (paths.size === 0) return Promise.resolve();
+  return Promise.all([...paths].map(p => {
+    const url = loader.resolvePath(p);
+    if (IMAGE_EXT.test(p)) {
+      return new Promise(resolve => {
+        const img = new Image();
+        img.onload = img.onerror = resolve;
+        img.src = url;
+      });
+    }
+    const audio = new Audio();
+    audio.preload = 'auto';
+    audio.src = url;
+    return Promise.resolve();
+  }));
+}
+
+/** Fire-and-forget: preload JSON + assets for scenes reachable from `data`. */
 function preloadNeighbors(data) {
   const ids = new Set();
   if (Array.isArray(data.onEnter)) collectGotos(data.onEnter, ids);
@@ -90,7 +94,7 @@ function preloadNeighbors(data) {
     for (const actions of Object.values(data.definitions)) collectGotos(actions, ids);
   }
   for (const id of ids) {
-    loader.load(id).then(d => { scene.preload(d); preloadSceneSounds(d); }).catch(() => {});
+    loader.load(id).then(d => preloadAssets(d)).catch(() => {});
   }
 }
 
@@ -101,8 +105,7 @@ async function gotoScene(id) {
   runner.definitions = data.definitions || {};
   state.pushScene(id);
   bus.emit('overlay:clear');
-  await scene.preload(data);
-  preloadSceneSounds(data);
+  await preloadAssets(data);
   scene.render(data);
   debugScene.textContent = `Scene: ${id}`;
 

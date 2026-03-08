@@ -22,7 +22,6 @@ export class SoundManager {
     });
     bus.on('sound:play',    (p)     => this._play(p));
     bus.on('sound:stop',    (p)     => this._stop(p));
-    bus.on('sound:preload', (paths) => this._preloadPaths(paths));
   }
 
   /** Resolve a relative sound path against the game's base directory. */
@@ -33,26 +32,15 @@ export class SoundManager {
 
   /** Speculatively preload common UI sounds so first-play has no network delay. */
   _preloadUISounds() {
-    this._preloaded = [];
-    this._preloadPaths([
+    this._preloaded = [
       'sounds/common/button-click.opus',
       'sounds/common/dialogue-click.opus',
-    ]);
-  }
-
-  /**
-   * Preload an array of relative sound paths (resolved against the current base path).
-   * Keeps references to prevent GC before load completes.
-   * @param {string[]} paths
-   */
-  _preloadPaths(paths) {
-    if (!this._preloaded) this._preloaded = [];
-    for (const path of paths) {
-      const audio = new Audio();
-      audio.preload = 'auto';
-      audio.src = this._resolve(path);
-      this._preloaded.push(audio);
-    }
+    ].map(p => {
+      const a = new Audio();
+      a.preload = 'auto';
+      a.src = this._resolve(p);
+      return a;
+    });
   }
 
   /**
