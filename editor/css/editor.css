@@ -57,18 +57,29 @@ html, body {
   background: #313244;
 }
 
-/* ── Editor layout (3-column) ──────────────────── */
+/* ── Editor layout (3-column + 2 resize handles) ── */
 #editor-layout {
   display: grid;
-  grid-template-columns: minmax(160px, 14vw) 1fr minmax(180px, 18vw);
+  grid-template-columns: var(--left-w, 220px) 5px 1fr 5px var(--right-w, 260px);
   height: calc(100vh - 30px);
   overflow: hidden;
+}
+
+.resize-handle {
+  background: #313244;
+  cursor: col-resize;
+  transition: background 0.15s;
+  z-index: 10;
+}
+.resize-handle:hover,
+.resize-handle.dragging {
+  background: #89b4fa;
 }
 
 /* ── Left panel ────────────────────────────────── */
 #file-panel {
   background: #181825;
-  border-right: 1px solid #313244;
+  border-right: none;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -177,7 +188,7 @@ html, body {
 /* ── Right panel ───────────────────────────────── */
 #props-panel {
   background: #181825;
-  border-left: 1px solid #313244;
+  border-left: none;
   display: flex;
   flex-direction: column;
   overflow: hidden;
