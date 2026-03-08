@@ -6,7 +6,6 @@ import { ActionRunner }  from './action-runner.js';
 import { DialogueUI }    from './dialogue-ui.js';
 import { ChoiceUI }      from './choice-ui.js';
 import { OverlayUI }     from './overlay-ui.js';
-import { ImageOverlayUI } from './image-overlay-ui.js';
 
 /* ── Bootstrap ──────────────────────────────────── */
 
@@ -21,7 +20,6 @@ const gridOverlay = document.getElementById('grid-overlay');
 new DialogueUI(bus);
 new ChoiceUI(bus);
 const overlay = new OverlayUI(bus);
-new ImageOverlayUI(bus);
 
 /** Currently loaded scene data keyed by id. */
 let currentSceneData = null;

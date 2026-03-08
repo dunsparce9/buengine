@@ -18,7 +18,7 @@ js/
   event-bus.js           ← pub/sub decoupling
   game-state.js          ← flags, current scene, history
   script-loader.js       ← fetches & caches JSON scripts
-  scene-renderer.js      ← background + hotspot DOM elements
+  scene-renderer.js      ← background, hotspot DOM elements, image overlays
   action-runner.js       ← walks action arrays, dispatches commands
   dialogue-ui.js         ← dialogue box with typewriter effect
   choice-ui.js           ← multiple-choice modal

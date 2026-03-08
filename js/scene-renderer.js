@@ -17,9 +17,15 @@ export class SceneRenderer {
     this._tooltip.className = 'hotspot-tooltip hidden';
     this.el.appendChild(this._tooltip);
 
+    /** @type {Map<string, HTMLElement>} active image overlays keyed by id */
+    this._overlays = new Map();
+
     window.addEventListener('resize', () => this._fitToContainer());
 
-    bus.on('scene:effect', (payload) => this._applyEffect(payload));
+    bus.on('scene:effect',  (payload) => this._applyEffect(payload));
+    bus.on('overlay:show',  (payload) => this._showOverlay(payload));
+    bus.on('overlay:hide',  (payload) => this._hideOverlay(payload));
+    bus.on('overlay:clear', ()        => this._clearOverlays());
   }
 
   /** Resize the scene layer to fit its parent while preserving the grid aspect ratio. */
@@ -165,6 +171,91 @@ export class SceneRenderer {
     }
   }
 
+  /* ── Image overlays (show/hide actions) ─────── */
+
+  /**
+   * @param {object} p
+   * @param {string} p.id
+   * @param {string} p.texture
+   * @param {string} [p.scaling]   "fill" | "contain" | "cover"
+   * @param {object} [p.effect]    { type, seconds, blocking }
+   * @param {function} [p.onDone]
+   */
+  _showOverlay({ id, texture, scaling, effect, onDone }) {
+    this._removeOverlay(id);
+
+    const el = document.createElement('div');
+    el.className = 'image-overlay';
+    el.dataset.overlayId = id;
+    el.style.backgroundImage = `url('${CSS.escape(texture)}')`;
+
+    if (scaling === 'fill' || scaling === 'cover') {
+      el.style.backgroundSize = 'cover';
+    } else if (scaling === 'contain') {
+      el.style.backgroundSize = 'contain';
+    }
+
+    this.el.appendChild(el);
+    this._overlays.set(id, el);
+
+    if (effect?.type === 'fade-in' && effect.seconds > 0) {
+      el.style.opacity = '0';
+      el.style.transition = `opacity ${effect.seconds}s ease`;
+      el.offsetWidth; // force reflow
+      el.style.opacity = '1';
+
+      if (effect.blocking) {
+        el.addEventListener('transitionend', () => onDone?.(), { once: true });
+      } else {
+        onDone?.();
+      }
+    } else {
+      onDone?.();
+    }
+  }
+
+  /**
+   * @param {object} p
+   * @param {string} p.id
+   * @param {object} [p.effect]   { type, seconds, blocking }
+   * @param {function} [p.onDone]
+   */
+  _hideOverlay({ id, effect, onDone }) {
+    const el = this._overlays.get(id);
+    if (!el) { onDone?.(); return; }
+
+    if (effect?.type === 'fade-out' && effect.seconds > 0) {
+      const current = getComputedStyle(el).opacity;
+      el.style.transition = 'none';
+      el.style.opacity = current;
+      el.offsetWidth; // force reflow
+
+      el.style.transition = `opacity ${effect.seconds}s ease`;
+      el.style.opacity = '0';
+
+      const finish = () => { this._removeOverlay(id); onDone?.(); };
+
+      if (effect.blocking) {
+        el.addEventListener('transitionend', finish, { once: true });
+      } else {
+        onDone?.();
+        el.addEventListener('transitionend', () => this._removeOverlay(id), { once: true });
+      }
+    } else {
+      this._removeOverlay(id);
+      onDone?.();
+    }
+  }
+
+  _removeOverlay(id) {
+    const el = this._overlays.get(id);
+    if (el) { el.remove(); this._overlays.delete(id); }
+  }
+
+  _clearOverlays() {
+    for (const [id] of this._overlays) this._removeOverlay(id);
+  }
+
   /** Remove all hotspots and background. */
   clear() {
     this.el.style.backgroundImage = '';
@@ -175,5 +266,6 @@ export class SceneRenderer {
     this.el.style.transition = '';
     this.el.querySelectorAll('.hotspot').forEach(h => h.remove());
     this._tooltip.classList.add('hidden');
+    this._clearOverlays();
   }
 }
