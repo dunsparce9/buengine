@@ -59,6 +59,14 @@
                             "speaker": "GAME"
                           },
                           {
+                            "goto": "ending"
+                          }
+                        ]
+                      },
+                      {
+                        "text": "Why is that?",
+                        "actions": [
+                          {
                             "say": "...",
                             "speaker": "GAME"
                           },
