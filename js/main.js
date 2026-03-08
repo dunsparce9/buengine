@@ -49,6 +49,36 @@ function collectGotos(actions, out) {
   }
 }
 
+/**
+ * Collect all `playsound` paths reachable from an action array (recursive).
+ * @param {object[]} actions
+ * @param {Set<string>} out
+ */
+function collectPlaysounds(actions, out) {
+  if (!Array.isArray(actions)) return;
+  for (const a of actions) {
+    if (a.playsound?.path) out.add(a.playsound.path);
+    if (a.then)  collectPlaysounds(a.then, out);
+    if (a.else)  collectPlaysounds(a.else, out);
+    if (a.choice?.options) {
+      for (const opt of a.choice.options) collectPlaysounds(opt.actions, out);
+    }
+  }
+}
+
+/** Emit `sound:preload` for every playsound path found in a scene. */
+function preloadSceneSounds(data) {
+  const paths = new Set();
+  if (Array.isArray(data.onEnter)) collectPlaysounds(data.onEnter, paths);
+  if (Array.isArray(data.hotspots)) {
+    for (const hs of data.hotspots) collectPlaysounds(hs.actions, paths);
+  }
+  if (data.definitions) {
+    for (const actions of Object.values(data.definitions)) collectPlaysounds(actions, paths);
+  }
+  if (paths.size > 0) bus.emit('sound:preload', [...paths]);
+}
+
 /** Fire-and-forget: preload JSON + images for scenes reachable from `data`. */
 function preloadNeighbors(data) {
   const ids = new Set();
@@ -60,7 +90,7 @@ function preloadNeighbors(data) {
     for (const actions of Object.values(data.definitions)) collectGotos(actions, ids);
   }
   for (const id of ids) {
-    loader.load(id).then(d => scene.preload(d)).catch(() => {});
+    loader.load(id).then(d => { scene.preload(d); preloadSceneSounds(d); }).catch(() => {});
   }
 }
 
@@ -72,6 +102,7 @@ async function gotoScene(id) {
   state.pushScene(id);
   bus.emit('overlay:clear');
   await scene.preload(data);
+  preloadSceneSounds(data);
   scene.render(data);
   debugScene.textContent = `Scene: ${id}`;
 
