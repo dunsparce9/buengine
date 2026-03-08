@@ -14,12 +14,23 @@ Current status: **v0.0 — MVP (read-only inspector with limited `_game.json` ed
 
 ```
 editor/
-  index.html          ← single entry point
-  css/editor.css      ← all editor styles (Gruvbox Dark palette)
-  js/editor.js        ← single monolithic module (all logic)
+  index.html              ← single entry point
+  css/editor.css          ← all editor styles (Gruvbox Dark palette)
+  js/
+    editor.js             ← orchestrator — wires modules, boots app
+    state.js              ← shared state, DOM refs, render hooks, utilities
+    floating-window.js    ← draggable/resizable floating panel component
+    script-loader.js      ← fetch & cache JSON scripts
+    file-panel.js         ← left file list panel + selection
+    viewport.js           ← centre scene preview + hotspot overlays
+    properties.js         ← right property inspector panel
+    menu.js               ← top menu bar dropdown wiring
+    resize.js             ← column resize handles
 ```
 
-The editor loads scripts from `../scripts/` via `fetch()` and keeps them in an in-memory `scripts` map. It discovers available scenes via `_game.json` (`scenes` array or `startScene` fallback).
+The editor loads scripts from `../scripts/` via `fetch()` and keeps them in an in-memory `state.scripts` map. It discovers available scenes via `_game.json` (`scenes` array or `startScene` fallback).
+
+Modules avoid circular imports by using a `hooks` object (in `state.js`) for cross-module render calls. The orchestrator (`editor.js`) sets `hooks.renderFileList`, `hooks.renderViewport`, and `hooks.renderProperties` after importing all modules.
 
 ## UI Layout
 
@@ -42,12 +53,15 @@ The editor loads scripts from `../scripts/` via `fetch()` and keeps them in an i
 
 ## Key State Variables
 
-| Variable | Purpose |
+All mutable state lives in the `state` object exported from `state.js`:
+
+| Field | Purpose |
 |----------|---------|
-| `manifest` | Parsed `_game.json` |
-| `scripts` | `{ id → parsed JSON }` — cache of all loaded scripts |
-| `selectedId` | Currently highlighted script id in the file panel |
-| `selectedHs` | Currently highlighted hotspot id within the viewport |
+| `state.manifest` | Parsed `_game.json` |
+| `state.scripts` | `{ id → parsed JSON }` — cache of all loaded scripts |
+| `state.selectedId` | Currently highlighted script id in the file panel |
+| `state.selectedHs` | Currently highlighted hotspot id within the viewport |
+| `state.dirtySet` | `Set` of script ids with unsaved edits |
 
 ## Rendering Pipeline
 
@@ -57,22 +71,22 @@ The viewport computes pixel dimensions from the scene's `grid.cols` / `grid.rows
 
 ## Features
 
-| Feature | Entry point |
-|---------|-------------|
-| Script discovery | `discoverScripts()` — reads `_game.json`, loads all scenes |
-| Scene preview | `renderViewport()` — background + dashed hotspot outlines |
-| Property inspector | `renderProperties()` → delegates to `renderGameProps` / `renderSceneProps` / `renderHotspotProps` |
-| Editable fields | `addEditablePropGroup()` — direct-bind `<input>` to in-memory data |
-| Export JSON | `exportCurrentJson()` — Blob download of current script |
-| Run preview | Stores all edited scripts into `localStorage` key `buegame_editor_preview`, opens game in new tab with `?preview` |
-| Floating windows | `createFloatingWindow()` — draggable, optionally resizable panels (`.fw`) |
-| About window | `aboutWindow` — floating window instance opened from Help → About |
+| Feature | Module | Entry point |
+|---------|--------|-------------|
+| Script discovery | `script-loader.js` | `discoverScripts()` — reads `_game.json`, loads all scenes |
+| Scene preview | `viewport.js` | `renderViewport()` — background + dashed hotspot outlines |
+| Property inspector | `properties.js` | `renderProperties()` → delegates to `renderGameProps` / `renderSceneProps` / `renderHotspotProps` |
+| Editable fields | `properties.js` | `addEditablePropGroup()` — direct-bind `<input>` to in-memory data |
+| Export JSON | `editor.js` | `exportCurrentJson()` — Blob download of current script |
+| Run preview | `editor.js` | Stores all edited scripts into `localStorage` key `buegame_editor_preview`, opens game in new tab with `?preview` |
+| Floating windows | `floating-window.js` | `createFloatingWindow()` — draggable, optionally resizable panels (`.fw`) |
+| About window | `editor.js` | `aboutWindow` — floating window instance opened from Help → About |
 
 ## Coding Rules
 
 1. **Same rules as the game engine** — vanilla JS, no frameworks, no build tools.
 2. **Editor CSS goes in `editor/css/editor.css`** — do not touch `css/style.css` (that's the game).
-3. **Editor JS goes in `editor/js/editor.js`** — currently a single module. If it grows large enough to split, follow the game's pattern: one file per concern, communicate via a shared event bus or direct imports (no global state beyond the existing top-level variables).
+3. **Editor JS goes in `editor/js/`** — one file per concern. Shared state lives in `state.js`. Cross-module render calls go through `hooks` (set by the orchestrator `editor.js`). Direct imports are fine for non-circular dependencies.
 4. **Don't import game modules** — the editor is a separate app. It reads game scripts via `fetch()`, not by importing engine code.
 5. **Colour palette** — the editor uses Gruvbox Dark (`#282828` bg, `#ebdbb2` fg, `#fe8019` accent, `#1d2021` panel bg, `#3c3836` borders). Keep new UI consistent.
 6. **Hotspot visualisation** — dashed orange outlines (`.editor-hotspot`), yellow when selected. Labels are 10px overlays.
