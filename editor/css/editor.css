@@ -179,16 +179,31 @@ html, body {
 .editor-hotspot {
   position: absolute;
   border: 2px dashed #fe8019;
-  background: rgba(254, 128, 25, 0.08);
+  background-color: rgba(254, 128, 25, 0.08);
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, filter 0.15s;
 }
 .editor-hotspot:hover {
-  background: rgba(254, 128, 25, 0.18);
+  background-color: rgba(254, 128, 25, 0.18);
 }
 .editor-hotspot.selected {
   border-color: #fabd2f;
-  background: rgba(250, 189, 47, 0.12);
+  background-color: rgba(250, 189, 47, 0.12);
+}
+.editor-hotspot-textured {
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-color: transparent;
+  image-rendering: pixelated;
+}
+.editor-hotspot-textured:hover {
+  background-color: transparent;
+  filter: drop-shadow(0 0 4px rgba(255, 248, 200, 0.9));
+}
+.editor-hotspot-textured.selected {
+  background-color: transparent;
+  filter: drop-shadow(0 0 4px rgba(250, 189, 47, 0.9));
 }
 
 .editor-hotspot-label {

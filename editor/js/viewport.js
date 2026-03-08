@@ -63,6 +63,11 @@ export function renderViewport() {
       div.style.width  = `${(hs.w / cols) * 100}%`;
       div.style.height = `${(hs.h / rows) * 100}%`;
 
+      if (hs.texture) {
+        div.classList.add('editor-hotspot-textured');
+        div.style.backgroundImage = `url('${SCRIPTS_BASE}/${hs.texture.replace(/^scripts\//, '')}')`;
+      }
+
       const label = document.createElement('span');
       label.className = 'editor-hotspot-label';
       label.textContent = hs.id || hs.label || '';
