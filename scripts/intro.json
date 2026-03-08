@@ -1,0 +1,52 @@
+{
+  "id": "intro",
+  "background": "scripts/abode.jpg",
+  "grid": { "cols": 16, "rows": 9 },
+  "hotspots": [
+    {
+      "label": "Mysterious ladder",
+      "x": 10, "y": 4, "w": 3, "h": 4,
+      "actions": [
+        { "say": "You find a huge mysterious ladder that probably leads somewhere.", "speaker": "Ominous voice" },
+        {
+          "choice": {
+            "prompt": "What do you do?",
+            "options": [
+              {
+                "text": "Try to open it",
+                "actions": [
+                  { "say": "You push the hatch. It creaks open…", "speaker": "Ominous voice" },
+                  { "set": { "clicked_ladder": true } },
+                  { "say": "Nothing interesting happens.", "speaker": "Ominous voice" }
+                ]
+              },
+              {
+                "text": "Wait, you're not the narrator?",
+                "actions": [
+                  { "say": "*coughs* Ahem sorry", "speaker": "Narrator" }
+                ]
+              },
+              {
+                "text": "Walk away",
+                "actions": [
+                  { "say": "You turn around. There's nowhere else to go.", "speaker": "Narrator" }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "label": "Strange note on the ground",
+      "x": 3, "y": 6, "w": 2, "h": 1,
+      "actions": [
+        { "say": "A crumpled note reads: \"Don't trust the shadows.\"", "speaker": "Narrator" },
+        { "set": { "found_note": true } }
+      ]
+    }
+  ],
+  "onEnter": [
+    { "say": "You awaken in a humble abode. There's beer (ber!), and spaghetti with meatballs.", "speaker": "Narrator" }
+  ]
+}

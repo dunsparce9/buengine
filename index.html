@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>büeARG</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="game-container">
+    <!-- Scene layer: background + clickable hotspots -->
+    <div id="scene-layer"></div>
+
+    <!-- UI overlay layer: title, pause, dialogues, choices -->
+    <div id="ui-layer">
+      <div id="title-screen" class="overlay hidden">
+        <div class="overlay-content">
+          <h1 id="title-text"></h1>
+          <p id="title-subtitle"></p>
+          <button id="title-start-btn" class="btn">Start</button>
+        </div>
+      </div>
+
+      <div id="pause-screen" class="overlay hidden">
+        <div class="overlay-content">
+          <h2>Paused</h2>
+          <button id="pause-resume-btn" class="btn">Resume</button>
+          <button id="pause-title-btn" class="btn">Title Screen</button>
+        </div>
+      </div>
+
+      <div id="dialogue-box" class="hidden">
+        <div id="dialogue-speaker"></div>
+        <div id="dialogue-text"></div>
+        <div id="dialogue-advance-hint" class="hidden"></div>
+      </div>
+
+      <div id="choice-modal" class="overlay hidden">
+        <div id="choice-prompt"></div>
+        <div id="choice-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
