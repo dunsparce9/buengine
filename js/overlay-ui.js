@@ -14,6 +14,8 @@ export class OverlayUI {
     this.titleSub     = document.getElementById('title-subtitle');
     this.startBtn     = document.getElementById('title-start-btn');
 
+    this.editBtn     = document.getElementById('title-edit-btn');
+
     // Pause screen elements
     this.pause        = document.getElementById('pause-screen');
     this.resumeBtn    = document.getElementById('pause-resume-btn');
@@ -23,6 +25,9 @@ export class OverlayUI {
     this.startBtn.addEventListener('click', () => {
       this.hideTitle();
       this.bus.emit('game:start');
+    });
+    this.editBtn.addEventListener('click', () => {
+      window.location.href = 'editor/index.html';
     });
     this.resumeBtn.addEventListener('click', () => this.hidePause());
     this.toTitleBtn.addEventListener('click', () => {
