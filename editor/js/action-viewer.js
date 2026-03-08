@@ -28,15 +28,28 @@ const ACTION_META = {
   unknown:   { icon: 'help_outline',        color: '#7c6f64', label: 'Unknown' },
 };
 
+/* ── Open viewer registry (dedup by title) ─────── */
+
+/** @type {Map<string, ReturnType<typeof createFloatingWindow>>} */
+const _openViewers = new Map();
+
 /* ── Public API ────────────────────────────────── */
 
 /**
  * Open the action viewer with the given action array.
- * Each call creates a new floating window so multiple can be open at once.
+ * If a viewer with the same title is already open, focus it instead.
  * @param {string} title  Header text (e.g. "hotspot: torch → actions")
  * @param {Array}  actions  The action array to display
  */
 export function openActionViewer(title, actions) {
+  const key = title || 'Actions';
+
+  const existing = _openViewers.get(key);
+  if (existing && !existing.el.classList.contains('hidden')) {
+    existing.open(); // brings to front
+    return;
+  }
+
   const fw = createFloatingWindow({
     title: title || 'Actions',
     icon: 'list_alt',
@@ -45,6 +58,10 @@ export function openActionViewer(title, actions) {
     height: 520,
     resizable: true,
   });
+
+  // Register and clean up on close
+  _openViewers.set(key, fw);
+  fw.onClose(() => _openViewers.delete(key));
 
   if (!actions || actions.length === 0) {
     const empty = document.createElement('div');
