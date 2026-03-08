@@ -58,7 +58,11 @@
                             "speaker": "GAME"
                           },
                           {
-                            "exit": true
+                            "stopsound": {
+                              "id": "introbg",
+                              "fade": 2,
+                              "blocking": false
+                            }
                           }
                         ]
                       },
@@ -111,7 +115,7 @@
           "id": "dream-overlay",
           "effect": {
             "type": "fade-out",
-            "seconds": 1,
+            "seconds": 2,
             "blocking": true
           }
         }
@@ -122,13 +126,6 @@
   "onEnter": [
     {
       "run": "intro_sequence"
-    },
-    {
-      "stopsound": {
-        "id": "introbg",
-        "fade": 1,
-        "blocking": true
-      }
     },
     {
       "goto": "abode"
