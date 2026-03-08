@@ -8,7 +8,7 @@ import { state, hooks, GAME_ID } from './state.js';
 import { createFloatingWindow } from './floating-window.js';
 import { discoverScripts } from './script-loader.js';
 import { renderFileList, selectScript } from './file-panel.js';
-import { renderViewport } from './viewport.js';
+import { renderViewport, initViewportInteractions } from './viewport.js';
 import { renderProperties } from './properties.js';
 import { initMenu } from './menu.js';
 import { initResizeHandles } from './resize.js';
@@ -87,6 +87,9 @@ document.getElementById('run-btn').addEventListener('click', runInNewTab);
 
 /* ── Resize handles ────────────────────────────── */
 initResizeHandles(renderViewport);
+
+/* ── Viewport interactions (create/move/resize) ── */
+initViewportInteractions();
 
 /* ── Viewport resize ───────────────────────────── */
 window.addEventListener('resize', () => renderViewport());

@@ -2,7 +2,7 @@
  * Right-side property inspector panel.
  */
 
-import { state, dom, hooks, escapeHtml, markDirty } from './state.js';
+import { state, dom, hooks, escapeHtml, markDirty, collectImagePaths, deleteHotspot } from './state.js';
 import { openActionViewer } from './action-viewer.js';
 
 export function renderProperties() {
@@ -72,8 +72,17 @@ function renderSceneProps(data) {
   }
 }
 
+const STANDARD_CURSORS = [
+  'auto', 'default', 'pointer', 'crosshair', 'move', 'text',
+  'wait', 'help', 'not-allowed', 'grab', 'grabbing', 'zoom-in', 'zoom-out',
+  'n-resize', 's-resize', 'e-resize', 'w-resize',
+  'ne-resize', 'nw-resize', 'se-resize', 'sw-resize',
+  'col-resize', 'row-resize', 'none',
+];
+
 function renderHotspotProps(hs) {
   const sceneId = state.selectedId;
+  const data = state.scripts[sceneId];
 
   function setHsProp(prop, raw) {
     const v = parseFloat(raw);
@@ -82,26 +91,184 @@ function renderHotspotProps(hs) {
     hooks.renderViewport();
   }
 
-  addPropGroup('Hotspot', [
-    ['id',    hs.id    || '—'],
-    ['label', hs.label || '—'],
-  ]);
+  // ── Identity fields ──
+  {
+    const group = document.createElement('div');
+    group.className = 'prop-group';
+    const heading = document.createElement('div');
+    heading.className = 'prop-group-title';
+    heading.textContent = 'Hotspot';
+    group.appendChild(heading);
+
+    // id — editable with uniqueness validation
+    {
+      const row = document.createElement('div');
+      row.className = 'prop-row';
+      const label = document.createElement('span');
+      label.className = 'prop-key';
+      label.textContent = 'id';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'prop-input';
+      input.value = hs.id || '';
+      input.addEventListener('change', () => {
+        const v = input.value.trim().replace(/\s+/g, '_');
+        if (!v) { input.value = hs.id; return; }
+        const others = (data.hotspots || []).filter(h => h !== hs);
+        if (others.some(h => h.id === v)) {
+          input.classList.add('prop-input-error');
+          return;
+        }
+        input.classList.remove('prop-input-error');
+        const oldId = hs.id;
+        hs.id = v;
+        input.value = v;
+        state.selectedHs = v;
+        markDirty(sceneId);
+        hooks.renderViewport();
+      });
+      row.append(label, input);
+      group.appendChild(row);
+    }
+
+    // label — editable
+    {
+      const row = document.createElement('div');
+      row.className = 'prop-row';
+      const label = document.createElement('span');
+      label.className = 'prop-key';
+      label.textContent = 'label';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'prop-input';
+      input.value = hs.label || '';
+      input.addEventListener('input', () => {
+        hs.label = input.value || undefined;
+        markDirty(sceneId);
+        hooks.renderViewport();
+      });
+      row.append(label, input);
+      group.appendChild(row);
+    }
+
+    dom.propsContent.appendChild(group);
+  }
+
+  // ── Position ──
   addEditablePropGroup('Position', [
     { key: 'x', value: hs.x, type: 'number', step: 1, min: 0, onChange: v => setHsProp('x', v) },
     { key: 'y', value: hs.y, type: 'number', step: 1, min: 0, onChange: v => setHsProp('y', v) },
     { key: 'w', value: hs.w, type: 'number', step: 1, min: 1, onChange: v => setHsProp('w', v) },
     { key: 'h', value: hs.h, type: 'number', step: 1, min: 1, onChange: v => setHsProp('h', v) },
   ]);
-  if (hs.texture) {
-    addPropGroup('Texture', [['src', hs.texture]]);
+
+  // ── Texture — combo box ──
+  {
+    const group = document.createElement('div');
+    group.className = 'prop-group';
+    const heading = document.createElement('div');
+    heading.className = 'prop-group-title';
+    heading.textContent = 'Texture';
+    group.appendChild(heading);
+
+    const row = document.createElement('div');
+    row.className = 'prop-row';
+    const label = document.createElement('span');
+    label.className = 'prop-key';
+    label.textContent = 'src';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'prop-input';
+    input.setAttribute('list', 'texture-datalist');
+    input.value = hs.texture || '';
+    input.placeholder = '(none)';
+    input.addEventListener('input', () => {
+      hs.texture = input.value || undefined;
+      markDirty(sceneId);
+      hooks.renderViewport();
+    });
+
+    // Populate datalist with known images
+    let datalist = document.getElementById('texture-datalist');
+    if (!datalist) {
+      datalist = document.createElement('datalist');
+      datalist.id = 'texture-datalist';
+      document.body.appendChild(datalist);
+    }
+    datalist.innerHTML = '';
+    for (const p of collectImagePaths()) {
+      const opt = document.createElement('option');
+      opt.value = p;
+      datalist.appendChild(opt);
+    }
+
+    row.append(label, input);
+    group.appendChild(row);
+    dom.propsContent.appendChild(group);
   }
+
+  // ── Cursor — select list ──
+  {
+    const group = document.createElement('div');
+    group.className = 'prop-group';
+    const heading = document.createElement('div');
+    heading.className = 'prop-group-title';
+    heading.textContent = 'Cursor';
+    group.appendChild(heading);
+
+    const row = document.createElement('div');
+    row.className = 'prop-row';
+    const label = document.createElement('span');
+    label.className = 'prop-key';
+    label.textContent = 'cursor';
+
+    const sel = document.createElement('select');
+    sel.className = 'prop-input prop-select';
+
+    // "(default)" option means no cursor override
+    const defOpt = document.createElement('option');
+    defOpt.value = '';
+    defOpt.textContent = '(default)';
+    sel.appendChild(defOpt);
+
+    for (const c of STANDARD_CURSORS) {
+      const o = document.createElement('option');
+      o.value = c;
+      o.textContent = c;
+      if (c === (hs.cursor || '')) o.selected = true;
+      sel.appendChild(o);
+    }
+    sel.addEventListener('change', () => {
+      hs.cursor = sel.value || undefined;
+      markDirty(sceneId);
+    });
+
+    row.append(label, sel);
+    group.appendChild(row);
+    dom.propsContent.appendChild(group);
+  }
+
+  // ── Actions ──
   {
     if (!hs.actions) hs.actions = [];
     addActionLinkGroup('Actions', [['count', hs.actions.length]],
       () => openActionViewer(`${hs.id} — actions`, hs.actions, {
-        onChange: () => markDirty(sceneId),
+        onChange: () => { markDirty(sceneId); hooks.renderProperties(); },
       })
     );
+  }
+
+  // ── Delete hotspot button ──
+  {
+    const group = document.createElement('div');
+    group.className = 'prop-group';
+    const btn = document.createElement('button');
+    btn.className = 'prop-danger-btn';
+    btn.innerHTML = '<span class="material-symbols-outlined">delete</span> Delete hotspot';
+    btn.addEventListener('click', () => deleteHotspot(hs.id));
+    group.appendChild(btn);
+    dom.propsContent.appendChild(group);
   }
 }
 

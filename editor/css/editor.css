@@ -987,3 +987,142 @@ html, body {
 .prop-action-link:hover {
   color: #bdae93;
 }
+
+/* ── Context menu ──────────────────────────────── */
+
+.ctx-menu {
+  position: fixed;
+  z-index: 5000;
+  min-width: 180px;
+  background: #282828;
+  border: 1px solid #504945;
+  border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+  padding: 4px 0;
+  overflow: hidden;
+}
+.ctx-menu.hidden { display: none !important; }
+
+.ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 14px;
+  background: none;
+  border: none;
+  color: #ebdbb2;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+.ctx-item:hover { background: #3c3836; }
+.ctx-item:disabled { opacity: 0.4; cursor: default; }
+.ctx-item.ctx-danger { color: #fb4934; }
+.ctx-item.ctx-danger:hover { background: rgba(251, 73, 52, 0.12); }
+
+.ctx-icon {
+  font-size: 16px;
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+
+.ctx-sep {
+  height: 1px;
+  background: #3c3836;
+  margin: 4px 0;
+}
+
+/* ── Selection box (drag-to-create) ────────────── */
+
+.editor-selection-box {
+  position: absolute;
+  border: 2px solid #ebdbb2;
+  background-color: rgba(235, 219, 178, 0.08);
+  z-index: 100;
+  pointer-events: auto;
+  cursor: default;
+}
+
+/* ── Resize handles on selected hotspot ────────── */
+
+.editor-hotspot.selected {
+  z-index: 50;
+}
+
+.editor-resize-handle {
+  position: absolute;
+  z-index: 51;
+}
+.editor-resize-n, .editor-resize-s {
+  left: 4px; right: 4px; height: 6px; cursor: ns-resize;
+}
+.editor-resize-e, .editor-resize-w {
+  top: 4px; bottom: 4px; width: 6px; cursor: ew-resize;
+}
+.editor-resize-n   { top: -3px; }
+.editor-resize-s   { bottom: -3px; }
+.editor-resize-e   { right: -3px; }
+.editor-resize-w   { left: -3px; }
+.editor-resize-ne, .editor-resize-nw,
+.editor-resize-se, .editor-resize-sw {
+  width: 8px; height: 8px;
+}
+.editor-resize-ne { top: -4px; right: -4px; cursor: nesw-resize; }
+.editor-resize-nw { top: -4px; left: -4px;  cursor: nwse-resize; }
+.editor-resize-se { bottom: -4px; right: -4px; cursor: nwse-resize; }
+.editor-resize-sw { bottom: -4px; left: -4px;  cursor: nesw-resize; }
+
+/* Small visible dots on corners for resize */
+.editor-resize-ne::after, .editor-resize-nw::after,
+.editor-resize-se::after, .editor-resize-sw::after {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #fabd2f;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* ── Delete hotspot button (properties panel) ──── */
+
+.prop-danger-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 12px;
+  border: 1px solid rgba(251, 73, 52, 0.3);
+  border-radius: 4px;
+  background: rgba(251, 73, 52, 0.08);
+  color: #fb4934;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.prop-danger-btn .material-symbols-outlined { font-size: 16px; }
+.prop-danger-btn:hover {
+  background: rgba(251, 73, 52, 0.18);
+  border-color: #fb4934;
+}
+
+/* ── Property input error state ────────────────── */
+
+.prop-input-error {
+  border-color: #fb4934 !important;
+  box-shadow: 0 0 0 1px rgba(251, 73, 52, 0.3);
+}
+
+/* ── Property select (cursor dropdown) ─────────── */
+
+.prop-select {
+  cursor: pointer;
+}
+.prop-select option {
+  background: #282828;
+}

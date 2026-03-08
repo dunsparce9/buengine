@@ -5,27 +5,12 @@ Goal: Bring the editor up to parity with everything the game engine already supp
 
 ---
 
-## 1. Action Viewer / Editor
+## 1. Action Viewer / Editor: ALL DONE! You owe a BEER to CLAUDE
 
 The biggest gap. All action arrays (`hotspot.actions`, `onEnter`, `definitions.*`) are shown as opaque **"N action(s)"** text. There is no way to inspect or edit the actual action logic.
 
-- [ ] **Action Viewer panel** — clicking an action count (hotspot actions, onEnter, definition) opens a read-only "Edit Actions" floating window / modal that displays every action in the array as a distinct visual block:
-  - `say` — speech-bubble style block showing speaker + text (+ delay badge if present)
-  - `choice` — branching block with prompt and nested option sub-blocks, each containing their own action list (recursive)
-  - `goto` — scene-link block (scene id as chip/tag)
-  - `set` — flag assignment block (flag name → value, increment, or clamped increment)
-  - `if / then / else` — conditional block with condition text, indented then/else branches (recursive)
-  - `wait` — timer block (`N ms`)
-  - `emit` — event block (event name)
-  - `run` — definition-call block (definition name as link/chip)
-  - `exit` — stop block
-  - `show` / `hide` — overlay blocks (id, texture, layer, effect params)
-  - `effect` — scene-effect block (type, seconds, blocking badge)
-  - `playsound` — sound block (id, path, volume, fade, loop, blocking badges)
-  - `stopsound` — sound block (id, fade, blocking badge)
-  - Each action type should have a distinct accent colour and icon (think Tasker / MacroDroid). Source icons from Material Symbols Outlined.
-  - Nested structures (choice options, if-branches, definition calls) should be visually indented
-- [ ] **Action editing** (post-MVP) — make the visual blocks editable: reorder, add, delete, edit fields inline
+- [x] **Action Viewer panel** — clicking an action count (hotspot actions, onEnter, definition) opens a read-only "Edit Actions" floating window / modal that displays every action in the array as a distinct visual block.
+- [x] **Action editing** (post-MVP) — make the visual blocks editable: reorder, add, delete, edit fields inline
 
 ## 2. Properties Panel — Scene Fields
 
@@ -41,11 +26,11 @@ Currently read-only with no way to edit. Some fields aren't shown at all.
 
 The hotspot inspector can edit `x/y/w/h` but everything else is read-only or hidden.
 
-- [ ] **`id`** — editable text input (with validation: unique within scene, no spaces)
-- [ ] **`label`** — editable text input
-- [ ] **`texture`** — editable text input (image path), ideally with browse/preview
-- [ ] **`cursor`** — editable text input or dropdown (CSS cursor values) — supported by engine but not shown at all
-- [ ] **`actions`** — show action list (not just count); clicking opens Action Viewer
+- [x] **`id`** — editable text input (with validation: unique within scene, no spaces)
+- [x] **`label`** — editable text input
+- [x] **`texture`** — combo box populated by images referenced in game scripts
+- [x] **`cursor`** — dropdown of standard CSS cursor values
+- [x] **`actions`** — show action list (not just count); clicking opens Action Viewer (works even when empty)
 
 ## 4. Properties Panel — Game Manifest (`_game.json`)
 
@@ -56,10 +41,10 @@ The hotspot inspector can edit `x/y/w/h` but everything else is read-only or hid
 
 No way to create or remove hotspots from the editor.
 
-- [ ] **Add hotspot** — button or context-menu on viewport to create a new hotspot at a grid position
-- [ ] **Delete hotspot** — button or context-menu to remove the selected hotspot
-- [ ] **Drag to move** — click-drag a hotspot in the viewport to reposition it (update x/y)
-- [ ] **Drag to resize** — drag hotspot edges/corners to change w/h
+- [x] **Add hotspot** — drag on viewport to form selection box (grid-snapped), right-click to create via context menu
+- [x] **Delete hotspot** — right-click context menu AND properties panel button
+- [x] **Drag to move** — click-drag a selected hotspot in the viewport to reposition (grid-snapped)
+- [x] **Drag to resize** — drag corner/edge handles on selected hotspot to change w/h (grid-snapped)
 
 ## 6. Scene Management
 
