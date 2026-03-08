@@ -43,7 +43,9 @@ html, body {
 }
 
 .menu-action {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   padding: 6px 16px;
   text-align: left;
@@ -52,6 +54,11 @@ html, body {
   color: #ebdbb2;
   font-size: 13px;
   cursor: pointer;
+}
+.menu-action .material-symbols-outlined {
+  font-size: 16px;
+  opacity: 0.75;
+  flex-shrink: 0;
 }
 .menu-action:hover {
   background: #3c3836;
@@ -374,6 +381,9 @@ html, body {
 }
 
 .menu-run-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   align-self: center;
   margin-right: 10px;
   padding: 2px 14px;
@@ -385,6 +395,9 @@ html, body {
   font-weight: 600;
   cursor: pointer;
   letter-spacing: 0.03em;
+}
+.menu-run-btn .material-symbols-outlined {
+  font-size: 15px;
 }
 .menu-run-btn:hover {
   background: #b8bb26;
