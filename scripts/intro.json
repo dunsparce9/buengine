@@ -66,22 +66,20 @@
       "x": 9, "y": 4, "w": 1, "h": 1,
       "actions": [
         { "if": "intro.beer.clicks >= 5", "then": [
-          { "say": "STOP. TOUCHING. THE BEER.", "speaker": "Narrator" },
-          { "exit": true }
+          { "say": "STOP. TOUCHING. THE BEER.", "speaker": "Narrator" }
         ]},
         { "if": "intro.beer.clicks == 4", "then": [
-          { "say": "I swear, if you click on this one more time…", "speaker": "Narrator" },
-          { "exit": true }
+          { "say": "I swear, if you click on this one more time…", "speaker": "Narrator" }
         ]},
         { "if": "intro.beer.clicks == 3", "then": [
-          { "say": "YES. It is STILL beer. What do you WANT from me?", "speaker": "Narrator" },
-          { "exit": true }
+          { "say": "YES. It is STILL beer. What do you WANT from me?", "speaker": "Narrator" }
         ]},
         { "if": "intro.beer.clicks == 2", "then": [
-          { "say": "It's beer. Again. You already looked at this.", "speaker": "Narrator" },
-          { "exit": true }
+          { "say": "It's beer. Again. You already looked at this.", "speaker": "Narrator" }
         ]},
+        { "if": "intro.beer.clicks == 1", "then": [
         { "say": "It's beer.", "speaker": "Narrator" }
+        ]}
       ]
     }
   ],
