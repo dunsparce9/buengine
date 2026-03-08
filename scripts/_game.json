@@ -1,6 +1,6 @@
 {
-  "title": "büegame",
-  "subtitle": "A point-and-click adventure",
+  "title": "[PLAYGROUND]",
+  "subtitle": "[working title]",
   "startScene": "intro",
   "scenes": ["intro", "abode", "ending"],
   "skipTitleScreen": false
