@@ -10,6 +10,8 @@
  *   { "if": "flag_name", "then": [...], "else": [...] }
  *   { "wait": 500 }            // milliseconds
  *   { "emit": "custom:event" } // fire a bus event
+ *   { "run": "definition_name" } // call a named definition (supports recursion)
+ *   { "exit": true }           // stop the entire action chain
  */
 export class ActionRunner {
   /**
@@ -21,22 +23,29 @@ export class ActionRunner {
     this.bus = bus;
     this.state = state;
     this._aborted = false;
+    this._exited = false;
     this.running = false;
+    /** @type {Record<string, object[]>} Named action sequences from the current scene. */
+    this.definitions = {};
   }
 
-  /** Cancel any running sequence. */
+  /** Cancel any running sequence (external). */
   abort() { this._aborted = true; this.running = false; }
 
   /**
    * Execute an array of action commands sequentially.
    * @param {object[]} actions
+   * @param {boolean}  [_nested=false]  Internal flag — true when called recursively.
    */
-  async run(actions) {
-    this._aborted = false;
-    this.running = true;
+  async run(actions, _nested = false) {
+    if (!_nested) {
+      this._aborted = false;
+      this._exited = false;
+      this.running = true;
+    }
 
     for (const action of actions) {
-      if (this._aborted) return;
+      if (this._aborted || this._exited) return;
 
       if (action.say != null) {
         await this._say(action);
@@ -52,15 +61,23 @@ export class ActionRunner {
       } else if (action.if != null) {
         const result = this.state.hasFlag(action.if);
         const branch = result ? action.then : action.else;
-        if (branch) await this.run(branch);
+        if (branch) await this.run(branch, true);
       } else if (action.wait) {
         await this._delay(action.wait);
       } else if (action.emit) {
         this.bus.emit(action.emit, action.payload);
+      } else if (action.run) {
+        const def = this.definitions[action.run];
+        if (def) await this.run(def, true);
+      } else if (action.exit != null) {
+        this._exited = true;
+        return;
       }
     }
 
-    this.running = false;
+    if (!_nested) {
+      this.running = false;
+    }
   }
 
   /* ── private helpers ──────────────────────────── */
@@ -81,7 +98,7 @@ export class ActionRunner {
         prompt: choiceDef.prompt || '',
         options: choiceDef.options,
         onPick: async (option) => {
-          if (option.actions) await this.run(option.actions);
+          if (option.actions) await this.run(option.actions, true);
           resolve();
         },
       });

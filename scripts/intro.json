@@ -2,39 +2,47 @@
   "id": "intro",
   "background": "scripts/abode.jpg",
   "grid": { "cols": 16, "rows": 9 },
+  "definitions": {
+    "ladder_choice": [
+      {
+        "choice": {
+          "prompt": "What do you do?",
+          "options": [
+            {
+              "text": "Try to open it",
+              "actions": [
+                { "say": "You push the hatch. It creaks open…", "speaker": "Ominous voice" },
+                { "set": { "clicked_ladder": true } },
+                { "say": "Nothing interesting happens.", "speaker": "Ominous voice" },
+                { "exit": true }
+              ]
+            },
+            {
+              "text": "Wait, you're not the narrator?",
+              "actions": [
+                { "say": "*coughs* Ahem sorry", "speaker": "Narrator" },
+                { "run": "ladder_choice" }
+              ]
+            },
+            {
+              "text": "Walk away",
+              "actions": [
+                { "say": "You turn around. There's nowhere else to go.", "speaker": "Narrator" },
+                { "exit": true }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
   "hotspots": [
     {
       "label": "Mysterious ladder",
       "x": 10, "y": 4, "w": 3, "h": 4,
       "actions": [
         { "say": "You find a huge mysterious ladder that probably leads somewhere.", "speaker": "Ominous voice" },
-        {
-          "choice": {
-            "prompt": "What do you do?",
-            "options": [
-              {
-                "text": "Try to open it",
-                "actions": [
-                  { "say": "You push the hatch. It creaks open…", "speaker": "Ominous voice" },
-                  { "set": { "clicked_ladder": true } },
-                  { "say": "Nothing interesting happens.", "speaker": "Ominous voice" }
-                ]
-              },
-              {
-                "text": "Wait, you're not the narrator?",
-                "actions": [
-                  { "say": "*coughs* Ahem sorry", "speaker": "Narrator" }
-                ]
-              },
-              {
-                "text": "Walk away",
-                "actions": [
-                  { "say": "You turn around. There's nowhere else to go.", "speaker": "Narrator" }
-                ]
-              }
-            ]
-          }
-        }
+        { "run": "ladder_choice" }
       ]
     },
     {

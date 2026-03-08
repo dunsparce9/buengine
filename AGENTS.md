@@ -40,6 +40,7 @@ Scene scripts are JSON files in `scripts/`. Each has:
 - `background` / `backgroundColor` — visual backdrop
 - `grid` — `{ "cols": N, "rows": N }` tile grid dimensions (default 16×9)
 - `hotspots[]` — clickable regions with `{ x, y, w, h, label, texture?, actions[] }` where `x`, `y` are tile coordinates and `w`, `h` are tile counts. Optional `texture` renders an image snapped to the grid.
+- `definitions` — `{ "name": [...actions] }` named action sequences callable via `{ "run": "name" }`. Supports recursion.
 - `onEnter[]` — action array run when the scene is entered
 
 ### Action commands
@@ -53,6 +54,8 @@ Actions are objects in an array. Supported commands:
 | Conditional | `{ "if": "flag_name", "then": [...], "else": [...] }` |
 | Wait | `{ "wait": 500 }` |
 | Custom event | `{ "emit": "event_name" }` |
+| Run definition | `{ "run": "definition_name" }` |
+| Exit actions | `{ "exit": true }` |
 
 ### Communication between modules
 All modules communicate through `EventBus`. Never import one UI module from another — emit an event instead.

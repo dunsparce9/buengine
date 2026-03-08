@@ -29,6 +29,7 @@ async function gotoScene(id) {
   runner.abort();
   const data = await loader.load(id);
   currentSceneData = data;
+  runner.definitions = data.definitions || {};
   state.pushScene(id);
   scene.render(data);
 
