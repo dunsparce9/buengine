@@ -23,6 +23,12 @@ export class DialogueUI {
 
     this.bus.on('game:basepath', (bp) => { this._basePath = bp; });
     this.box.addEventListener('click', () => this._advance());
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && !this.box.classList.contains('hidden')) {
+        e.preventDefault();
+        this._advance();
+      }
+    });
     this.bus.on('dialogue:show', (data) => this.show(data));
   }
 
