@@ -251,6 +251,33 @@ function renderHotspotProps(hs) {
     dom.propsContent.appendChild(group);
   }
 
+  // ── Visibility ──
+  {
+    const group = document.createElement('div');
+    group.className = 'prop-group';
+    const row = document.createElement('div');
+    row.className = 'prop-row';
+    const label = document.createElement('span');
+    label.className = 'prop-key';
+    label.textContent = 'visible';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.className = 'prop-checkbox';
+    input.checked = hs.visible !== false;
+    input.addEventListener('change', () => {
+      if (input.checked) {
+        delete hs.visible;
+      } else {
+        hs.visible = false;
+      }
+      markDirty(sceneId);
+      hooks.renderViewport();
+    });
+    row.append(label, input);
+    group.appendChild(row);
+    dom.propsContent.appendChild(group);
+  }
+
   // ── Actions ──
   {
     if (!hs.actions) hs.actions = [];

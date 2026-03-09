@@ -390,6 +390,13 @@ html, body {
   border-color: #fe8019;
 }
 
+.prop-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: #fe8019;
+  cursor: pointer;
+}
+
 /* ── Run button ────────────────────────────────── */
 .menu-spacer {
   flex: 1;
