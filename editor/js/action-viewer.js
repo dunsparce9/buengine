@@ -897,6 +897,7 @@ function pickActionType(parentFw) {
       height: 480,
       resizable: false,
       modal: true,
+      closeOnBackdrop: true,
       parent: parentFw,
     });
 

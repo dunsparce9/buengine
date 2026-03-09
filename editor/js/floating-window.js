@@ -16,9 +16,10 @@ function bringToFront(el) {
  * @param {number}  [opts.width=300]
  * @param {number}  [opts.height]        If omitted, auto-sized
  * @param {boolean} [opts.resizable=false]
+ * @param {boolean} [opts.closeOnBackdrop=false]
  * @returns {{ el: HTMLElement, body: HTMLElement, open(): void, close(): void, destroy(): void }}
  */
-export function createFloatingWindow({ title, icon = '', iconClass = '', width = 300, height, resizable = false, modal = false, parent = null }) {
+export function createFloatingWindow({ title, icon = '', iconClass = '', width = 300, height, resizable = false, modal = false, closeOnBackdrop = false, parent = null }) {
   const el = document.createElement('div');
   el.className = 'fw hidden';
   el.style.width = `${width}px`;
@@ -55,6 +56,10 @@ export function createFloatingWindow({ title, icon = '', iconClass = '', width =
     backdrop.className = 'fw-backdrop';
     backdrop.addEventListener('mousedown', (e) => {
       e.stopPropagation();
+      if (closeOnBackdrop) {
+        close();
+        return;
+      }
       el.classList.add('fw-attention');
       setTimeout(() => el.classList.remove('fw-attention'), 400);
     });
