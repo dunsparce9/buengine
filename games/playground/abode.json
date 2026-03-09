@@ -214,7 +214,7 @@
         {
           "say": "Büe...",
           "speaker": "Seal",
-          "speaker_color": "#9edfff"
+          "accent": "#9edfff"
         },
         {
           "if": "abode.ladder.clicks >= 1",

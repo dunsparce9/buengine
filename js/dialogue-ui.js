@@ -34,11 +34,11 @@ export class DialogueUI {
     this.bus.on('dialogue:dismiss', () => this.dismiss());
   }
 
-  show({ speaker, speakerColor, text, delay, onDone }) {
+  show({ speaker, accent, text, delay, onDone }) {
     this._stopType();
     this._clearLock();
+    this.box.style.setProperty('--dialogue-accent', accent || '#f0c040');
     this.speaker.textContent = speaker;
-    this.speaker.style.color = speakerColor || '';
     this._fullText = text;
     this._onDone = onDone;
     this.text.textContent = '';

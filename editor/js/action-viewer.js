@@ -92,7 +92,7 @@ function renderSay(action) {
   if (action.speaker) {
     const speaker = document.createElement('span');
     speaker.className = 'av-speaker';
-    if (action.speaker_color) speaker.style.color = action.speaker_color;
+    if (action.accent) speaker.style.color = action.accent;
     speaker.textContent = action.speaker;
     body.appendChild(speaker);
   }
