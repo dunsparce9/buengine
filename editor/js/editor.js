@@ -375,8 +375,18 @@ let deferredInstallPrompt = null;
 
 function updateInstallMenuVisibility() {
   const installBtn = document.getElementById('install-app-btn');
-  const canInstall = Boolean(deferredInstallPrompt) && !isStandalonePWA();
-  if (installBtn) installBtn.disabled = !canInstall;
+  const installSep = document.getElementById('install-app-sep');
+  const standalone = isStandalonePWA();
+  const canInstall = Boolean(deferredInstallPrompt) && !standalone;
+
+  if (installBtn) {
+    installBtn.hidden = standalone;
+    installBtn.disabled = !canInstall;
+  }
+
+  if (installSep) {
+    installSep.hidden = standalone;
+  }
 }
 
 function setupPWAInstall() {
