@@ -17,12 +17,14 @@
         }
       },
       {
-        "say": "HELLO",
-        "speaker": "PROF. OAK"
+        "say": "HELLO GAMER",
+        "speaker": "PROF. OAK",
+        "speaker_color": "#ffffff"
       },
       {
         "say": "WELCOME TO THE WORLD RENOWNED BÜE ARG",
-        "speaker": "PROF. OAK"
+        "speaker": "PROF. OAK",
+        "speaker_color": "#ed42f0"
       },
       {
         "choice": {
@@ -69,6 +71,9 @@
                           {
                             "say": "YEA WELL I DON'T CARE",
                             "speaker": "STILL PROF. OAK"
+                          },
+                          {
+                            "run": "intro_sequence"
                           }
                         ]
                       }
