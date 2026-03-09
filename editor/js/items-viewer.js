@@ -161,24 +161,22 @@ function createItemRow(item) {
   const tdOptions = document.createElement('td');
   tdOptions.className = 'items-td-options';
   const opts = item.options || [];
-  if (opts.length > 0) {
-    const pill = document.createElement('button');
-    pill.type = 'button';
-    pill.className = 'items-options-pill';
-    const preview = opts.slice(0, 2).map(opt => opt.text || '…').join(', ');
-    const more = opts.length > 2 ? `, +${opts.length - 2}` : '';
-    pill.innerHTML =
-      '<span class="material-symbols-outlined">tune</span>' +
-      `<span class="items-options-pill-text">${escapeHtml(preview + more)}</span>` +
-      `<span class="items-options-pill-count">${opts.length}</span>`;
-    pill.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openOptionsModal(item, state.selectedId || 'items/items');
-    });
-    tdOptions.appendChild(pill);
-  } else {
-    tdOptions.innerHTML = '<span class="items-no-options">—</span>';
-  }
+  const pill = document.createElement('button');
+  pill.type = 'button';
+  pill.className = 'items-options-pill';
+  const preview = opts.length
+    ? opts.slice(0, 2).map(opt => opt.text || '…').join(', ')
+    : 'No options';
+  const more = opts.length > 2 ? `, +${opts.length - 2}` : '';
+  pill.innerHTML =
+    '<span class="material-symbols-outlined">tune</span>' +
+    `<span class="items-options-pill-text">${escapeHtml(preview + more)}</span>` +
+    `<span class="items-options-pill-count">${opts.length}</span>`;
+  pill.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openOptionsModal(item, state.selectedId || 'items/items');
+  });
+  tdOptions.appendChild(pill);
   row.appendChild(tdOptions);
   return row;
 }
@@ -440,15 +438,15 @@ function openOptionsModal(item, scriptId) {
 }
 
 function buildOptionsContent(container, item, scriptId) {
+  container.innerHTML = '';
   const opts = item.options || [];
 
-  if (!opts.length) {
-    const empty = document.createElement('div');
-    empty.className = 'items-viewer-empty';
-    empty.textContent = 'No options defined';
-    container.appendChild(empty);
-    return;
-  }
+  container.oncontextmenu = (e) => {
+    const row = e.target.closest('.items-options-row');
+    if (row) return;
+    e.preventDefault();
+    showOptionsEmptyContextMenu(e.clientX, e.clientY, item, scriptId, container);
+  };
 
   const table = document.createElement('table');
   table.className = 'items-options-table';
@@ -466,15 +464,43 @@ function buildOptionsContent(container, item, scriptId) {
   for (let i = 0; i < opts.length; i++) {
     const opt = opts[i];
     const tr = document.createElement('tr');
+    tr.className = 'items-options-row';
+    tr.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      showOptionRowContextMenu(e.clientX, e.clientY, item, i, scriptId, container);
+    });
 
     const tdIcon = document.createElement('td');
     tdIcon.className = 'items-opt-td-icon';
-    tdIcon.textContent = opt.icon || '—';
+    const iconInput = document.createElement('input');
+    iconInput.type = 'text';
+    iconInput.className = 'items-options-input';
+    iconInput.value = opt.icon || '';
+    iconInput.placeholder = 'Icon';
+    iconInput.addEventListener('input', () => {
+      opt.icon = iconInput.value || undefined;
+      markDirty(scriptId);
+      hooks.renderViewport();
+      hooks.renderProperties();
+    });
+    tdIcon.appendChild(iconInput);
     tr.appendChild(tdIcon);
 
     const tdText = document.createElement('td');
     tdText.className = 'items-opt-td-text';
-    tdText.textContent = opt.text || '—';
+    const textInput = document.createElement('input');
+    textInput.type = 'text';
+    textInput.className = 'items-options-input';
+    textInput.value = opt.text || '';
+    textInput.placeholder = 'Option text';
+    textInput.addEventListener('input', () => {
+      opt.text = textInput.value || undefined;
+      markDirty(scriptId);
+      hooks.renderViewport();
+      hooks.renderProperties();
+    });
+    tdText.appendChild(textInput);
     tr.appendChild(tdText);
 
     const tdActions = document.createElement('td');
@@ -503,4 +529,48 @@ function buildOptionsContent(container, item, scriptId) {
 
   table.appendChild(tbody);
   container.appendChild(table);
+
+  if (!opts.length) {
+    const empty = document.createElement('div');
+    empty.className = 'items-viewer-empty';
+    empty.textContent = 'No options defined. Right-click to create one.';
+    container.appendChild(empty);
+  }
+}
+
+function createNewOption(item, scriptId, container) {
+  if (!Array.isArray(item.options)) item.options = [];
+  item.options.push({
+    text: 'New option',
+    icon: '',
+    actions: [],
+  });
+  markDirty(scriptId);
+  hooks.renderViewport();
+  hooks.renderProperties();
+  buildOptionsContent(container, item, scriptId);
+}
+
+function deleteOption(item, index, scriptId, container) {
+  if (!Array.isArray(item.options)) return;
+  if (index < 0 || index >= item.options.length) return;
+  item.options.splice(index, 1);
+  markDirty(scriptId);
+  hooks.renderViewport();
+  hooks.renderProperties();
+  buildOptionsContent(container, item, scriptId);
+}
+
+function showOptionsEmptyContextMenu(x, y, item, scriptId, container) {
+  showContextMenu(x, y, [
+    { icon: 'add_box', label: 'New option', onClick: () => createNewOption(item, scriptId, container) },
+  ]);
+}
+
+function showOptionRowContextMenu(x, y, item, index, scriptId, container) {
+  showContextMenu(x, y, [
+    { icon: 'add_box', label: 'New option', onClick: () => createNewOption(item, scriptId, container) },
+    { separator: true },
+    { icon: 'delete', label: 'Delete', danger: true, onClick: () => deleteOption(item, index, scriptId, container) },
+  ]);
 }

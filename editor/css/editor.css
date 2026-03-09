@@ -949,7 +949,6 @@ html, body {
 
 .items-opt-td-icon {
   width: 50px;
-  font-size: 18px;
   text-align: center;
 }
 
@@ -969,6 +968,22 @@ html, body {
   border-color: #83a598;
   color: #ebdbb2;
   background: rgba(131, 165, 152, 0.1);
+}
+
+.items-options-input {
+  width: 100%;
+  min-width: 0;
+  background: #282828;
+  color: #ebdbb2;
+  border: 1px solid #504945;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font: inherit;
+  outline: none;
+}
+
+.items-options-input:focus {
+  border-color: #fe8019;
 }
 
 /* ── Action Viewer ─────────────────────────────── */
