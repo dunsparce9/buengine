@@ -56,6 +56,7 @@ export class OverlayUI {
   showTitle(cfg = {}) {
     this.titleText.textContent = cfg.title || 'büegame';
     this.titleSub.textContent  = cfg.subtitle || '';
+    this.editBtn.classList.toggle('hidden', cfg.editVisible === false);
     this.title.classList.remove('hidden');
     this.pause.classList.add('hidden');
   }

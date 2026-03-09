@@ -206,15 +206,16 @@ function selectGame(id) {
 
 /** Load manifest and show title overlay (or skip straight to game). */
 async function showTitle() {
+  const editVisible = !(loader.isPreview && loader.assetMap);
   try {
     const manifest = await loader.load('_game');
     if (manifest.skipTitleScreen) {
       bus.emit('game:start');
       return;
     }
-    overlay.showTitle({ title: manifest.title, subtitle: manifest.subtitle });
+    overlay.showTitle({ title: manifest.title, subtitle: manifest.subtitle, editVisible });
   } catch {
-    overlay.showTitle({ title: 'büegame', subtitle: 'A point-and-click adventure' });
+    overlay.showTitle({ title: 'büegame', subtitle: 'A point-and-click adventure', editVisible });
   }
 }
 
