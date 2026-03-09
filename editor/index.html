@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1d2021">
   <title>büegame editor</title>
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
   <link rel="stylesheet" href="css/editor.css">
 </head>
@@ -36,6 +38,8 @@
     <div class="menu-item" data-menu="help">
       Help
       <div class="menu-dropdown" id="menu-help">
+        <button class="menu-action" data-action="install-app" id="install-app-btn" disabled><span class="material-symbols-outlined">download</span>Install app&hellip;</button>
+        <div class="menu-sep" id="install-app-sep"></div>
         <button class="menu-action" data-action="about"><span class="material-symbols-outlined">info</span>About</button>
       </div>
     </div>
