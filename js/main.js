@@ -257,7 +257,7 @@ bus.on('game:title', () => {
   showTitle();
 });
 
-/** Quit: return to game selector. */
+/** Quit: return to the selector, unless this was launched from the local editor preview. */
 bus.on('game:quit', () => {
   runner.abort();
   bus.emit('dialogue:dismiss');
@@ -269,6 +269,10 @@ bus.on('game:quit', () => {
   overlay.hidePause();
   state.reset();
   inventory.reset();
+  if (loader.isPreview && loader.assetMap) {
+    window.close();
+    return;
+  }
   showGameSelector();
 });
 

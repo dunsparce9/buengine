@@ -18,8 +18,19 @@ export class NotificationUI {
   constructor(bus) {
     this.bus = bus;
     this.el = document.getElementById('notification-container');
+    this._basePath = '';
+    this._assetMap = null;
 
+    bus.on('game:basepath', (bp) => { this._basePath = bp; });
+    bus.on('game:assetmap', (map) => { this._assetMap = map; });
     bus.on('notification:show', (data) => this._show(data));
+  }
+
+  /** Resolve a relative notification icon path. */
+  _resolve(path) {
+    if (this._assetMap && path && this._assetMap.has(path)) return this._assetMap.get(path);
+    if (!this._basePath || !path) return path;
+    return `${this._basePath}/${path}`;
   }
 
   /**
@@ -43,7 +54,7 @@ export class NotificationUI {
     if (icon) {
       const img = document.createElement('img');
       img.className = 'notif-icon';
-      img.src = icon;
+      img.src = this._resolve(icon);
       img.alt = '';
       img.draggable = false;
       body.appendChild(img);

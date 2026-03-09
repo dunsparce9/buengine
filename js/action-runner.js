@@ -40,9 +40,6 @@ export class ActionRunner {
     this.state = state;
     this.inventory = inventory;
     this._aborted = false;
-    this._basePath = '';
-
-    bus.on('game:basepath', (bp) => { this._basePath = bp; });
     this._exited = false;
     this._gotoFired = false;
     this._gotoTarget = null;
@@ -217,10 +214,9 @@ export class ActionRunner {
       if (ok) {
         const def = this.inventory.getDef(id);
         const name = def?.name ?? id;
-        const icon = def?.icon ? `${this._basePath}/${def.icon}` : undefined;
         this.bus.emit('notification:show', {
           title: 'Inventory',
-          icon,
+          icon: def?.icon,
           content: `${name} x ${qty}`,
         });
       }
