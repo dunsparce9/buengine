@@ -218,6 +218,7 @@ export class ActionRunner {
           title: 'Inventory',
           icon: def?.icon,
           content: `${name} x ${qty}`,
+          emit: 'inventory:open',
         });
       }
     } else if (qty < 0) {

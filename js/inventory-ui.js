@@ -9,6 +9,7 @@
  *
  * Listens:
  *   hud:inventory      – toggle the inventory window
+ *   inventory:open     – open the inventory window
  *   inventory:changed   – refresh contents
  *   game:quit / game:title – close window
  *
@@ -37,6 +38,7 @@ export class InventoryUI {
     bus.on('game:basepath', (bp) => { this._basePath = bp; });
     bus.on('game:assetmap', (map) => { this._assetMap = map; });
     bus.on('hud:inventory', () => this.toggle());
+    bus.on('inventory:open', () => this.open());
     bus.on('inventory:changed', () => { if (this._open) this._render(); });
     bus.on('game:quit', () => this.close());
     bus.on('game:title', () => this.close());

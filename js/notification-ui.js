@@ -7,11 +7,13 @@
  *   [DESCRIPTION]           ← optional
  *
  * Bus events listened:
- *   notification:show  { title, icon?, content, description? }
+ *   notification:show  { title, icon?, content, description?, emit?, payload? }
  *     title       – heading text (rendered in small caps)
  *     icon        – optional image URL
  *     content     – main line of text
  *     description – optional secondary line
+ *     emit        – optional bus event to emit when clicked
+ *     payload     – optional event payload emitted when clicked
  */
 export class NotificationUI {
   /** @param {import('./event-bus.js').EventBus} bus */
@@ -35,11 +37,28 @@ export class NotificationUI {
 
   /**
    * Display a notification toast.
-   * @param {{ title: string, icon?: string, content: string, description?: string }} data
+   * @param {{ title: string, icon?: string, content: string, description?: string, emit?: string, payload?: unknown }} data
    */
-  _show({ title, icon, content, description }) {
+  _show({ title, icon, content, description, emit, payload }) {
     const toast = document.createElement('div');
     toast.className = 'notif-toast';
+
+    if (emit) {
+      toast.classList.add('notif-clickable');
+      toast.tabIndex = 0;
+      toast.setAttribute('role', 'button');
+      const activate = () => {
+        this.bus.emit(emit, payload);
+        toast.remove();
+      };
+      toast.addEventListener('click', activate);
+      toast.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          activate();
+        }
+      });
+    }
 
     // Title
     const titleEl = document.createElement('div');
