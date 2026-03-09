@@ -4,6 +4,7 @@
 
 import { state, dom, hooks, escapeHtml } from './state.js';
 import { showContextMenu } from './context-menu.js';
+import { createFloatingWindow } from './floating-window.js';
 import { getFileExtension } from './file-types.js';
 import {
   buildTree, deleteEntry, renameEntry, moveEntry, createDir,
@@ -319,9 +320,26 @@ export function initFilePanelDrop() {
     // Drop into root folder
     await handleExternalDrop(e.dataTransfer.files, '');
   });
+
+  panel.addEventListener('contextmenu', (e) => {
+    const clickedTreeItem = e.target.closest('.tree-file, .tree-row, .tree-open-folder-btn');
+    if (clickedTreeItem) return;
+    if (!state.rootHandle) return;
+    e.preventDefault();
+    showRootContextMenu(e.clientX, e.clientY);
+  });
 }
 
 /* ── Context menus ─────────────────────────────── */
+
+function showRootContextMenu(x, y) {
+  showContextMenu(x, y, [
+    { icon: 'note_add', label: 'New file…', onClick: () => promptNewFile('') },
+    { icon: 'create_new_folder', label: 'New folder…', onClick: () => promptNewFolder('') },
+    { separator: true },
+    { icon: 'content_paste', label: 'Paste file…', onClick: () => pasteFileInto('') },
+  ]);
+}
 
 function showFolderContextMenu(x, y, node) {
   showContextMenu(x, y, [
@@ -351,7 +369,15 @@ function showFileContextMenu(x, y, node) {
 /* ── Context menu actions ──────────────────────── */
 
 async function promptNewFile(folderPath) {
-  const name = prompt('New file name:');
+  const input = await promptForName({
+    title: 'New File',
+    icon: 'note_add',
+    label: 'File name',
+    value: 'untitled.json',
+    confirmLabel: 'Create',
+  });
+  if (!input) return;
+  const name = normalizeNewFileName(input);
   if (!name) return;
   const path = folderPath ? `${folderPath}/${name}` : name;
   try {
@@ -366,40 +392,204 @@ async function promptNewFile(folderPath) {
   }
 }
 
+function normalizeNewFileName(input) {
+  const name = input.trim();
+  if (!name) return '';
+  return name.includes('.') ? name : `${name}.json`;
+}
+
 async function promptNewFolder(parentPath) {
-  const name = prompt('New folder name:');
+  const name = await promptForName({
+    title: 'New Folder',
+    icon: 'create_new_folder',
+    label: 'Folder name',
+    value: '',
+    confirmLabel: 'Create',
+  });
   if (!name) return;
-  const path = parentPath ? `${parentPath}/${name}` : name;
+  const trimmedName = name.trim();
+  if (!trimmedName) return;
+  const path = parentPath ? `${parentPath}/${trimmedName}` : trimmedName;
   try {
     await createDir(path);
     await buildTree();
     state.expandedFolders.add(path);
     renderFileList();
-    hooks.toast?.(`Created folder ${name}`);
+    hooks.toast?.(`Created folder ${trimmedName}`);
   } catch (err) {
     hooks.toast?.(`Failed: ${err.message}`, 'error');
   }
 }
 
 async function promptRename(node) {
-  const newName = prompt('New name:', node.name);
-  if (!newName || newName === node.name) return;
+  const newName = await promptForName({
+    title: node.type === 'dir' ? 'Rename Folder' : 'Rename File',
+    icon: 'drive_file_rename_outline',
+    label: 'Name',
+    value: node.name,
+    confirmLabel: 'Rename',
+  });
+  const trimmedName = newName?.trim();
+  if (!trimmedName || trimmedName === node.name) return;
   try {
-    const newPath = await renameEntry(node.path, newName);
+    const newPath = await renameEntry(node.path, trimmedName);
     await buildTree();
     if (state.selectedPath === node.path) {
       state.selectedPath = newPath;
     }
     renderFileList();
-    hooks.toast?.(`Renamed to ${newName}`);
+    hooks.toast?.(`Renamed to ${trimmedName}`);
   } catch (err) {
     hooks.toast?.(`Rename failed: ${err.message}`, 'error');
   }
 }
 
+function promptForName({ title, icon, label, value = '', confirmLabel = 'OK' }) {
+  return new Promise(resolve => {
+    let resolved = false;
+    const fw = createFloatingWindow({
+      title,
+      icon,
+      iconClass: 'material-symbols-outlined',
+      width: 360,
+      resizable: false,
+      modal: true,
+    });
+
+    const form = document.createElement('form');
+    form.className = 'name-modal-form';
+
+    const labelEl = document.createElement('label');
+    labelEl.className = 'name-modal-label';
+    labelEl.textContent = label;
+
+    const input = document.createElement('input');
+    input.className = 'name-modal-input';
+    input.type = 'text';
+    input.value = value;
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+
+    const actions = document.createElement('div');
+    actions.className = 'name-modal-actions';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'name-modal-btn name-modal-btn-secondary';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.addEventListener('click', () => {
+      if (resolved) return;
+      resolved = true;
+      fw.destroy();
+      resolve(null);
+    });
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.type = 'submit';
+    confirmBtn.className = 'name-modal-btn name-modal-btn-primary';
+    confirmBtn.textContent = confirmLabel;
+
+    actions.append(cancelBtn, confirmBtn);
+    form.append(labelEl, input, actions);
+    fw.body.appendChild(form);
+    fw.onClose(() => {
+      if (resolved) return;
+      resolved = true;
+      resolve(null);
+    });
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (resolved) return;
+      resolved = true;
+      const submittedValue = input.value.trim();
+      fw.destroy();
+      resolve(submittedValue || null);
+    });
+
+    fw.open();
+    requestAnimationFrame(() => {
+      input.focus();
+      input.select();
+    });
+  });
+}
+
+function promptForConfirmation({ title, icon, message, confirmLabel = 'OK' }) {
+  return new Promise(resolve => {
+    let resolved = false;
+    const fw = createFloatingWindow({
+      title,
+      icon,
+      iconClass: 'material-symbols-outlined',
+      width: 360,
+      resizable: false,
+      modal: true,
+    });
+
+    const wrap = document.createElement('div');
+    wrap.className = 'confirm-modal';
+    wrap.tabIndex = -1;
+
+    const messageEl = document.createElement('p');
+    messageEl.className = 'confirm-modal-message';
+    messageEl.textContent = message;
+
+    const actions = document.createElement('div');
+    actions.className = 'name-modal-actions';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'name-modal-btn name-modal-btn-secondary';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.addEventListener('click', () => {
+      if (resolved) return;
+      resolved = true;
+      fw.destroy();
+      resolve(false);
+    });
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.type = 'button';
+    confirmBtn.className = 'name-modal-btn name-modal-btn-danger';
+    confirmBtn.textContent = confirmLabel;
+    confirmBtn.addEventListener('click', () => {
+      if (resolved) return;
+      resolved = true;
+      fw.destroy();
+      resolve(true);
+    });
+
+    wrap.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        confirmBtn.click();
+      }
+    });
+
+    actions.append(cancelBtn, confirmBtn);
+    wrap.append(messageEl, actions);
+    fw.body.appendChild(wrap);
+    fw.onClose(() => {
+      if (resolved) return;
+      resolved = true;
+      resolve(false);
+    });
+
+    fw.open();
+    requestAnimationFrame(() => confirmBtn.focus());
+  });
+}
+
 async function confirmDelete(node) {
   const label = node.type === 'dir' ? `folder "${node.name}" and all its contents` : `"${node.name}"`;
-  if (!confirm(`Delete ${label}?`)) return;
+  const confirmed = await promptForConfirmation({
+    title: node.type === 'dir' ? 'Delete Folder' : 'Delete File',
+    icon: 'delete',
+    message: `Delete ${label}?`,
+    confirmLabel: 'Delete',
+  });
+  if (!confirmed) return;
   try {
     await deleteEntry(node.path);
     if (state.selectedPath === node.path) {
