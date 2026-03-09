@@ -7,6 +7,10 @@ html, body {
   font-size: 14px;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 /* ── Menu bar ──────────────────────────────────── */
 #menu-bar {
   display: flex;
@@ -32,7 +36,8 @@ html, body {
   position: absolute;
   top: 100%;
   left: 0;
-  min-width: 160px;
+  min-width: max-content;
+  width: max-content;
   background: #282828;
   border: 1px solid #3c3836;
   z-index: 1000;
@@ -54,6 +59,7 @@ html, body {
   color: #ebdbb2;
   font-size: 13px;
   cursor: pointer;
+  white-space: nowrap;
 }
 .menu-action .material-symbols-outlined {
   font-size: 16px;

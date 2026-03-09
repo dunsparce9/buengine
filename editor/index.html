@@ -15,19 +15,19 @@
       File
       <div class="menu-dropdown" id="menu-file">
         <button class="menu-action" data-action="open-folder"><span class="material-symbols-outlined">folder_open</span>Open Folder&hellip;<span class="menu-shortcut">Ctrl+O</span></button>
-        <div class="menu-sep"></div>
-        <button class="menu-action" data-action="save"><span class="material-symbols-outlined">save</span>Save<span class="menu-shortcut">Ctrl+S</span></button>
-        <button class="menu-action" data-action="save-all"><span class="material-symbols-outlined">save_as</span>Save All<span class="menu-shortcut">Ctrl+Shift+S</span></button>
+        <div class="menu-sep" data-requires-game></div>
+        <button class="menu-action" data-action="save" data-requires-game><span class="material-symbols-outlined">save</span>Save<span class="menu-shortcut">Ctrl+S</span></button>
+        <button class="menu-action" data-action="save-all" data-requires-game><span class="material-symbols-outlined">save_as</span>Save All<span class="menu-shortcut">Ctrl+Shift+S</span></button>
         <div class="menu-sep"></div>
         <button class="menu-action" data-action="import-zip"><span class="material-symbols-outlined">upload_file</span>Import ZIP&hellip;</button>
-        <button class="menu-action" data-action="export-zip"><span class="material-symbols-outlined">archive</span>Export as ZIP</button>
-        <div class="menu-sep"></div>
-        <button class="menu-action" data-action="export-json"><span class="material-symbols-outlined">file_download</span>Export current JSON</button>
-        <div class="menu-sep"></div>
+        <button class="menu-action" data-action="export-zip" data-requires-game><span class="material-symbols-outlined">archive</span>Export as ZIP</button>
+        <div class="menu-sep" data-requires-game></div>
+        <button class="menu-action" data-action="export-json" data-requires-game><span class="material-symbols-outlined">file_download</span>Export current JSON</button>
+        <div class="menu-sep" data-requires-game></div>
         <button class="menu-action" data-action="exit"><span class="material-symbols-outlined">exit_to_app</span>Exit</button>
       </div>
     </div>
-    <div class="menu-item" data-menu="run">
+    <div class="menu-item" data-menu="run" data-requires-game>
       Run
       <div class="menu-dropdown" id="menu-run">
         <button class="menu-action" data-action="run-in-tab"><span class="material-symbols-outlined">open_in_new</span>Run in new tab</button>
@@ -40,7 +40,7 @@
       </div>
     </div>
     <div class="menu-spacer"></div>
-    <button class="menu-run-btn" id="run-btn" title="Run in new tab"><span class="material-symbols-outlined">play_arrow</span>Run</button>
+    <button class="menu-run-btn" id="run-btn" title="Run in new tab" data-requires-game><span class="material-symbols-outlined">play_arrow</span>Run</button>
   </div>
 
   <!-- ── Main layout ──────────────────────────── -->

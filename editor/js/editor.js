@@ -24,6 +24,20 @@ hooks.renderFileList   = renderFileList;
 hooks.renderViewport   = renderViewport;
 hooks.renderProperties = renderProperties;
 
+function hasLoadedGame() {
+  return Boolean(state.manifest && Object.keys(state.scripts).length);
+}
+
+function updateMenuVisibility() {
+  const loaded = hasLoadedGame();
+  for (const el of document.querySelectorAll('[data-requires-game]')) {
+    el.hidden = !loaded;
+    if (!loaded && el.classList.contains('open')) {
+      el.classList.remove('open');
+    }
+  }
+}
+
 /* ── Toast notifications ───────────────────────── */
 const toastContainer = document.getElementById('toast-container');
 
@@ -82,6 +96,8 @@ async function handleOpenFolder() {
   state.selectedPath = null;
   state.dirtySet.clear();
   clearAssetCache();
+  state.manifest = null;
+  updateMenuVisibility();
 
   // Load scripts from the newly opened folder
   try {
@@ -104,6 +120,7 @@ async function handleOpenFolder() {
   await cacheAssetURLs(imagePaths);
 
   document.title = `büegame editor — ${handle.name}`;
+  updateMenuVisibility();
   renderFileList();
   selectScript('_game');
   showToast(`Opened ${handle.name}`);
@@ -387,6 +404,6 @@ window.addEventListener('resize', () => renderViewport());
       showToast(`Failed to load game: ${err.message}`, 'error');
     }
   }
+  updateMenuVisibility();
   renderFileList();
 })();
-
