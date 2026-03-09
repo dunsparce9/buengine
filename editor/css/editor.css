@@ -272,6 +272,39 @@ html, body {
   font-size: 15px;
 }
 
+.editor-media-preview,
+.editor-media-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.editor-media-empty {
+  color: #a89984;
+  font-size: 14px;
+}
+
+.editor-media-preview-el {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.editor-media-image,
+.editor-media-video {
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.editor-media-audio {
+  width: min(520px, 100%);
+}
+
 /* Hotspot outlines in viewport */
 .editor-hotspot {
   position: absolute;
@@ -336,6 +369,14 @@ html, body {
   color: #7c6f64;
   font-size: 13px;
   padding: 8px 0;
+}
+
+.prop-async-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: #a89984;
+  font-size: 13px;
 }
 
 /* Property rows */

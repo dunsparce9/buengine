@@ -5,7 +5,8 @@
 
 import { state, dom, hooks, markDirty, addHotspot, deleteHotspot, uniqueHotspotId } from './state.js';
 import { showContextMenu } from './context-menu.js';
-import { resolveAssetURLSync } from './fs-provider.js';
+import { resolveAssetURL, resolveAssetURLSync } from './fs-provider.js';
+import { getFileKind, isPreviewableMedia } from './file-types.js';
 
 /* ── Drag state (module-scoped, survives re-renders) ── */
 let _selectionBox = null; // { x, y, w, h } in grid units (for drag-to-create)
@@ -42,11 +43,19 @@ export function renderViewport() {
   const { viewport, viewportWrap, viewportEmpty } = dom;
 
   // Clear previous hotspot elements (keep selection box if present)
+  viewport.querySelectorAll('.editor-media-preview, .editor-media-empty').forEach(el => el.remove());
   viewport.querySelectorAll('.editor-hotspot, .editor-resize-handle').forEach(el => el.remove());
   viewport.style.backgroundImage = '';
   viewport.style.backgroundColor = '#181825';
   viewport.style.width  = '';
   viewport.style.height = '';
+  viewportEmpty.classList.add('hidden');
+
+  if (state.selectedPath && !state.selectedId) {
+    renderMediaViewport(state.selectedPath);
+    return;
+  }
+
   viewportEmpty.classList.toggle('hidden', !!state.selectedId);
 
   if (!state.selectedId || !state.scripts[state.selectedId]) return;
@@ -150,6 +159,83 @@ export function renderViewport() {
 
   // Render selection box (drag-to-create preview)
   renderSelectionBoxEl();
+}
+
+function renderMediaViewport(path) {
+  const kind = getFileKind(path);
+  if (!isPreviewableMedia(path)) {
+    renderUnsupportedMedia(path);
+    return;
+  }
+
+  const { viewport, viewportWrap } = dom;
+  viewport.style.width = `${Math.max(320, viewportWrap.clientWidth - 48)}px`;
+  viewport.style.height = `${Math.max(220, viewportWrap.clientHeight - 48)}px`;
+  viewport.style.backgroundColor = '#11111b';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'editor-media-preview';
+
+  const url = resolveAssetURLSync(path);
+  if (url) {
+    wrap.appendChild(createMediaEl(kind, path, url));
+    viewport.appendChild(wrap);
+    return;
+  }
+
+  const loading = document.createElement('div');
+  loading.className = 'editor-media-empty';
+  loading.textContent = 'Loading preview...';
+  wrap.appendChild(loading);
+  viewport.appendChild(wrap);
+
+  resolveAssetURL(path).then((resolved) => {
+    if (!resolved) return;
+    if (state.selectedPath !== path || state.selectedId) return;
+    hooks.renderViewport();
+  }).catch(() => {
+    if (state.selectedPath !== path || state.selectedId) return;
+    loading.textContent = 'Preview unavailable';
+  });
+}
+
+function createMediaEl(kind, path, url) {
+  if (kind === 'image') {
+    const img = document.createElement('img');
+    img.className = 'editor-media-preview-el editor-media-image';
+    img.src = url;
+    img.alt = path.split('/').pop() || 'image preview';
+    img.draggable = false;
+    return img;
+  }
+
+  if (kind === 'audio') {
+    const audio = document.createElement('audio');
+    audio.className = 'editor-media-preview-el editor-media-audio';
+    audio.src = url;
+    audio.controls = true;
+    audio.preload = 'metadata';
+    return audio;
+  }
+
+  const video = document.createElement('video');
+  video.className = 'editor-media-preview-el editor-media-video';
+  video.src = url;
+  video.controls = true;
+  video.preload = 'metadata';
+  return video;
+}
+
+function renderUnsupportedMedia(path) {
+  const { viewport, viewportWrap } = dom;
+  viewport.style.width = `${Math.max(320, viewportWrap.clientWidth - 48)}px`;
+  viewport.style.height = `${Math.max(220, viewportWrap.clientHeight - 48)}px`;
+  viewport.style.backgroundColor = '#11111b';
+
+  const empty = document.createElement('div');
+  empty.className = 'editor-media-empty';
+  empty.textContent = `No preview for ${path.split('/').pop() || path}`;
+  viewport.appendChild(empty);
 }
 
 /* ── Resize handles on selected hotspot ────────── */

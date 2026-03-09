@@ -8,6 +8,7 @@
 
 import { state, dom, hooks, escapeHtml } from './state.js';
 import { showContextMenu } from './context-menu.js';
+import { getFileExtension } from './file-types.js';
 import {
   buildTree, deleteEntry, renameEntry, moveEntry, createDir,
   writeFileBinary, findNode, hasNativeFS,
@@ -39,7 +40,7 @@ const EXT_ICONS = {
 
 function iconForFile(name) {
   if (name === '_game.json') return 'settings';
-  const ext = name.split('.').pop().toLowerCase();
+  const ext = getFileExtension(name);
   return EXT_ICONS[ext] || 'draft';
 }
 
