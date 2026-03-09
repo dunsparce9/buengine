@@ -96,7 +96,10 @@ export function selectPath(path) {
 /* ── Flat list (memory/legacy mode) ────────────── */
 
 function renderFlatList() {
-  const ids = ['_game', ...Object.keys(state.scripts).filter(id => id !== '_game')];
+  const scriptIds = Object.keys(state.scripts);
+  const ids = scriptIds.length
+    ? ['_game', ...scriptIds.filter(id => id !== '_game')]
+    : [];
   for (const id of ids) {
     const li = document.createElement('li');
     li.className = 'tree-file tree-depth-0';
@@ -469,4 +472,3 @@ async function pasteFileInto(folderPath) {
   });
   input.click();
 }
-
