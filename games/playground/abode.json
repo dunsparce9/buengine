@@ -240,7 +240,6 @@
         },
         {
           "choice": {
-            "prompt": "",
             "options": [
               {
                 "text": "Büe back at ya!",
@@ -250,8 +249,19 @@
                 "text": "Pick up the seal.",
                 "actions": [
                   {
-                    "say": "what",
-                    "speaker": "Narrator"
+                    "if": "seal_picked_up == 0",
+                    "then": [
+                      {
+                        "say": "what",
+                        "speaker": "Narrator"
+                      },
+                      {
+                        "set": {
+                          "seal_picked_up": 1
+                        }
+                      }
+                    ],
+                    "else": []
                   },
                   {
                     "item": {
