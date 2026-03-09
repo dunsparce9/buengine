@@ -1,139 +1,195 @@
 /**
- * Items table viewer — renders items/items.json as a rich table
- * in the viewport, with an options modal linking to Action Viewer.
+ * Items viewer/editor for items/items.json.
  */
 
-import { escapeHtml, markDirty } from './state.js';
+import {
+  state,
+  hooks,
+  escapeHtml,
+  markDirty,
+  addItemDefinition,
+  deleteItemDefinition,
+  uniqueItemId,
+} from './state.js';
 import { resolveAssetURLSync } from './fs-provider.js';
 import { createFloatingWindow } from './floating-window.js';
 import { openActionViewer } from './action-viewer.js';
+import { showContextMenu } from './context-menu.js';
 
-/**
- * Render the items table into the viewport element.
- * @param {Array} items  The parsed items array
- * @param {HTMLElement} viewport  The viewport element
- * @param {string} scriptId  The script id (e.g. 'items/items')
- */
 export function renderItemsViewport(items, viewport) {
+  syncSelectedItem(items);
+
   const wrap = document.createElement('div');
   wrap.className = 'items-viewer';
 
-  const heading = document.createElement('div');
-  heading.className = 'items-viewer-heading';
-  heading.innerHTML =
+  const header = document.createElement('div');
+  header.className = 'items-viewer-heading';
+  header.innerHTML =
     '<span class="material-symbols-outlined items-viewer-heading-icon">inventory_2</span>' +
-    `<span>Items</span>` +
+    '<span>Items</span>' +
     `<span class="items-viewer-count">${items.length}</span>`;
-  wrap.appendChild(heading);
+  wrap.appendChild(header);
 
-  if (items.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'items-viewer-empty';
-    empty.textContent = 'No items defined';
-    wrap.appendChild(empty);
-    viewport.appendChild(wrap);
-    return;
+  wrap.addEventListener('contextmenu', (e) => {
+    const row = e.target.closest('.items-list-row');
+    if (row) return;
+    e.preventDefault();
+    showEmptyItemsContextMenu(e.clientX, e.clientY);
+  });
+
+  const list = document.createElement('div');
+  list.className = 'items-list';
+
+  if (!items.length) {
+    const empty = document.createElement('button');
+    empty.type = 'button';
+    empty.className = 'items-viewer-empty items-viewer-empty-action';
+    empty.innerHTML =
+      '<span class="material-symbols-outlined">add_box</span>' +
+      '<span>No items defined. Right-click or click here to create one.</span>';
+    empty.addEventListener('click', createNewItem);
+    list.appendChild(empty);
+  } else {
+    const table = document.createElement('table');
+    table.className = 'items-table';
+
+    const thead = document.createElement('thead');
+    thead.innerHTML =
+      '<tr>' +
+      '<th class="items-th-icon"></th>' +
+      '<th>ID</th>' +
+      '<th>Name</th>' +
+      '<th>Stackable</th>' +
+      '<th>Droppable</th>' +
+      '<th>Options</th>' +
+      '</tr>';
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    for (const item of items) {
+      tbody.appendChild(createItemRow(item));
+    }
+    table.appendChild(tbody);
+    list.appendChild(table);
   }
 
-  const table = document.createElement('table');
-  table.className = 'items-table';
-
-  // Header
-  const thead = document.createElement('thead');
-  thead.innerHTML =
-    '<tr>' +
-    '<th class="items-th-icon"></th>' +
-    '<th>ID</th>' +
-    '<th>Name</th>' +
-    '<th>Stackable</th>' +
-    '<th>Droppable</th>' +
-    '<th>Options</th>' +
-    '</tr>';
-  table.appendChild(thead);
-
-  // Body
-  const tbody = document.createElement('tbody');
-  for (const item of items) {
-    const tr = document.createElement('tr');
-
-    // Icon
-    const tdIcon = document.createElement('td');
-    tdIcon.className = 'items-td-icon';
-    if (item.icon) {
-      const img = document.createElement('img');
-      img.className = 'items-icon-img';
-      const url = resolveAssetURLSync(item.icon);
-      if (url) img.src = url;
-      else img.src = item.icon;
-      img.alt = item.name || item.id || '';
-      img.draggable = false;
-      tdIcon.appendChild(img);
-    }
-    tr.appendChild(tdIcon);
-
-    // ID
-    const tdId = document.createElement('td');
-    tdId.className = 'items-td-id';
-    tdId.textContent = item.id || '—';
-    tr.appendChild(tdId);
-
-    // Name
-    const tdName = document.createElement('td');
-    tdName.className = 'items-td-name';
-    tdName.textContent = item.name || '—';
-    tr.appendChild(tdName);
-
-    // Stackable
-    const tdStack = document.createElement('td');
-    tdStack.className = 'items-td-bool';
-    tdStack.innerHTML = item.stackable
-      ? '<span class="items-bool-yes">&#10003;</span>'
-      : '<span class="items-bool-no">&#10007;</span>';
-    tr.appendChild(tdStack);
-
-    // Droppable
-    const tdDrop = document.createElement('td');
-    tdDrop.className = 'items-td-bool';
-    tdDrop.innerHTML = item.droppable
-      ? '<span class="items-bool-yes">&#10003;</span>'
-      : '<span class="items-bool-no">&#10007;</span>';
-    tr.appendChild(tdDrop);
-
-    // Options
-    const tdOpts = document.createElement('td');
-    tdOpts.className = 'items-td-options';
-    const opts = item.options || [];
-    if (opts.length > 0) {
-      const pill = document.createElement('button');
-      pill.className = 'items-options-pill';
-      // Show first few option texts as preview
-      const preview = opts.slice(0, 2).map(o => o.text || '…').join(', ');
-      const more = opts.length > 2 ? `, +${opts.length - 2}` : '';
-      pill.innerHTML =
-        `<span class="material-symbols-outlined">tune</span>` +
-        `<span class="items-options-pill-text">${escapeHtml(preview + more)}</span>` +
-        `<span class="items-options-pill-count">${opts.length}</span>`;
-      pill.addEventListener('click', () => openOptionsModal(item));
-      tdOpts.appendChild(pill);
-    } else {
-      tdOpts.innerHTML = '<span class="items-no-options">—</span>';
-    }
-    tr.appendChild(tdOpts);
-
-    tbody.appendChild(tr);
-  }
-  table.appendChild(tbody);
-  wrap.appendChild(table);
+  wrap.appendChild(list);
   viewport.appendChild(wrap);
 }
 
-/**
- * Render items summary into the properties panel.
- * @param {Array} items  The parsed items array
- * @param {HTMLElement} container  The props content element
- */
 export function renderItemsProperties(items, container) {
-  // Summary group
+  syncSelectedItem(items);
+
+  const selected = items.find(item => item?.id === state.selectedItem) || null;
+  if (!selected) {
+    renderItemsSummary(items, container);
+    return;
+  }
+
+  renderSelectedItemEditor(selected, items, container);
+}
+
+export function openItemOptionsModal(item) {
+  openOptionsModal(item, state.selectedId || 'items/items');
+}
+
+function syncSelectedItem(items) {
+  if (!items.length) {
+    state.selectedItem = null;
+    return;
+  }
+  if (state.selectedItem && items.some(item => item?.id === state.selectedItem)) return;
+  state.selectedItem = items[0]?.id || null;
+}
+
+function createItemRow(item) {
+  const row = document.createElement('tr');
+  row.className = 'items-list-row';
+  row.dataset.itemId = item.id || '';
+  if (item.id === state.selectedItem) row.classList.add('selected');
+
+  row.addEventListener('click', () => {
+    state.selectedItem = item.id || null;
+    hooks.renderViewport();
+    hooks.renderProperties();
+  });
+
+  row.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    state.selectedItem = item.id || null;
+    hooks.renderViewport();
+    hooks.renderProperties();
+    showItemContextMenu(e.clientX, e.clientY, item);
+  });
+
+  const tdIcon = document.createElement('td');
+  tdIcon.className = 'items-td-icon';
+  if (item.icon) {
+    const img = document.createElement('img');
+    img.className = 'items-icon-img';
+    const url = resolveAssetURLSync(item.icon);
+    img.src = url || item.icon;
+    img.alt = item.name || item.id || '';
+    img.draggable = false;
+    tdIcon.appendChild(img);
+  } else {
+    tdIcon.innerHTML = '<span class="material-symbols-outlined items-icon-fallback">deployed_code</span>';
+  }
+  row.appendChild(tdIcon);
+
+  const tdId = document.createElement('td');
+  tdId.className = 'items-td-id';
+  tdId.textContent = item.id || '—';
+  row.appendChild(tdId);
+
+  const tdName = document.createElement('td');
+  tdName.className = 'items-td-name';
+  tdName.textContent = item.name || '—';
+  row.appendChild(tdName);
+
+  const tdStack = document.createElement('td');
+  tdStack.className = 'items-td-bool';
+  tdStack.innerHTML = renderBoolCell(item.stackable);
+  row.appendChild(tdStack);
+
+  const tdDrop = document.createElement('td');
+  tdDrop.className = 'items-td-bool';
+  tdDrop.innerHTML = renderBoolCell(item.droppable !== false);
+  row.appendChild(tdDrop);
+
+  const tdOptions = document.createElement('td');
+  tdOptions.className = 'items-td-options';
+  const opts = item.options || [];
+  if (opts.length > 0) {
+    const pill = document.createElement('button');
+    pill.type = 'button';
+    pill.className = 'items-options-pill';
+    const preview = opts.slice(0, 2).map(opt => opt.text || '…').join(', ');
+    const more = opts.length > 2 ? `, +${opts.length - 2}` : '';
+    pill.innerHTML =
+      '<span class="material-symbols-outlined">tune</span>' +
+      `<span class="items-options-pill-text">${escapeHtml(preview + more)}</span>` +
+      `<span class="items-options-pill-count">${opts.length}</span>`;
+    pill.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openOptionsModal(item, state.selectedId || 'items/items');
+    });
+    tdOptions.appendChild(pill);
+  } else {
+    tdOptions.innerHTML = '<span class="items-no-options">—</span>';
+  }
+  row.appendChild(tdOptions);
+  return row;
+}
+
+function renderBoolCell(enabled) {
+  return enabled
+    ? '<span class="items-bool-yes">&#10003;</span>'
+    : '<span class="items-bool-no">&#10007;</span>';
+}
+
+function renderItemsSummary(items, container) {
   const group = document.createElement('div');
   group.className = 'prop-group';
 
@@ -144,40 +200,213 @@ export function renderItemsProperties(items, container) {
 
   const rows = [
     ['count', String(items.length)],
-    ['stackable', String(items.filter(i => i.stackable).length)],
-    ['droppable', String(items.filter(i => i.droppable).length)],
+    ['stackable', String(items.filter(item => item?.stackable).length)],
+    ['droppable', String(items.filter(item => item?.droppable).length)],
   ];
 
-  for (const [key, val] of rows) {
+  for (const [key, value] of rows) {
     const row = document.createElement('div');
     row.className = 'prop-row';
     row.innerHTML =
       `<span class="prop-key">${escapeHtml(key)}</span>` +
-      `<span class="prop-val">${escapeHtml(val)}</span>`;
+      `<span class="prop-val">${escapeHtml(value)}</span>`;
+    group.appendChild(row);
+  }
+
+  const help = document.createElement('div');
+  help.className = 'props-empty';
+  help.textContent = items.length
+    ? 'Select an item in the center pane to edit it.'
+    : 'Right-click the center pane to create an item.';
+  group.appendChild(help);
+
+  container.appendChild(group);
+}
+
+function renderSelectedItemEditor(item, items, container) {
+  const scriptId = state.selectedId || 'items/items';
+
+  addEditablePropGroup('Item', [
+    {
+      key: 'id',
+      value: item.id ?? '',
+      event: 'change',
+      onChange: (value, input) => {
+        const nextId = value.trim().replace(/\s+/g, '_');
+        if (!nextId) {
+          input.value = item.id || '';
+          return;
+        }
+        const clash = items.some(other => other !== item && other?.id === nextId);
+        if (clash) {
+          input.classList.add('prop-input-error');
+          return;
+        }
+        input.classList.remove('prop-input-error');
+        item.id = nextId;
+        state.selectedItem = nextId;
+        input.value = nextId;
+        markDirty(scriptId);
+        hooks.renderViewport();
+        hooks.renderProperties();
+      },
+    },
+    {
+      key: 'name',
+      value: item.name ?? '',
+      event: 'input',
+      onChange: value => {
+        item.name = value;
+        markDirty(scriptId);
+        hooks.renderViewport();
+      },
+    },
+    {
+      key: 'icon',
+      value: item.icon ?? '',
+      placeholder: '(none)',
+      event: 'input',
+      onChange: value => {
+        item.icon = value || undefined;
+        markDirty(scriptId);
+        hooks.renderViewport();
+      },
+    },
+  ], container);
+
+  addEditablePropGroup('Flags', [
+    {
+      key: 'stackable',
+      value: Boolean(item.stackable),
+      type: 'checkbox',
+      onChange: value => {
+        item.stackable = Boolean(value);
+        markDirty(scriptId);
+        hooks.renderViewport();
+      },
+    },
+    {
+      key: 'droppable',
+      value: item.droppable !== false,
+      type: 'checkbox',
+      onChange: value => {
+        item.droppable = Boolean(value);
+        markDirty(scriptId);
+        hooks.renderViewport();
+      },
+    },
+  ], container);
+
+  renderReadonlyOptions(item, container, scriptId);
+}
+
+function renderReadonlyOptions(item, container, scriptId) {
+  const group = document.createElement('div');
+  group.className = 'prop-group';
+
+  const heading = document.createElement('div');
+  heading.className = 'prop-group-title';
+  heading.textContent = `Options (${(item.options || []).length})`;
+  group.appendChild(heading);
+
+  const openBtn = document.createElement('button');
+  openBtn.type = 'button';
+  openBtn.className = 'items-options-open-btn';
+  openBtn.innerHTML =
+    '<span class="material-symbols-outlined">tune</span>' +
+    '<span>Inspect options</span>';
+  openBtn.addEventListener('click', () => openOptionsModal(item, scriptId));
+  group.appendChild(openBtn);
+
+  const options = item.options || [];
+  if (!options.length) {
+    const empty = document.createElement('div');
+    empty.className = 'props-empty';
+    empty.textContent = 'No options defined';
+    group.appendChild(empty);
+    container.appendChild(group);
+    return;
+  }
+
+  for (let i = 0; i < options.length; i++) {
+    const opt = options[i];
+    const row = document.createElement('div');
+    row.className = 'prop-row items-option-row';
+    row.innerHTML =
+      `<span class="prop-key">${escapeHtml(opt.text || `Option ${i + 1}`)}</span>` +
+      `<span class="prop-val">${escapeHtml(opt.icon || '—')} · ${(opt.actions || []).length} action(s)</span>`;
     group.appendChild(row);
   }
 
   container.appendChild(group);
+}
 
-  // Per-item listing
-  const listGroup = document.createElement('div');
-  listGroup.className = 'prop-group';
+function addEditablePropGroup(title, fields, container) {
+  const group = document.createElement('div');
+  group.className = 'prop-group';
 
-  const listHeading = document.createElement('div');
-  listHeading.className = 'prop-group-title';
-  listHeading.textContent = 'All items';
-  listGroup.appendChild(listHeading);
+  const heading = document.createElement('div');
+  heading.className = 'prop-group-title';
+  heading.textContent = title;
+  group.appendChild(heading);
 
-  for (const item of items) {
-    const row = document.createElement('div');
+  for (const field of fields) {
+    const row = document.createElement('label');
     row.className = 'prop-row';
-    row.innerHTML =
-      `<span class="prop-key">${escapeHtml(item.id || '?')}</span>` +
-      `<span class="prop-val">${escapeHtml(item.name || '—')}</span>`;
-    listGroup.appendChild(row);
+
+    const key = document.createElement('span');
+    key.className = 'prop-key';
+    key.textContent = field.key;
+
+    let input;
+    if (field.type === 'checkbox') {
+      input = document.createElement('input');
+      input.type = 'checkbox';
+      input.className = 'prop-checkbox';
+      input.checked = Boolean(field.value);
+      input.addEventListener('change', () => field.onChange?.(input.checked, input));
+    } else {
+      input = document.createElement('input');
+      input.type = field.type || 'text';
+      input.className = 'prop-input';
+      input.value = field.value ?? '';
+      if (field.placeholder) input.placeholder = field.placeholder;
+      const eventName = field.event || 'change';
+      input.addEventListener(eventName, () => field.onChange?.(input.value, input));
+      if (eventName !== 'input') {
+        input.addEventListener('input', () => input.classList.remove('prop-input-error'));
+      }
+    }
+
+    row.append(key, input);
+    group.appendChild(row);
   }
 
-  container.appendChild(listGroup);
+  container.appendChild(group);
+}
+
+function createNewItem() {
+  addItemDefinition({
+    id: uniqueItemId('item'),
+    name: 'New Item',
+    stackable: false,
+    droppable: true,
+    options: [],
+  });
+}
+
+function showEmptyItemsContextMenu(x, y) {
+  showContextMenu(x, y, [
+    { icon: 'add_box', label: 'New item', onClick: createNewItem },
+  ]);
+}
+
+function showItemContextMenu(x, y, item) {
+  showContextMenu(x, y, [
+    { icon: 'add_box', label: 'New item', onClick: createNewItem },
+    { separator: true },
+    { icon: 'delete', label: 'Delete', danger: true, onClick: () => deleteItemDefinition(item.id) },
+  ]);
 }
 
 /* ── Options modal ─────────────────────────────── */
@@ -185,7 +414,7 @@ export function renderItemsProperties(items, container) {
 /** @type {Map<string, ReturnType<typeof createFloatingWindow>>} */
 const _openModals = new Map();
 
-function openOptionsModal(item) {
+function openOptionsModal(item, scriptId) {
   const key = `${item.id} — Options`;
 
   const existing = _openModals.get(key);
@@ -206,14 +435,14 @@ function openOptionsModal(item) {
   _openModals.set(key, fw);
   fw.onClose(() => _openModals.delete(key));
 
-  buildOptionsContent(fw.body, item);
+  buildOptionsContent(fw.body, item, scriptId);
   fw.open();
 }
 
-function buildOptionsContent(container, item) {
+function buildOptionsContent(container, item, scriptId) {
   const opts = item.options || [];
 
-  if (opts.length === 0) {
+  if (!opts.length) {
     const empty = document.createElement('div');
     empty.className = 'items-viewer-empty';
     empty.textContent = 'No options defined';
@@ -238,33 +467,29 @@ function buildOptionsContent(container, item) {
     const opt = opts[i];
     const tr = document.createElement('tr');
 
-    // Icon
     const tdIcon = document.createElement('td');
     tdIcon.className = 'items-opt-td-icon';
     tdIcon.textContent = opt.icon || '—';
     tr.appendChild(tdIcon);
 
-    // Text
     const tdText = document.createElement('td');
     tdText.className = 'items-opt-td-text';
     tdText.textContent = opt.text || '—';
     tr.appendChild(tdText);
 
-    // Actions
     const tdActions = document.createElement('td');
     tdActions.className = 'items-opt-td-actions';
     const actions = opt.actions || [];
     if (actions.length > 0) {
       const pill = document.createElement('button');
       pill.className = 'av-mini-btn items-actions-pill';
-      pill.innerHTML =
-        `<span class="material-symbols-outlined">list_alt</span> ${actions.length}`;
+      pill.innerHTML = '<span class="material-symbols-outlined">list_alt</span> ' + actions.length;
       pill.title = `${actions.length} action(s)`;
       pill.addEventListener('click', () => {
         openActionViewer(
           `${item.name || item.id} — ${opt.text || 'Option ' + (i + 1)}`,
           actions,
-          { onChange: () => markDirty('items/items') }
+          { onChange: () => markDirty(scriptId) }
         );
       });
       tdActions.appendChild(pill);

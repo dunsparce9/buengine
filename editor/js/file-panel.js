@@ -66,6 +66,7 @@ export function renderFileList() {
 export function selectScript(id) {
   state.selectedId = id;
   state.selectedHs = null;
+  state.selectedItem = null;
   // Sync selectedPath
   if (id === '_game') state.selectedPath = '_game.json';
   else if (id) state.selectedPath = `${id}.json`;
@@ -86,6 +87,7 @@ export function selectPath(path) {
     state.selectedId = null;
   }
   state.selectedHs = null;
+  state.selectedItem = null;
   renderFileList();
   hooks.renderViewport();
   hooks.renderProperties();
@@ -225,6 +227,7 @@ function selectFileNode(node) {
   }
   state.selectedPath = node.path;
   state.selectedHs = null;
+  state.selectedItem = null;
   renderFileList();
   hooks.renderViewport();
   hooks.renderProperties();

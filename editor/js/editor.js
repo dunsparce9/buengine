@@ -93,6 +93,7 @@ async function handleOpenFolder() {
   state.scripts = {};
   state.selectedId = null;
   state.selectedHs = null;
+  state.selectedItem = null;
   state.selectedPath = null;
   state.dirtySet.clear();
   clearAssetCache();

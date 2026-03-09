@@ -50,6 +50,8 @@ export function renderViewport() {
   viewport.style.backgroundColor = '#181825';
   viewport.style.width  = '';
   viewport.style.height = '';
+  viewport.classList.remove('viewport-items-mode');
+  viewportWrap.classList.remove('viewport-items-mode');
   viewportEmpty.classList.add('hidden');
 
   if (state.selectedPath && !state.selectedId) {
@@ -69,9 +71,11 @@ export function renderViewport() {
 
   // Items table (items/items.json is an array, not a scene)
   if (Array.isArray(data)) {
-    viewport.style.width = `${Math.max(320, viewportWrap.clientWidth - 48)}px`;
-    viewport.style.height = `${Math.max(220, viewportWrap.clientHeight - 48)}px`;
-    viewport.style.backgroundColor = '#11111b';
+    viewportWrap.classList.add('viewport-items-mode');
+    viewport.classList.add('viewport-items-mode');
+    viewport.style.width = '100%';
+    viewport.style.height = '100%';
+    viewport.style.backgroundColor = '#1d2021';
     renderItemsViewport(data, viewport);
     return;
   }
