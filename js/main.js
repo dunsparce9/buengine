@@ -226,7 +226,19 @@ bus.on('game:start', async () => {
     const manifest = await loader.load('_game');
     const invCapacity = manifest.inventory || 0;
     inventory.configure(invCapacity);
-    await inventory.loadDefinitions(loader.basePath);
+
+    // In preview mode, item definitions may be in the script cache
+    if (loader.isPreview) {
+      try {
+        const defs = await loader.load('items/items');
+        inventory.loadDefinitionsFromData(defs);
+      } catch {
+        await inventory.loadDefinitions(loader.basePath);
+      }
+    } else {
+      await inventory.loadDefinitions(loader.basePath);
+    }
+
     bus.emit('hud:inventory-enabled', inventory.enabled);
     await gotoScene(manifest.startScene || 'intro');
   } catch {
@@ -315,6 +327,11 @@ const _urlGame = _params.get('game');
 
 if (_urlGame) {
   selectGame(_urlGame);
+} else if (loader.isPreview && loader._cache.has('_game')) {
+  // Editor preview of a local folder — no game ID needed.
+  // Broadcast the asset map so renderers can resolve blob URLs.
+  if (loader.assetMap) bus.emit('game:assetmap', loader.assetMap);
+  showTitle();
 } else {
   showGameSelector();
 }

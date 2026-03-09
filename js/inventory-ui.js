@@ -31,8 +31,11 @@ export class InventoryUI {
 
     /** Base path for resolving item icon URLs. */
     this._basePath = '';
+    /** @type {Map<string, string>|null} Preview asset blob URL map. */
+    this._assetMap = null;
 
     bus.on('game:basepath', (bp) => { this._basePath = bp; });
+    bus.on('game:assetmap', (map) => { this._assetMap = map; });
     bus.on('hud:inventory', () => this.toggle());
     bus.on('inventory:changed', () => { if (this._open) this._render(); });
     bus.on('game:quit', () => this.close());
@@ -53,6 +56,7 @@ export class InventoryUI {
 
   /** Resolve a relative item icon path. */
   _resolve(path) {
+    if (this._assetMap && path && this._assetMap.has(path)) return this._assetMap.get(path);
     if (!this._basePath || !path) return path;
     return `${this._basePath}/${path}`;
   }

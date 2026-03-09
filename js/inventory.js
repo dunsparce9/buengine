@@ -64,6 +64,18 @@ export class Inventory {
     } catch { /* no item definitions — that's fine */ }
   }
 
+  /**
+   * Load item definitions from an already-parsed array (used in editor preview).
+   * @param {object[]} defs
+   */
+  loadDefinitionsFromData(defs) {
+    this._defs.clear();
+    if (!this.enabled || !Array.isArray(defs)) return;
+    for (const def of defs) {
+      this._defs.set(def.id, def);
+    }
+  }
+
   /** Get the definition object for an item id, or null. */
   getDef(id) {
     return this._defs.get(id) ?? null;

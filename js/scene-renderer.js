@@ -33,7 +33,11 @@ export class SceneRenderer {
 
     window.addEventListener('resize', () => this._fitToContainer());
 
+    /** @type {Map<string, string>|null} Preview asset blob URL map. */
+    this._assetMap = null;
+
     bus.on('game:basepath', (bp) => { this._basePath = bp; });
+    bus.on('game:assetmap', (map) => { this._assetMap = map; });
     bus.on('scene:effect',  (payload) => this._applyEffect(payload));
     bus.on('overlay:show',  (payload) => this._showEntity(payload));
     bus.on('overlay:hide',  (payload) => this._hideEntity(payload));
@@ -64,6 +68,7 @@ export class SceneRenderer {
 
   /** Resolve a relative asset path against the game's base directory. */
   _resolve(path) {
+    if (this._assetMap && path && this._assetMap.has(path)) return this._assetMap.get(path);
     if (!this._basePath || !path) return path;
     return `${this._basePath}/${path}`;
   }

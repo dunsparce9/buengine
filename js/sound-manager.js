@@ -15,9 +15,15 @@ export class SoundManager {
 
     /** Base path for resolving relative sound URLs. */
     this._basePath = '';
+    /** @type {Map<string, string>|null} Preview asset blob URL map. */
+    this._assetMap = null;
 
     bus.on('game:basepath', (bp) => {
       this._basePath = bp;
+      this._preloadUISounds();
+    });
+    bus.on('game:assetmap', (map) => {
+      this._assetMap = map;
       this._preloadUISounds();
     });
     bus.on('sound:play',    (p)     => this._play(p));
@@ -27,6 +33,7 @@ export class SoundManager {
 
   /** Resolve a relative sound path against the game's base directory. */
   _resolve(path) {
+    if (this._assetMap && path && this._assetMap.has(path)) return this._assetMap.get(path);
     if (!this._basePath || !path) return path;
     return `${this._basePath}/${path}`;
   }

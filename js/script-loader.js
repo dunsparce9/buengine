@@ -12,6 +12,8 @@ export class ScriptLoader {
     this._cache = new Map();
     /** @type {Map<string, object>|null} */
     this._previewOverrides = null;
+    /** @type {Map<string, string>|null} path → blob URL for local assets */
+    this._assetMap = null;
 
     // Editor preview mode: pre-populate cache from localStorage
     if (new URLSearchParams(location.search).has('preview')) {
@@ -25,8 +27,22 @@ export class ScriptLoader {
           }
         }
       } catch { /* ignore corrupt data */ }
+
+      // Load asset blob URL mapping (set by editor for local folders)
+      try {
+        const rawAssets = localStorage.getItem('buegame_editor_assets');
+        if (rawAssets) {
+          this._assetMap = new Map(Object.entries(JSON.parse(rawAssets)));
+        }
+      } catch { /* ignore */ }
     }
   }
+
+  /** Whether running in editor preview mode. */
+  get isPreview() { return this._previewOverrides !== null; }
+
+  /** Asset blob URL map (or null if not in local-folder preview mode). */
+  get assetMap() { return this._assetMap; }
 
   /** Update the base path (e.g. when a different game is selected). */
   setBasePath(path) {
@@ -42,10 +58,14 @@ export class ScriptLoader {
 
   /**
    * Resolve a relative asset path against the current base.
+   * In preview mode, checks the asset blob URL map first.
    * @param {string} relativePath
    * @returns {string}
    */
   resolvePath(relativePath) {
+    if (this._assetMap && relativePath && this._assetMap.has(relativePath)) {
+      return this._assetMap.get(relativePath);
+    }
     if (!this.basePath || !relativePath) return relativePath;
     return `${this.basePath}/${relativePath}`;
   }

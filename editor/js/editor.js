@@ -14,7 +14,7 @@ import { initMenu } from './menu.js';
 import { initResizeHandles } from './resize.js';
 import {
   openFolder, buildTree, writeFile, writeFileBinary, readFileBinary,
-  collectAllPaths, cacheAssetURLs, clearAssetCache,
+  collectAllPaths, cacheAssetURLs, clearAssetCache, resolveAssetURL,
 } from './fs-provider.js';
 import { createZip, readZip } from './zip-utils.js';
 import './action-viewer.js';
@@ -298,12 +298,30 @@ function downloadBlob(blob, filename) {
 }
 
 /* ── Run in new tab ────────────────────────────── */
-function runInNewTab() {
+async function runInNewTab() {
   const overrides = {};
   for (const [id, data] of Object.entries(state.scripts)) {
     overrides[id] = data;
   }
   localStorage.setItem('buegame_editor_preview', JSON.stringify(overrides));
+
+  // In native FS mode, create blob URLs for all non-JSON assets so the
+  // game tab can load images/sounds from the local folder.
+  if (state.fsMode === 'native') {
+    const assetMap = {};
+    const allPaths = collectAllPaths();
+    for (const path of allPaths) {
+      if (path.endsWith('.json')) continue;
+      try {
+        const url = await resolveAssetURL(path);
+        if (url) assetMap[path] = url;
+      } catch { /* skip unreadable files */ }
+    }
+    localStorage.setItem('buegame_editor_assets', JSON.stringify(assetMap));
+  } else {
+    localStorage.removeItem('buegame_editor_assets');
+  }
+
   const params = new URLSearchParams({ preview: '' });
   if (GAME_ID) params.set('game', GAME_ID);
   window.open(`../index.html?${params}`, '_blank');
@@ -361,8 +379,14 @@ window.addEventListener('resize', () => renderViewport());
 
 /* ── Boot ──────────────────────────────────────── */
 (async () => {
-  await discoverScripts();
+  if (GAME_ID) {
+    try {
+      await discoverScripts();
+      selectScript('_game');
+    } catch (err) {
+      showToast(`Failed to load game: ${err.message}`, 'error');
+    }
+  }
   renderFileList();
-  selectScript('_game');
 })();
 
