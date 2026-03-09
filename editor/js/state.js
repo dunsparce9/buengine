@@ -17,6 +17,14 @@ export const state = {
   selectedId: null,       // currently selected script id
   selectedHs: null,       // currently selected hotspot id
   dirtySet:   new Set(),  // script ids with unsaved edits
+
+  /* ── File system ── */
+  fsMode:          'memory',      // 'memory' | 'native'
+  rootHandle:      null,          // FileSystemDirectoryHandle (native mode)
+  fileTree:        [],            // recursive tree of { name, path, type, handle?, children? }
+  expandedFolders: new Set(['']), // folder paths currently expanded (root = '')
+  selectedPath:    null,          // path of selected item in file tree
+  assetURLCache:   new Map(),     // path → blob URL (native mode only)
 };
 
 /* ── DOM references ────────────────────────────── */

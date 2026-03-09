@@ -3,8 +3,9 @@
  * Supports: selection, drag-to-move, drag-to-resize, drag-to-create, context menu.
  */
 
-import { SCRIPTS_BASE, state, dom, hooks, markDirty, addHotspot, deleteHotspot, uniqueHotspotId } from './state.js';
+import { state, dom, hooks, markDirty, addHotspot, deleteHotspot, uniqueHotspotId } from './state.js';
 import { showContextMenu } from './context-menu.js';
+import { resolveAssetURLSync } from './fs-provider.js';
 
 /* ── Drag state (module-scoped, survives re-renders) ── */
 let _selectionBox = null; // { x, y, w, h } in grid units (for drag-to-create)
@@ -78,7 +79,8 @@ export function renderViewport() {
 
   // Background
   if (data.background) {
-    viewport.style.backgroundImage = `url('${SCRIPTS_BASE}/${data.background}')`;
+    const bgUrl = resolveAssetURLSync(data.background);
+    if (bgUrl) viewport.style.backgroundImage = `url('${bgUrl}')`;
   } else {
     viewport.style.backgroundColor = data.backgroundColor || '#111';
   }
@@ -99,7 +101,8 @@ export function renderViewport() {
 
       if (hs.texture) {
         div.classList.add('editor-hotspot-textured');
-        div.style.backgroundImage = `url('${SCRIPTS_BASE}/${hs.texture}')`;
+        const texUrl = resolveAssetURLSync(hs.texture);
+        if (texUrl) div.style.backgroundImage = `url('${texUrl}')`;
       }
 
       const label = document.createElement('span');

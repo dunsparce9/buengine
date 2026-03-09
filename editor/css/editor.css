@@ -64,6 +64,19 @@ html, body {
   background: #3c3836;
 }
 
+.menu-sep {
+  height: 1px;
+  background: #3c3836;
+  margin: 3px 0;
+}
+
+.menu-shortcut {
+  margin-left: auto;
+  font-size: 11px;
+  color: #665c54;
+  padding-left: 16px;
+}
+
 /* ── Editor layout (3-column + 2 resize handles) ── */
 #editor-layout {
   display: grid;
@@ -109,32 +122,75 @@ html, body {
   flex: 1;
 }
 
-#file-list li {
+/* ── Tree view ─────────────────────────────────── */
+
+.tree-children {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tree-row, .tree-file {
   display: flex;
   align-items: center;
-  padding: 6px 12px;
+  padding: 4px 8px;
   cursor: pointer;
   font-size: 13px;
-  border-left: 3px solid transparent;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  border-left: 3px solid transparent;
+  user-select: none;
 }
-#file-list li:hover {
+.tree-row:hover, .tree-file:hover {
   background: #3c3836;
 }
-#file-list li.selected {
+.tree-file.selected {
   background: #3c3836;
   border-left-color: #fe8019;
   color: #ebdbb2;
 }
 
-.file-icon {
-  margin-right: 6px;
-  opacity: 0.6;
+/* Depth indentation */
+.tree-depth-0 > .tree-row, .tree-depth-0.tree-file { padding-left: 8px; }
+.tree-depth-1 > .tree-row, .tree-depth-1.tree-file { padding-left: 22px; }
+.tree-depth-2 > .tree-row, .tree-depth-2.tree-file { padding-left: 36px; }
+.tree-depth-3 > .tree-row, .tree-depth-3.tree-file { padding-left: 50px; }
+.tree-depth-4 > .tree-row, .tree-depth-4.tree-file { padding-left: 64px; }
+.tree-depth-5 > .tree-row, .tree-depth-5.tree-file { padding-left: 78px; }
+.tree-depth-6 > .tree-row, .tree-depth-6.tree-file { padding-left: 92px; }
+
+.tree-icon {
+  font-size: 16px;
+  margin-right: 5px;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+.tree-icon-folder {
+  color: #fabd2f;
+  opacity: 0.85;
 }
 
-#file-list li.dirty::after {
+.tree-arrow {
+  font-size: 14px;
+  width: 16px;
+  flex-shrink: 0;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+.tree-row:hover .tree-arrow {
+  opacity: 0.8;
+}
+
+.tree-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Dirty indicator on tree files */
+.tree-file.dirty::after {
   content: '';
   display: block;
   flex-shrink: 0;
@@ -143,6 +199,47 @@ html, body {
   border-radius: 50%;
   background: #fe8019;
   margin-left: auto;
+}
+
+/* Dragging state */
+.tree-file.dragging {
+  opacity: 0.35;
+}
+
+/* Drop target highlight */
+.tree-row.drop-target {
+  background: rgba(254, 128, 25, 0.15);
+  outline: 1px dashed #fe8019;
+  outline-offset: -1px;
+}
+
+/* Panel drop zone (external file drop) */
+#file-panel.drop-active {
+  outline: 2px dashed #fe8019;
+  outline-offset: -2px;
+  background: rgba(254, 128, 25, 0.04);
+}
+
+/* Open Folder button in flat list */
+.tree-open-folder-btn {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  margin: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  border: 1px dashed #504945;
+  border-radius: 4px;
+  color: #a89984;
+  transition: all 0.15s;
+}
+.tree-open-folder-btn:hover {
+  border-color: #fe8019;
+  color: #fe8019;
+  background: rgba(254, 128, 25, 0.06);
+}
+.tree-open-folder-btn .tree-icon {
+  opacity: 0.75;
 }
 
 /* ── Viewport ──────────────────────────────────── */
@@ -1170,4 +1267,43 @@ html, body {
 }
 .prop-select option {
   background: #282828;
+}
+
+/* ── Toast notifications ───────────────────────── */
+
+#toast-container {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9000;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.toast {
+  padding: 8px 20px;
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #ebdbb2;
+  background: #3c3836;
+  border: 1px solid #504945;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.25s, transform 0.25s;
+  pointer-events: auto;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+.toast-error {
+  background: rgba(251, 73, 52, 0.2);
+  border-color: rgba(251, 73, 52, 0.5);
+  color: #fb4934;
 }

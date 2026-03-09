@@ -7,17 +7,41 @@
 import { state, hooks, GAME_ID } from './state.js';
 import { createFloatingWindow } from './floating-window.js';
 import { discoverScripts } from './script-loader.js';
-import { renderFileList, selectScript } from './file-panel.js';
+import { renderFileList, selectScript, initFilePanelDrop } from './file-panel.js';
 import { renderViewport, initViewportInteractions } from './viewport.js';
 import { renderProperties } from './properties.js';
 import { initMenu } from './menu.js';
 import { initResizeHandles } from './resize.js';
+import {
+  openFolder, buildTree, writeFile, writeFileBinary, readFileBinary,
+  collectAllPaths, cacheAssetURLs, clearAssetCache,
+} from './fs-provider.js';
+import { createZip, readZip } from './zip-utils.js';
 import './action-viewer.js';
 
 /* ── Wire render hooks ─────────────────────────── */
 hooks.renderFileList   = renderFileList;
 hooks.renderViewport   = renderViewport;
 hooks.renderProperties = renderProperties;
+
+/* ── Toast notifications ───────────────────────── */
+const toastContainer = document.getElementById('toast-container');
+
+function showToast(message, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = message;
+  toastContainer.appendChild(el);
+  // Trigger animation
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => {
+    el.classList.remove('show');
+    el.addEventListener('transitionend', () => el.remove());
+    // Fallback removal
+    setTimeout(() => el.remove(), 500);
+  }, 2500);
+}
+hooks.toast = showToast;
 
 /* ── About window ──────────────────────────────── */
 const aboutWindow = createFloatingWindow({
@@ -36,7 +60,7 @@ const aboutWindow = createFloatingWindow({
   h.style.fontSize = '1.3rem';
   h.style.marginBottom = '6px';
   const p1 = document.createElement('p');
-  p1.textContent = 'v0.0';
+  p1.textContent = 'v0.1';
   p1.style.color = '#e1c8a4';
   const p2 = document.createElement('p');
   p2.textContent = 'All rights reserved?';
@@ -45,7 +69,102 @@ const aboutWindow = createFloatingWindow({
   c.append(h, p1, p2);
 }
 
-/* ── Export ─────────────────────────────────────── */
+/* ── Open Folder ───────────────────────────────── */
+
+async function handleOpenFolder() {
+  const handle = await openFolder();
+  if (!handle) return;
+
+  // Clear previous state
+  state.scripts = {};
+  state.selectedId = null;
+  state.selectedHs = null;
+  state.selectedPath = null;
+  state.dirtySet.clear();
+  clearAssetCache();
+
+  // Load scripts from the newly opened folder
+  try {
+    await discoverScripts();
+  } catch (err) {
+    showToast(`Failed to load: ${err.message}`, 'error');
+  }
+
+  // Pre-cache asset URLs for images referenced in scripts
+  const imagePaths = [];
+  for (const data of Object.values(state.scripts)) {
+    if (data.background) imagePaths.push(data.background);
+    const objects = data.objects ?? data.hotspots;
+    if (Array.isArray(objects)) {
+      for (const obj of objects) {
+        if (obj.texture) imagePaths.push(obj.texture);
+      }
+    }
+  }
+  await cacheAssetURLs(imagePaths);
+
+  document.title = `büegame editor — ${handle.name}`;
+  renderFileList();
+  selectScript('_game');
+  showToast(`Opened ${handle.name}`);
+}
+hooks.openFolder = handleOpenFolder;
+
+/* ── Save file ─────────────────────────────────── */
+
+async function saveCurrentFile() {
+  if (state.fsMode !== 'native') {
+    showToast('Save requires an open folder (File → Open Folder)', 'error');
+    return;
+  }
+  const id = state.selectedId;
+  if (!id || !state.scripts[id]) return;
+  if (!state.dirtySet.has(id)) {
+    showToast('No changes to save');
+    return;
+  }
+  const data = state.scripts[id];
+  const json = JSON.stringify(data, null, 2) + '\n';
+  const path = id === '_game' ? '_game.json' : `${id}.json`;
+  try {
+    await writeFile(path, json);
+    state.dirtySet.delete(id);
+    renderFileList();
+    showToast(`Saved ${path}`);
+  } catch (err) {
+    showToast(`Save failed: ${err.message}`, 'error');
+  }
+}
+
+async function saveAllFiles() {
+  if (state.fsMode !== 'native') {
+    showToast('Save requires an open folder (File → Open Folder)', 'error');
+    return;
+  }
+  if (state.dirtySet.size === 0) {
+    showToast('Nothing to save');
+    return;
+  }
+  let saved = 0;
+  for (const id of [...state.dirtySet]) {
+    const data = state.scripts[id];
+    if (!data) continue;
+    const json = JSON.stringify(data, null, 2) + '\n';
+    const path = id === '_game' ? '_game.json' : `${id}.json`;
+    try {
+      await writeFile(path, json);
+      state.dirtySet.delete(id);
+      saved++;
+    } catch (err) {
+      showToast(`Failed to save ${path}: ${err.message}`, 'error');
+    }
+  }
+  renderFileList();
+  showToast(`Saved ${saved} file(s)`);
+}
+
+/* ── Export JSON (legacy) ──────────────────────── */
+
 function exportCurrentJson() {
   if (!state.selectedId || !state.scripts[state.selectedId]) return;
   const data = state.scripts[state.selectedId];
@@ -55,6 +174,125 @@ function exportCurrentJson() {
   const a    = document.createElement('a');
   a.href     = url;
   a.download = `${state.selectedId}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ── Export ZIP ─────────────────────────────────── */
+
+async function exportZip() {
+  if (state.fsMode !== 'native') {
+    // In memory mode, export what we have
+    const files = [];
+    for (const [id, data] of Object.entries(state.scripts)) {
+      const json = JSON.stringify(data, null, 2);
+      const path = id === '_game' ? '_game.json' : `${id}.json`;
+      files.push({ path, data: new TextEncoder().encode(json) });
+    }
+    if (!files.length) {
+      showToast('Nothing to export', 'error');
+      return;
+    }
+    const blob = createZip(files);
+    downloadBlob(blob, 'game-project.zip');
+    showToast('Exported ZIP');
+    return;
+  }
+
+  // Native mode — export everything
+  showToast('Preparing ZIP\u2026');
+  const allPaths = collectAllPaths();
+  const files = [];
+  for (const path of allPaths) {
+    try {
+      const buf = await readFileBinary(path);
+      files.push({ path, data: new Uint8Array(buf) });
+    } catch {}
+  }
+  const folderName = state.rootHandle?.name || 'game';
+  const prefixedFiles = files.map(f => ({
+    path: `${folderName}/${f.path}`,
+    data: f.data,
+  }));
+  const blob = createZip(prefixedFiles);
+  downloadBlob(blob, `${folderName}.zip`);
+  showToast(`Exported ${files.length} files`);
+}
+
+/* ── Import ZIP ────────────────────────────────── */
+
+async function importZip() {
+  if (state.fsMode !== 'native') {
+    showToast('Import requires an open folder (File → Open Folder)', 'error');
+    return;
+  }
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.zip';
+  input.addEventListener('change', async () => {
+    const file = input.files[0];
+    if (!file) return;
+    try {
+      const buf = await file.arrayBuffer();
+      const entries = readZip(buf);
+      if (!entries.length) {
+        showToast('ZIP is empty', 'error');
+        return;
+      }
+
+      // Strip common prefix if all files share one
+      const prefix = findCommonPrefix(entries.map(e => e.path));
+
+      let count = 0;
+      for (const entry of entries) {
+        const relativePath = prefix ? entry.path.slice(prefix.length) : entry.path;
+        if (!relativePath) continue;
+        try {
+          await writeFileBinary(relativePath, entry.data);
+          count++;
+        } catch (err) {
+          showToast(`Failed: ${entry.path}: ${err.message}`, 'error');
+        }
+      }
+
+      // Reload
+      await buildTree();
+      state.scripts = {};
+      await discoverScripts();
+      renderFileList();
+      showToast(`Imported ${count} files from ZIP`);
+    } catch (err) {
+      showToast(`Import failed: ${err.message}`, 'error');
+    }
+  });
+  input.click();
+}
+
+function findCommonPrefix(paths) {
+  if (paths.length === 0) return '';
+  // Find shared directory prefix
+  const parts0 = paths[0].split('/');
+  let depth = 0;
+  outer:
+  for (let i = 0; i < parts0.length - 1; i++) {
+    const segment = parts0[i];
+    for (const p of paths) {
+      const pp = p.split('/');
+      if (pp[i] !== segment) break outer;
+    }
+    depth = i + 1;
+  }
+  if (depth === 0) return '';
+  return parts0.slice(0, depth).join('/') + '/';
+}
+
+/* ── Download helper ───────────────────────────── */
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -73,23 +311,50 @@ function runInNewTab() {
 
 /* ── Menu setup ────────────────────────────────── */
 initMenu({
-  export:       exportCurrentJson,
-  exit:         () => {
+  'open-folder': handleOpenFolder,
+  'save':        saveCurrentFile,
+  'save-all':    saveAllFiles,
+  'export-json': exportCurrentJson,
+  'export-zip':  exportZip,
+  'import-zip':  importZip,
+  'exit':        () => {
     const params = new URLSearchParams();
     if (GAME_ID) params.set('game', GAME_ID);
     const qs = params.toString();
     window.location.href = qs ? `../index.html?${qs}` : '../index.html';
   },
-  about:        () => aboutWindow.open(),
-  'run-in-tab': runInNewTab,
+  'about':       () => aboutWindow.open(),
+  'run-in-tab':  runInNewTab,
 });
 document.getElementById('run-btn').addEventListener('click', runInNewTab);
+
+/* ── Keyboard shortcuts ────────────────────────── */
+document.addEventListener('keydown', (e) => {
+  // Ctrl+S → Save current file
+  if (e.ctrlKey && e.key === 's') {
+    e.preventDefault();
+    saveCurrentFile();
+  }
+  // Ctrl+Shift+S → Save all
+  if (e.ctrlKey && e.shiftKey && e.key === 'S') {
+    e.preventDefault();
+    saveAllFiles();
+  }
+  // Ctrl+O → Open folder
+  if (e.ctrlKey && e.key === 'o') {
+    e.preventDefault();
+    handleOpenFolder();
+  }
+});
 
 /* ── Resize handles ────────────────────────────── */
 initResizeHandles(renderViewport);
 
 /* ── Viewport interactions (create/move/resize) ── */
 initViewportInteractions();
+
+/* ── File panel drag-and-drop ──────────────────── */
+initFilePanelDrop();
 
 /* ── Viewport resize ───────────────────────────── */
 window.addEventListener('resize', () => renderViewport());
@@ -100,3 +365,4 @@ window.addEventListener('resize', () => renderViewport());
   renderFileList();
   selectScript('_game');
 })();
+
