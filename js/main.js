@@ -8,8 +8,9 @@ import { ChoiceUI }      from './choice-ui.js';
 import { OverlayUI }     from './overlay-ui.js';
 import { SoundManager }  from './sound-manager.js';
 import { HudUI }         from './hud-ui.js';
-import { Inventory }     from './inventory.js';
-import { InventoryUI }   from './inventory-ui.js';
+import { Inventory }       from './inventory.js';
+import { InventoryUI }     from './inventory-ui.js';
+import { NotificationUI }  from './notification-ui.js';
 
 /* ── Bootstrap ──────────────────────────────────── */
 
@@ -28,6 +29,7 @@ const overlay = new OverlayUI(bus);
 new SoundManager(bus);
 const hud = new HudUI(bus);
 const inventoryUI = new InventoryUI(bus, inventory, runner);
+new NotificationUI(bus);
 
 /** Currently loaded scene data keyed by id. */
 let currentSceneData = null;

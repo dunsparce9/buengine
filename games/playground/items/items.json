@@ -4,7 +4,7 @@
     "name": "Seal",
     "icon": "images/items/seal.png",
     "stackable": false,
-    "droppable": true,
+    "droppable": false,
     "options": [
       {
         "text": "Stare at",
@@ -13,6 +13,31 @@
           {
             "say": "The seal is looking pretty cramped. Find a spot for it at once.",
             "speaker": "Annoyed Narrator"
+          }
+        ]
+      },
+      {
+        "text": "Put down",
+        "icon": "👇️",
+        "actions": [
+          {
+            "say": "PUT DOWN? What the fuck?",
+            "speaker": "Annoyed Narrator"
+          },
+          {
+            "say": "Oh wait I get whatchu mean",
+            "speaker": "Annoyed Narrator"
+          },
+          {
+            "item": {
+              "id": "seal",
+              "qty": -1
+            }
+          },
+          {
+            "show": {
+              "id": "seal"
+            }
           }
         ]
       }

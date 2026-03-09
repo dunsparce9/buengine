@@ -38,6 +38,9 @@ export class ActionRunner {
     this.state = state;
     this.inventory = inventory;
     this._aborted = false;
+    this._basePath = '';
+
+    bus.on('game:basepath', (bp) => { this._basePath = bp; });
     this._exited = false;
     this._gotoFired = false;
     this._gotoTarget = null;
@@ -195,7 +198,17 @@ export class ActionRunner {
     const id = itemDef.id;
     const qty = itemDef.qty ?? 1;
     if (qty > 0) {
-      this.inventory.add(id, qty);
+      const ok = this.inventory.add(id, qty);
+      if (ok) {
+        const def = this.inventory.getDef(id);
+        const name = def?.name ?? id;
+        const icon = def?.icon ? `${this._basePath}/${def.icon}` : undefined;
+        this.bus.emit('notification:show', {
+          title: 'Inventory',
+          icon,
+          content: `${name} x ${qty}`,
+        });
+      }
     } else if (qty < 0) {
       this.inventory.remove(id, Math.abs(qty));
     }

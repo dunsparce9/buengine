@@ -220,6 +220,37 @@
               "speaker": "Narrator"
             }
           ]
+        },
+        {
+          "choice": {
+            "prompt": "",
+            "options": [
+              {
+                "text": "Büe back at ya!",
+                "actions": []
+              },
+              {
+                "text": "Pick up the seal.",
+                "actions": [
+                  {
+                    "say": "what",
+                    "speaker": "Narrator"
+                  },
+                  {
+                    "item": {
+                      "id": "seal",
+                      "qty": 1
+                    }
+                  },
+                  {
+                    "hide": {
+                      "id": "this"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
         }
       ]
     }
