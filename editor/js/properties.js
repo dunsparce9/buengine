@@ -7,8 +7,18 @@ import { openActionViewer } from './action-viewer.js';
 import { findNode } from './fs-provider.js';
 import { getFileExtension, getFileKind, isPreviewableMedia } from './file-types.js';
 import { renderItemsProperties } from './items-viewer.js';
+import { selectScript } from './file-panel.js';
 
 let _assetInfoRequestId = 0;
+
+
+function focusSceneInEditor(sceneId) {
+  if (!sceneId) return;
+  const target = state.scripts[sceneId];
+  if (!target || Array.isArray(target) || sceneId === '_game') return;
+  selectScript(sceneId);
+}
+
 
 export function renderProperties() {
   dom.propsContent.innerHTML = '';
@@ -79,6 +89,10 @@ function renderSceneProps(data) {
     addActionLinkGroup('onEnter', [['actions', data.onEnter.length]],
       () => openActionViewer(`${data.id} — onEnter`, data.onEnter, {
         onChange: () => markDirty(data.id),
+        sceneId: data.id,
+        sceneData: data,
+        markDirty,
+        focusScene: focusSceneInEditor,
       })
     );
   }
@@ -299,6 +313,10 @@ function renderHotspotProps(hs) {
     addActionLinkGroup('Actions', [['count', hs.actions.length]],
       () => openActionViewer(`${hs.id} — actions`, hs.actions, {
         onChange: () => { markDirty(sceneId); hooks.renderProperties(); },
+        sceneId,
+        sceneData: data,
+        markDirty,
+        focusScene: focusSceneInEditor,
       })
     );
   }
@@ -569,6 +587,10 @@ function addDefinitionsGroup(data, names) {
     link.addEventListener('click', () =>
       openActionViewer(`${data.id} — ${name}`, actions, {
         onChange: () => markDirty(data.id),
+        sceneId: data.id,
+        sceneData: data,
+        markDirty,
+        focusScene: focusSceneInEditor,
       })
     );
 

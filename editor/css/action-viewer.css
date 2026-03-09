@@ -221,6 +221,16 @@
   font-family: monospace;
 }
 
+
+
+button.av-chip {
+  appearance: none;
+  cursor: pointer;
+}
+
+button.av-chip:hover {
+  background: rgba(255,255,255,0.1);
+}
 /* Simple value (wait) */
 .av-simple-val {
   font-size: 13px;
