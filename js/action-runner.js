@@ -138,6 +138,7 @@ export class ActionRunner {
       this._pendingResolve = resolve;
       this.bus.emit('dialogue:show', {
         speaker: action.speaker || '',
+        speakerColor: action.speaker_color || null,
         text: action.say,
         delay: action.delay || 0,
         onDone: resolve,

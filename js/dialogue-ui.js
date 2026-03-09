@@ -34,10 +34,11 @@ export class DialogueUI {
     this.bus.on('dialogue:dismiss', () => this.dismiss());
   }
 
-  show({ speaker, text, delay, onDone }) {
+  show({ speaker, speakerColor, text, delay, onDone }) {
     this._stopType();
     this._clearLock();
     this.speaker.textContent = speaker;
+    this.speaker.style.color = speakerColor || '';
     this._fullText = text;
     this._onDone = onDone;
     this.text.textContent = '';

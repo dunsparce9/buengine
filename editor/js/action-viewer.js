@@ -36,6 +36,7 @@ const ACTION_SCHEMAS = {
   say: [
     { key: 'say',     label: 'Text',       type: 'textarea', required: true },
     { key: 'speaker', label: 'Speaker',    type: 'string' },
+    { key: 'speaker_color', label: 'Speaker color', type: 'color', defaultValue: '#f0c040' },
     { key: 'delay',   label: 'Delay (s)',  type: 'number', step: 0.5 },
   ],
   choice: [
@@ -170,6 +171,7 @@ function renderSay(action) {
   if (action.speaker) {
     const speaker = document.createElement('span');
     speaker.className = 'av-speaker';
+    if (action.speaker_color) speaker.style.color = action.speaker_color;
     speaker.textContent = action.speaker;
     body.appendChild(speaker);
   }
@@ -726,6 +728,61 @@ function buildFieldRow(action, field, ctx) {
         ctx.onFieldChange();
       });
       row.appendChild(sel);
+      break;
+    }
+    case 'color': {
+      const wrap = document.createElement('div');
+      wrap.className = 'av-color-picker';
+
+      const swatch = document.createElement('div');
+      swatch.className = 'av-color-swatch';
+      const currentColor = val || field.defaultValue || '#ffffff';
+      swatch.style.backgroundColor = currentColor;
+
+      const colorInp = document.createElement('input');
+      colorInp.type = 'color';
+      colorInp.className = 'av-color-native';
+      colorInp.value = currentColor;
+
+      const hexInp = document.createElement('input');
+      hexInp.type = 'text';
+      hexInp.className = 'av-field-input av-color-hex';
+      hexInp.value = val || '';
+      hexInp.placeholder = field.defaultValue || '#ffffff';
+      hexInp.maxLength = 7;
+
+      swatch.addEventListener('click', () => colorInp.click());
+
+      colorInp.addEventListener('input', () => {
+        const c = colorInp.value;
+        swatch.style.backgroundColor = c;
+        hexInp.value = c;
+        const store = c === field.defaultValue ? undefined : c;
+        setNestedValue(action, field.key, store);
+        ctx.onFieldChange();
+      });
+
+      hexInp.addEventListener('change', () => {
+        const raw = hexInp.value.trim();
+        if (raw === '') {
+          swatch.style.backgroundColor = field.defaultValue || '#ffffff';
+          setNestedValue(action, field.key, undefined);
+          ctx.onFieldChange();
+          return;
+        }
+        if (/^#[0-9a-fA-F]{6}$/.test(raw)) {
+          swatch.style.backgroundColor = raw;
+          colorInp.value = raw;
+          const store = raw === field.defaultValue ? undefined : raw;
+          setNestedValue(action, field.key, store);
+          ctx.onFieldChange();
+        } else {
+          hexInp.value = val || '';
+        }
+      });
+
+      wrap.append(swatch, colorInp, hexInp);
+      row.appendChild(wrap);
       break;
     }
   }

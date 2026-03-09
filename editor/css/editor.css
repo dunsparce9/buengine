@@ -860,6 +860,44 @@ html, body {
 }
 .av-field-select option { background: #282828; }
 
+/* ── Action viewer: color picker ───────────────── */
+
+.av-color-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.av-color-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  border: 2px solid #504945;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.15s;
+}
+.av-color-swatch:hover { border-color: #a89984; }
+
+.av-color-native {
+  width: 0;
+  height: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  position: absolute;
+  pointer-events: none;
+}
+
+.av-color-hex {
+  width: 80px;
+  flex: 0 0 auto;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.03em;
+}
+
 /* ── Action viewer: mini buttons ───────────────── */
 
 .av-mini-btn {
