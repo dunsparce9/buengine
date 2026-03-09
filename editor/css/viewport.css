@@ -1,0 +1,172 @@
+/* ── Viewport ──────────────────────────────────── */
+#viewport {
+  background: #1d2021;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 24px;
+}
+
+#viewport.viewport-items-mode {
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 0;
+}
+
+#viewport-scene {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  background-color: #282828;
+  border: 1px solid #504945;
+  overflow: hidden;
+  /* Size is set dynamically by JS to preserve scene aspect ratio */
+}
+
+#viewport-scene.viewport-items-mode {
+  border: none;
+}
+
+#viewport-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #7c6f64;
+  font-size: 15px;
+}
+
+.editor-media-preview,
+.editor-media-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.editor-media-empty {
+  color: #a89984;
+  font-size: 14px;
+}
+
+.editor-media-preview-el {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.editor-media-image,
+.editor-media-video {
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.editor-media-audio {
+  width: min(520px, 100%);
+}
+
+/* Hotspot outlines in viewport */
+.editor-hotspot {
+  position: absolute;
+  border: 2px dashed #fe8019;
+  background-color: rgba(254, 128, 25, 0.08);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, filter 0.15s;
+}
+.editor-hotspot:hover {
+  background-color: rgba(254, 128, 25, 0.18);
+}
+.editor-hotspot.selected {
+  border-color: #fabd2f;
+  background-color: rgba(250, 189, 47, 0.12);
+}
+.editor-hotspot-textured {
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-color: transparent;
+  image-rendering: pixelated;
+}
+.editor-hotspot-textured:hover {
+  background-color: transparent;
+  filter: drop-shadow(0 0 4px rgba(255, 248, 200, 0.9));
+}
+.editor-hotspot-textured.selected {
+  background-color: transparent;
+  filter: drop-shadow(0 0 4px rgba(250, 189, 47, 0.9));
+}
+
+.editor-hotspot-label {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 10px;
+  color: #fe8019;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.editor-hotspot.selected .editor-hotspot-label {
+  color: #fabd2f;
+}
+
+/* ── Selection box (drag-to-create) ────────────── */
+
+.editor-selection-box {
+  position: absolute;
+  border: 2px solid #ebdbb2;
+  background-color: rgba(235, 219, 178, 0.08);
+  z-index: 100;
+  pointer-events: auto;
+  cursor: default;
+}
+
+/* ── Resize handles on selected hotspot ────────── */
+
+.editor-hotspot.selected {
+  z-index: 50;
+}
+
+.editor-resize-handle {
+  position: absolute;
+  z-index: 51;
+}
+.editor-resize-n, .editor-resize-s {
+  left: 4px; right: 4px; height: 6px; cursor: ns-resize;
+}
+.editor-resize-e, .editor-resize-w {
+  top: 4px; bottom: 4px; width: 6px; cursor: ew-resize;
+}
+.editor-resize-n   { top: -3px; }
+.editor-resize-s   { bottom: -3px; }
+.editor-resize-e   { right: -3px; }
+.editor-resize-w   { left: -3px; }
+.editor-resize-ne, .editor-resize-nw,
+.editor-resize-se, .editor-resize-sw {
+  width: 8px; height: 8px;
+}
+.editor-resize-ne { top: -4px; right: -4px; cursor: nesw-resize; }
+.editor-resize-nw { top: -4px; left: -4px;  cursor: nwse-resize; }
+.editor-resize-se { bottom: -4px; right: -4px; cursor: nwse-resize; }
+.editor-resize-sw { bottom: -4px; left: -4px;  cursor: nesw-resize; }
+
+/* Small visible dots on corners for resize */
+.editor-resize-ne::after, .editor-resize-nw::after,
+.editor-resize-se::after, .editor-resize-sw::after {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #fabd2f;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}

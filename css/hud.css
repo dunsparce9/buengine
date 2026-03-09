@@ -1,0 +1,34 @@
+/* ── HUD taskbar ───────────────────────────────── */
+#hud-bar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 4px;
+  background: rgba(40, 40, 40, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 6px;
+  z-index: 200;
+}
+.hud-btn {
+  background: transparent;
+  color: #eee;
+  border: none;
+  padding: 4px 4px;
+  font-size: 0.78rem;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.12s;
+}
+.hud-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+.hud-separator {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.35);
+  margin: 0 3px;
+}

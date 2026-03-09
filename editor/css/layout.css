@@ -1,0 +1,18 @@
+/* ── Editor layout (3-column + 2 resize handles) ── */
+#editor-layout {
+  display: grid;
+  grid-template-columns: var(--left-w, 220px) 5px 1fr 5px var(--right-w, 260px);
+  height: calc(100vh - 30px);
+  overflow: hidden;
+}
+
+.resize-handle {
+  background: #3c3836;
+  cursor: col-resize;
+  transition: background 0.15s;
+  z-index: 10;
+}
+.resize-handle:hover,
+.resize-handle.dragging {
+  background: #fe8019;
+}

@@ -1,0 +1,44 @@
+/* ── Context menu ──────────────────────────────── */
+
+.ctx-menu {
+  position: fixed;
+  z-index: 5000;
+  min-width: 180px;
+  background: #282828;
+  border: 1px solid #504945;
+  border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+  padding: 4px 0;
+  overflow: hidden;
+}
+.ctx-menu.hidden { display: none !important; }
+
+.ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 14px;
+  background: none;
+  border: none;
+  color: #ebdbb2;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+.ctx-item:hover { background: #3c3836; }
+.ctx-item:disabled { opacity: 0.4; cursor: default; }
+.ctx-item.ctx-danger { color: #fb4934; }
+.ctx-item.ctx-danger:hover { background: rgba(251, 73, 52, 0.12); }
+
+.ctx-icon {
+  font-size: 16px;
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+
+.ctx-sep {
+  height: 1px;
+  background: #3c3836;
+  margin: 4px 0;
+}

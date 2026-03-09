@@ -1,0 +1,567 @@
+/* ── Action Viewer ─────────────────────────────── */
+
+.av-empty {
+  color: #7c6f64;
+  font-size: 13px;
+  text-align: center;
+  padding: 24px 0;
+}
+
+.av-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.av-list.av-nested {
+  margin-left: 16px;
+  padding-left: 8px;
+  border-left: 2px solid #3c3836;
+}
+
+/* ── Action block ──────────────────────────────── */
+
+.av-block {
+  border-radius: 4px;
+  background: #1d2021;
+  border: 1px solid #3c3836;
+  border-left: 3px solid var(--av-accent, #7c6f64);
+  overflow: hidden;
+}
+
+.av-block-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: rgba(0,0,0,0.15);
+  min-height: 28px;
+}
+
+.av-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #3c3836;
+  font-size: 10px;
+  color: #a89984;
+  flex-shrink: 0;
+}
+
+.av-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.av-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #a89984;
+}
+
+.av-badge {
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(254, 128, 25, 0.15);
+  color: #fe8019;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.av-badge + .av-badge {
+  margin-left: 4px;
+}
+
+/* ── Action body ───────────────────────────────── */
+
+.av-body {
+  padding: 6px 10px 8px;
+}
+
+/* Say */
+.av-speaker {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #83a598;
+  margin-bottom: 2px;
+}
+
+.av-say-text {
+  font-size: 13px;
+  color: #ebdbb2;
+  line-height: 1.4;
+  font-style: italic;
+}
+
+/* Choice */
+.av-choice-prompt {
+  font-size: 12px;
+  color: #d3869b;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.av-choice-option {
+  margin-bottom: 4px;
+  border-radius: 3px;
+  background: rgba(211, 134, 155, 0.06);
+  border: 1px solid #3c3836;
+  overflow: hidden;
+}
+
+.av-choice-option-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: rgba(211, 134, 155, 0.08);
+}
+
+.av-choice-option-idx {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #3c3836;
+  font-size: 9px;
+  color: #d3869b;
+  flex-shrink: 0;
+}
+
+.av-choice-option-text {
+  font-size: 12px;
+  color: #ebdbb2;
+  font-weight: 500;
+}
+
+.av-choice-option > .av-list.av-nested {
+  margin: 4px 4px 6px 12px;
+  border-left-color: rgba(211, 134, 155, 0.3);
+}
+
+/* Set flag */
+.av-set-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.av-flag-name {
+  color: #fabd2f;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.av-set-arrow {
+  color: #7c6f64;
+}
+
+.av-flag-value {
+  color: #ebdbb2;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+/* If / then / else */
+.av-if-condition {
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.av-if-condition code {
+  background: rgba(254, 128, 25, 0.1);
+  color: #fe8019;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.av-if-keyword {
+  font-weight: 700;
+  color: #fe8019;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.av-branch-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+  margin-bottom: 2px;
+  padding-left: 2px;
+}
+
+.av-branch-then { color: #8ec07c; }
+.av-branch-else { color: #fb4934; }
+
+/* Chip (goto, run, emit) */
+.av-chip {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--chip-color, #7c6f64);
+  color: var(--chip-color, #ebdbb2);
+  font-size: 12px;
+  font-family: monospace;
+}
+
+/* Simple value (wait) */
+.av-simple-val {
+  font-size: 13px;
+  color: #ebdbb2;
+  font-family: monospace;
+}
+
+/* Property rows (show, hide, effect, playsound, stopsound) */
+.av-prop-row {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  padding: 1px 0;
+}
+
+.av-prop-key {
+  color: #a89984;
+  min-width: 58px;
+  flex-shrink: 0;
+}
+
+.av-prop-val {
+  color: #ebdbb2;
+  word-break: break-all;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.av-sub-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #a89984;
+  margin-top: 4px;
+  margin-bottom: 2px;
+}
+
+/* Raw JSON fallback */
+.av-raw {
+  font-size: 11px;
+  color: #a89984;
+  font-family: monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ── Action viewer: toolbar & add button ───────── */
+
+.av-toolbar {
+  padding: 8px 0 4px;
+  display: flex;
+  justify-content: center;
+}
+
+.av-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border: 1px dashed #504945;
+  border-radius: 4px;
+  background: transparent;
+  color: #a89984;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.av-add-btn .material-symbols-outlined { font-size: 16px; }
+.av-add-btn:hover {
+  border-color: #fe8019;
+  color: #fe8019;
+  background: rgba(254, 128, 25, 0.06);
+}
+
+/* ── Action viewer: drag handle & header buttons ── */
+
+.av-drag-handle {
+  font-size: 14px;
+  color: #504945;
+  cursor: grab;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.av-drag-handle:hover { color: #a89984; }
+.av-block-header:active .av-drag-handle { cursor: grabbing; }
+
+.av-header-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: #665c54;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.av-header-btn .material-symbols-outlined { font-size: 14px; }
+.av-header-btn:hover { background: #3c3836; color: #ebdbb2; }
+
+.av-edit-btn:hover { color: #83a598; }
+.av-delete-btn:hover { color: #fb4934; }
+
+/* ── Action viewer: editing state ──────────────── */
+
+.av-block.av-editing {
+  border-color: var(--av-accent, #7c6f64);
+  box-shadow: 0 0 0 1px var(--av-accent, #7c6f64);
+}
+
+.av-edit-form {
+  padding: 8px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.av-field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.av-field-label {
+  font-size: 11px;
+  color: #a89984;
+  min-width: 80px;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+.av-field-required { color: #fb4934; }
+
+.av-field-input {
+  flex: 1;
+  min-width: 0;
+  background: #282828;
+  color: #ebdbb2;
+  border: 1px solid #504945;
+  border-radius: 3px;
+  padding: 3px 7px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.av-field-input:focus { border-color: #fe8019; }
+
+.av-field-textarea {
+  resize: vertical;
+  min-height: 48px;
+  line-height: 1.4;
+}
+
+.av-field-number { width: 80px; flex: 0 0 auto; }
+
+.av-field-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: #fe8019;
+  cursor: pointer;
+}
+
+.av-field-select {
+  cursor: pointer;
+}
+.av-field-select option { background: #282828; }
+
+/* ── Action viewer: color picker ───────────────── */
+
+.av-color-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.av-color-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  border: 2px solid #504945;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.15s;
+}
+.av-color-swatch:hover { border-color: #a89984; }
+
+.av-color-native {
+  width: 0;
+  height: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  position: absolute;
+  pointer-events: none;
+}
+
+.av-color-hex {
+  width: 80px;
+  flex: 0 0 auto;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.03em;
+}
+
+/* ── Action viewer: mini buttons ───────────────── */
+
+.av-mini-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid #504945;
+  border-radius: 3px;
+  background: transparent;
+  color: #a89984;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.av-mini-btn .material-symbols-outlined { font-size: 14px; }
+.av-mini-btn:hover {
+  border-color: #83a598;
+  color: #83a598;
+}
+.av-mini-btn-danger:hover {
+  border-color: #fb4934;
+  color: #fb4934;
+}
+
+/* ── Action viewer: set editor ─────────────────── */
+
+.av-set-editor {
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.av-set-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.av-set-edit-row .av-field-input:first-child { flex: 2; }
+.av-set-edit-row .av-field-input:nth-child(2) { flex: 3; }
+
+/* ── Action viewer: choice editor ──────────────── */
+
+.av-choice-editor {
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.av-choice-edit-option {
+  border: 1px solid #3c3836;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.av-choice-edit-option-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: rgba(211, 134, 155, 0.06);
+}
+.av-choice-edit-option-header .av-field-input { flex: 1; }
+
+/* ── Action viewer: if branches editor ─────────── */
+
+.av-if-editor {
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.av-branch-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Action viewer: type picker grid ───────────── */
+
+.av-type-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.av-type-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 8px;
+  border: 1px solid #3c3836;
+  border-radius: 6px;
+  background: #1d2021;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-left: 3px solid var(--av-accent, #7c6f64);
+}
+.av-type-card .material-symbols-outlined { font-size: 26px; }
+.av-type-card:hover {
+  background: #282828;
+  border-color: var(--av-accent, #7c6f64);
+  box-shadow: 0 0 0 1px var(--av-accent, #7c6f64);
+}
+
+.av-type-card-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #ebdbb2;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Action viewer: drag-and-drop ──────────────── */
+
+.av-block.av-dragging {
+  opacity: 0.35;
+}
+
+.av-drop-indicator {
+  height: 3px;
+  background: #fe8019;
+  border-radius: 2px;
+  margin: 2px 0;
+  box-shadow: 0 0 6px rgba(254, 128, 25, 0.4);
+}

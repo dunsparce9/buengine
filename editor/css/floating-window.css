@@ -1,0 +1,123 @@
+/* ── Floating windows ──────────────────────────── */
+.fw {
+  position: fixed;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  background: #282828;
+  border: 1px solid #504945;
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  min-width: 180px;
+  min-height: 100px;
+  overflow: hidden;
+}
+.fw.hidden { display: none !important; }
+
+.fw-header {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 8px;
+  background: #1d2021;
+  border-bottom: 1px solid #3c3836;
+  user-select: none;
+  cursor: grab;
+  flex-shrink: 0;
+}
+.fw-header:active { cursor: grabbing; }
+
+.fw-icon {
+  margin-right: 6px;
+  font-size: 13px;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+.fw-icon.material-symbols-outlined {
+  font-size: 18px;
+}
+
+.fw-title {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ebdbb2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fw-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  color: #a89984;
+  font-size: 15px;
+  cursor: pointer;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.fw-close:hover {
+  background: #3c3836;
+  color: #ebdbb2;
+}
+
+.fw-body {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+}
+
+/* Edge resize handles (only present when resizable) */
+.fw-resize {
+  position: absolute;
+}
+.fw-resize-n, .fw-resize-s {
+  left: 6px; right: 6px; height: 5px; cursor: ns-resize;
+}
+.fw-resize-e, .fw-resize-w {
+  top: 6px; bottom: 6px; width: 5px; cursor: ew-resize;
+}
+.fw-resize-n  { top: -2px; }
+.fw-resize-s  { bottom: -2px; }
+.fw-resize-e  { right: -2px; }
+.fw-resize-w  { left: -2px; }
+.fw-resize-ne, .fw-resize-nw,
+.fw-resize-se, .fw-resize-sw {
+  width: 8px; height: 8px;
+}
+.fw-resize-ne { top: -3px; right: -3px; cursor: nesw-resize; }
+.fw-resize-nw { top: -3px; left: -3px;  cursor: nwse-resize; }
+.fw-resize-se { bottom: -3px; right: -3px; cursor: nwse-resize; }
+.fw-resize-sw { bottom: -3px; left: -3px;  cursor: nesw-resize; }
+
+/* ── Floating window: modal backdrop ───────────── */
+
+.fw-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1999;
+}
+
+.fw-blocked {
+  pointer-events: none;
+  opacity: 0.6;
+  filter: brightness(0.7);
+}
+
+@keyframes fw-shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-5px); }
+  40%      { transform: translateX(5px); }
+  60%      { transform: translateX(-3px); }
+  80%      { transform: translateX(3px); }
+}
+.fw-attention {
+  animation: fw-shake 0.4s ease;
+}

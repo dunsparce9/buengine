@@ -1,0 +1,18 @@
+/* ── Debug box ─────────────────────────────────── */
+#debug-box {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  padding: 0.5rem 0.75rem;
+  background: rgba(0, 0, 0, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-bottom: none;
+  border-left: none;
+  border-radius: 0 6px 0 0;
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: #0f0;
+  z-index: 300;
+  pointer-events: none;
+}

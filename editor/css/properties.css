@@ -1,0 +1,136 @@
+/* ── Right panel ───────────────────────────────── */
+#props-panel {
+  background: #1d2021;
+  border-left: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#props-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px;
+}
+
+.props-empty {
+  color: #7c6f64;
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+.prop-async-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: #a89984;
+  font-size: 13px;
+}
+
+/* Property rows */
+.prop-group {
+  margin-bottom: 12px;
+}
+.prop-group-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #a89984;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #3c3836;
+}
+
+.prop-row {
+  display: flex;
+  padding: 3px 0;
+  font-size: 13px;
+  gap: 8px;
+}
+.prop-key {
+  color: #a89984;
+  min-width: 70px;
+  flex-shrink: 0;
+}
+.prop-val {
+  color: #ebdbb2;
+  word-break: break-all;
+}
+
+/* ── Editable property inputs ──────────────────── */
+.prop-input {
+  flex: 1;
+  min-width: 0;
+  background: #282828;
+  color: #ebdbb2;
+  border: 1px solid #504945;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+.prop-input:focus {
+  border-color: #fe8019;
+}
+
+.prop-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: #fe8019;
+  cursor: pointer;
+}
+
+/* ── Clickable action link in properties ───────── */
+
+.prop-action-link {
+  color: #83a598;
+  cursor: pointer;
+  font-size: 13px;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+.prop-action-link:hover {
+  color: #bdae93;
+}
+
+/* ── Delete hotspot button (properties panel) ──── */
+
+.prop-danger-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 12px;
+  border: 1px solid rgba(251, 73, 52, 0.3);
+  border-radius: 4px;
+  background: rgba(251, 73, 52, 0.08);
+  color: #fb4934;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.prop-danger-btn .material-symbols-outlined { font-size: 16px; }
+.prop-danger-btn:hover {
+  background: rgba(251, 73, 52, 0.18);
+  border-color: #fb4934;
+}
+
+/* ── Property input error state ────────────────── */
+
+.prop-input-error {
+  border-color: #fb4934 !important;
+  box-shadow: 0 0 0 1px rgba(251, 73, 52, 0.3);
+}
+
+/* ── Property select (cursor dropdown) ─────────── */
+
+.prop-select {
+  cursor: pointer;
+}
+.prop-select option {
+  background: #282828;
+}

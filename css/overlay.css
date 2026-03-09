@@ -1,0 +1,35 @@
+/* ── Overlays (title, pause) ───────────────────── */
+.overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.75);
+  z-index: 100;
+}
+.overlay-content {
+  text-align: center;
+}
+.overlay-content h1 { font-size: 3rem; margin-bottom: 0.5rem; }
+.overlay-content h2 { font-size: 2rem; margin-bottom: 1rem; }
+.overlay-content p  { font-size: 1.2rem; margin-bottom: 1.5rem; opacity: 0.8; }
+
+/* ── Game selector ─────────────────────────────── */
+#game-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 280px;
+  margin-top: 1rem;
+}
+.game-entry {
+  padding: 0.8rem 1.5rem;
+  background: rgba(255,255,255,0.08);
+  color: #eee;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: left;
+}
+.game-entry:hover { background: rgba(255,255,255,0.2); }
+.game-entry-title { font-size: 1.1rem; font-weight: bold; }
+.game-entry-subtitle { font-size: 0.85rem; opacity: 0.7; margin-top: 0.15rem; }
