@@ -150,7 +150,7 @@
           "if": "abode.beer.clicks >= 5",
           "then": [
             {
-              "say": "STOP. TOUCHING. THE BEER.",
+              "say": "Beer.",
               "speaker": "Narrator"
             }
           ]
@@ -159,7 +159,7 @@
           "if": "abode.beer.clicks == 4",
           "then": [
             {
-              "say": "I swear, if you click on this one more time…",
+              "say": "Genuinely unbelieveable. It just KEEPS being beer!",
               "speaker": "Narrator"
             }
           ]
@@ -168,7 +168,7 @@
           "if": "abode.beer.clicks == 3",
           "then": [
             {
-              "say": "YES. It is STILL beer. What do you WANT from me?",
+              "say": "Yep, beer!",
               "speaker": "Narrator"
             }
           ]
@@ -177,7 +177,7 @@
           "if": "abode.beer.clicks == 2",
           "then": [
             {
-              "say": "It's beer. Again. You already looked at this.",
+              "say": "It's still beer.",
               "speaker": "Narrator"
             }
           ]
@@ -197,7 +197,7 @@
       "id": "seal",
       "label": "Seal!",
       "texture": "images/seal.png",
-      "x": 12,
+      "x": 13,
       "y": 4,
       "w": 2,
       "h": 1,
@@ -213,7 +213,8 @@
         },
         {
           "say": "Büe...",
-          "speaker": "Seal"
+          "speaker": "Seal",
+          "speaker_color": "#9edfff"
         },
         {
           "if": "abode.ladder.clicks >= 1",
