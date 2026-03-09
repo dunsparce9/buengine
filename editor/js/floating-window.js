@@ -55,7 +55,8 @@ export function createFloatingWindow({ title, icon = '', iconClass = '', width =
   if (modal) {
     backdrop = document.createElement('div');
     backdrop.className = 'fw-backdrop';
-    backdrop.addEventListener('mousedown', (e) => {
+    const onBackdropPointer = (e) => {
+      e.preventDefault();
       e.stopPropagation();
       if (closeOnBackdrop) {
         close();
@@ -63,7 +64,9 @@ export function createFloatingWindow({ title, icon = '', iconClass = '', width =
       }
       el.classList.add('fw-attention');
       setTimeout(() => el.classList.remove('fw-attention'), 400);
-    });
+    };
+    backdrop.addEventListener('mousedown', onBackdropPointer);
+    backdrop.addEventListener('click', onBackdropPointer);
   }
 
   // -- Bring to front on click --
@@ -161,8 +164,16 @@ export function createFloatingWindow({ title, icon = '', iconClass = '', width =
   }
 
   function open() {
-    if (backdrop) document.body.appendChild(backdrop);
+    const wasHidden = el.classList.contains('hidden');
+    if (backdrop && !backdrop.isConnected) document.body.appendChild(backdrop);
     if (parent) parent.el.classList.add('fw-blocked');
+
+    if (!wasHidden) {
+      bringToFront(el);
+      if (backdrop) backdrop.style.zIndex = parseInt(el.style.zIndex) - 1;
+      return;
+    }
+
     el.classList.remove('hidden');
     centerOnScreen();
     bringToFront(el);
