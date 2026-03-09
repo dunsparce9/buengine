@@ -42,24 +42,5 @@
         ]
       }
     ]
-  },
-  {
-    "id": "key",
-    "name": "Key",
-    "icon": "images/items/key.png",
-    "stackable": false,
-    "droppable": true,
-    "options": [
-      {
-        "text": "Examine",
-        "icon": "🔍",
-        "actions": [
-          {
-            "say": "A rusty old key. Looks like it could open something.",
-            "speaker": "Narrator"
-          }
-        ]
-      }
-    ]
   }
 ]
