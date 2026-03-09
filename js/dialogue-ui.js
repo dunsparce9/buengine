@@ -31,6 +31,7 @@ export class DialogueUI {
       }
     });
     this.bus.on('dialogue:show', (data) => this.show(data));
+    this.bus.on('dialogue:dismiss', () => this.dismiss());
   }
 
   show({ speaker, text, delay, onDone }) {
@@ -84,6 +85,21 @@ export class DialogueUI {
       this.box.classList.add('hidden');
       this._hideTimer = null;
     }, 300);
+  }
+
+  /** Force-dismiss the dialogue immediately (no animation). Resolves the pending onDone callback. */
+  dismiss() {
+    this._stopType();
+    this._clearLock();
+    clearTimeout(this._hideTimer);
+    this._hideTimer = null;
+    this.hint.classList.add('hidden');
+    this.sceneLayer.classList.remove('dialogue-active');
+    this.box.classList.remove('dialogue-entering', 'dialogue-leaving');
+    this.box.classList.add('hidden');
+    const cb = this._onDone;
+    this._onDone = null;
+    if (cb) cb();
   }
 
   /* ── internals ───────────────────────────────── */

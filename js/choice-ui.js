@@ -14,6 +14,7 @@ export class ChoiceUI {
 
     this.bus.on('game:basepath', (bp) => { this._basePath = bp; });
     this.bus.on('choice:show', (data) => this.show(data));
+    this.bus.on('choice:dismiss', () => this.dismiss());
   }
 
   show({ prompt, options, onPick }) {
@@ -40,5 +41,11 @@ export class ChoiceUI {
 
   hide() {
     this.modal.classList.add('hidden');
+  }
+
+  /** Force-dismiss the choice modal immediately. */
+  dismiss() {
+    this.modal.classList.add('hidden');
+    this.list.innerHTML = '';
   }
 }

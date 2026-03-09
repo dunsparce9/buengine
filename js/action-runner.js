@@ -45,6 +45,8 @@ export class ActionRunner {
     this._gotoFired = false;
     this._gotoTarget = null;
     this.running = false;
+    /** Resolve function for the currently awaited blocking promise (dialogue, choice, effect, etc.). */
+    this._pendingResolve = null;
     /** @type {string|null} ID of the object whose actions are currently running (for "this" resolution). */
     this.currentObjectId = null;
     /** @type {Record<string, object[]>} Named action sequences from the current scene. */
@@ -52,7 +54,14 @@ export class ActionRunner {
   }
 
   /** Cancel any running sequence (external). */
-  abort() { this._aborted = true; this.running = false; }
+  abort() {
+    this._aborted = true;
+    this.running = false;
+    // Resolve any pending blocking promise so the run() loop can unwind cleanly.
+    const pending = this._pendingResolve;
+    this._pendingResolve = null;
+    if (pending) pending();
+  }
 
   /**
    * Execute an array of action commands sequentially.
@@ -126,6 +135,7 @@ export class ActionRunner {
 
   _say(action) {
     return new Promise(resolve => {
+      this._pendingResolve = resolve;
       this.bus.emit('dialogue:show', {
         speaker: action.speaker || '',
         text: action.say,
@@ -137,10 +147,12 @@ export class ActionRunner {
 
   _choice(choiceDef) {
     return new Promise(resolve => {
+      this._pendingResolve = resolve;
       this.bus.emit('choice:show', {
         prompt: choiceDef.prompt || '',
         options: choiceDef.options,
         onPick: async (option) => {
+          this._pendingResolve = null;
           if (option.actions) await this.run(option.actions, true);
           // `exit` inside a choice branch should only break out of that
           // branch, not kill the parent sequence.
@@ -153,13 +165,17 @@ export class ActionRunner {
   }
 
   _delay(ms) {
-    return new Promise(r => setTimeout(r, ms));
+    return new Promise(resolve => {
+      this._pendingResolve = resolve;
+      setTimeout(resolve, ms);
+    });
   }
 
   _show(showDef) {
     if (typeof showDef === 'string') showDef = { id: showDef };
     if (showDef.id === 'this') showDef = { ...showDef, id: this.currentObjectId };
     return new Promise(resolve => {
+      this._pendingResolve = resolve;
       this.bus.emit('overlay:show', { ...showDef, onDone: resolve });
     });
   }
@@ -168,24 +184,28 @@ export class ActionRunner {
     if (typeof hideDef === 'string') hideDef = { id: hideDef };
     if (hideDef.id === 'this') hideDef = { ...hideDef, id: this.currentObjectId };
     return new Promise(resolve => {
+      this._pendingResolve = resolve;
       this.bus.emit('overlay:hide', { ...hideDef, onDone: resolve });
     });
   }
 
   _effect(effectDef) {
     return new Promise(resolve => {
+      this._pendingResolve = resolve;
       this.bus.emit('scene:effect', { ...effectDef, onDone: resolve });
     });
   }
 
   _playsound(def) {
     return new Promise(resolve => {
+      this._pendingResolve = resolve;
       this.bus.emit('sound:play', { ...def, onDone: resolve });
     });
   }
 
   _stopsound(def) {
     return new Promise(resolve => {
+      this._pendingResolve = resolve;
       this.bus.emit('sound:stop', { ...def, onDone: resolve });
     });
   }

@@ -118,6 +118,10 @@ async function gotoScene(id) {
   scene.render(data);
   debugScene.textContent = `Scene: ${id}`;
 
+  // Show or hide the HUD based on the scene's elements list
+  const elements = Array.isArray(data.elements) ? data.elements : [];
+  bus.emit(elements.includes('hud') ? 'hud:show' : 'hud:hide');
+
   // Keep grid overlay CSS vars in sync with the scene's tile dimensions
   const cols = data.grid?.cols ?? 16;
   const rows = data.grid?.rows ?? 9;
@@ -223,11 +227,9 @@ bus.on('game:start', async () => {
     const invCapacity = manifest.inventory || 0;
     inventory.configure(invCapacity);
     await inventory.loadDefinitions(loader.basePath);
-    hud.show();
     bus.emit('hud:inventory-enabled', inventory.enabled);
     await gotoScene(manifest.startScene || 'intro');
   } catch {
-    hud.show();
     await gotoScene('intro');
   }
 });
@@ -235,6 +237,9 @@ bus.on('game:start', async () => {
 /** Return to title screen. */
 bus.on('game:title', () => {
   runner.abort();
+  bus.emit('dialogue:dismiss');
+  bus.emit('choice:dismiss');
+  bus.emit('sound:stopall');
   scene.clear();
   hud.hide();
   showTitle();
@@ -243,9 +248,15 @@ bus.on('game:title', () => {
 /** Quit: return to game selector. */
 bus.on('game:quit', () => {
   runner.abort();
+  bus.emit('dialogue:dismiss');
+  bus.emit('choice:dismiss');
+  bus.emit('sound:stopall');
   scene.clear();
   hud.hide();
-  bus.emit('sound:stopall');
+  overlay.hideTitle();
+  overlay.hidePause();
+  state.reset();
+  inventory.reset();
   showGameSelector();
 });
 

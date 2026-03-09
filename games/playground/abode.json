@@ -6,6 +6,9 @@
     "cols": 20,
     "rows": 10
   },
+  "elements": [
+    "hud"
+  ],
   "definitions": {
     "ladder_choice": [
       {
