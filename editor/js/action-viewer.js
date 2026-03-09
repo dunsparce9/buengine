@@ -26,6 +26,7 @@ const ACTION_META = {
   effect:    { icon: 'auto_awesome',        color: '#b8bb26', label: 'Effect' },
   playsound: { icon: 'volume_up',           color: '#83a598', label: 'Play sound' },
   stopsound: { icon: 'volume_off',          color: '#928374', label: 'Stop sound' },
+  item:      { icon: 'inventory_2',         color: '#d79921', label: 'Item' },
   unknown:   { icon: 'help_outline',        color: '#7c6f64', label: 'Unknown' },
 };
 
@@ -92,6 +93,10 @@ const ACTION_SCHEMAS = {
     { key: 'stopsound.fade',     label: 'Fade (s)', type: 'number', step: 0.5 },
     { key: 'stopsound.blocking', label: 'Blocking', type: 'boolean' },
   ],
+  item: [
+    { key: 'item.id',  label: 'Item ID',  type: 'string', required: true },
+    { key: 'item.qty', label: 'Quantity',  type: 'number', step: 1 },
+  ],
 };
 
 /* ── Open viewer registry (dedup by title) ─────── */
@@ -151,6 +156,7 @@ function renderActionBody(action, type) {
     case 'effect':    return renderEffect(action.effect);
     case 'playsound': return renderSound(action.playsound);
     case 'stopsound': return renderSound(action.stopsound);
+    case 'item':      return renderItem(action.item);
     default:          return renderRawJson(action);
   }
 }
@@ -351,6 +357,38 @@ function renderSound(data) {
   return body;
 }
 
+function renderItem(data) {
+  const body = document.createElement('div');
+  body.className = 'av-body';
+
+  const row = document.createElement('div');
+  row.className = 'av-set-row';
+
+  const name = document.createElement('span');
+  name.className = 'av-flag-name';
+  name.textContent = data.id || '(no id)';
+
+  const arrow = document.createElement('span');
+  arrow.className = 'av-set-arrow';
+  const qty = data.qty ?? 1;
+  arrow.textContent = qty >= 0 ? '←' : '→';
+
+  const val = document.createElement('span');
+  val.className = 'av-flag-value';
+  if (qty >= 0) {
+    val.textContent = `+${qty}`;
+    val.style.color = '#b8bb26';
+  } else {
+    val.textContent = String(qty);
+    val.style.color = '#fb4934';
+  }
+
+  row.append(name, arrow, val);
+  body.appendChild(row);
+
+  return body;
+}
+
 function renderChip(value, color) {
   const body = document.createElement('div');
   body.className = 'av-body';
@@ -399,6 +437,7 @@ function detectType(action) {
   if (action.effect != null)    return 'effect';
   if (action.playsound != null) return 'playsound';
   if (action.stopsound != null) return 'stopsound';
+  if (action.item != null)      return 'item';
   return 'unknown';
 }
 
@@ -952,6 +991,7 @@ function createDefaultAction(type) {
     case 'effect':    return { effect: { type: 'fade-in', seconds: 1 } };
     case 'playsound': return { playsound: { id: '', path: '' } };
     case 'stopsound': return { stopsound: { id: '' } };
+    case 'item':      return { item: { id: '', qty: 1 } };
     default:          return {};
   }
 }

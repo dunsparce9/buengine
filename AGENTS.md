@@ -24,11 +24,15 @@ js/
   choice-ui.js           ← multiple-choice modal
   overlay-ui.js          ← title screen & pause menu
   sound-manager.js       ← audio playback, fade in/out
+  inventory.js           ← inventory state, item definitions, add/remove
+  inventory-ui.js        ← inventory floating window (grid/list), context menu
 games/
   index.json             ← list of available game folder names
   playground/            ← example game (main testing ground, fleshed-out)
-    _game.json           ← game manifest (title, startScene)
+    _game.json           ← game manifest (title, startScene, inventory)
     intro.json           ← scene
+    items/               ← item definitions
+      items.json         ← array of item definition objects
     sounds/              ← audio assets
       common/            ← shared UI sounds (button-click, dialogue-click)
   lmaooo/                ← another game (tiny, just to test game picker system)
@@ -70,6 +74,31 @@ Actions are objects in an array. Supported commands:
 | Scene effect | `{ "effect": { "type": "fade-in", "seconds": 1, "blocking": false } }` — scene-level transition (fade-in / fade-out) |
 | Play sound | `{ "playsound": { "id": "bgm", "path": "scripts/sounds/file.opus", "volume": 0.7, "fade": 1, "loop": true, "blocking": false } }` — `volume` (0–1, default 1), `fade` (seconds, default 0), `loop` (default false), `blocking` waits for fade-in to finish |
 | Stop sound | `{ "stopsound": { "id": "bgm", "fade": 1, "blocking": true } }` — stops a playing sound by id; `fade` (seconds, default 0), `blocking` waits for fade-out to finish |
+| Item add/remove | `{ "item": { "id": "key", "qty": 1 } }` — adds item to inventory (negative `qty` removes). Requires inventory enabled in `_game.json` |
+
+### Inventory system
+
+Configured per-game in `_game.json`:
+- `"inventory": 12` — enables inventory with 12 slots
+- `"inventory": 0` or omitted — inventory disabled (HUD button hidden)
+
+Item definitions live in `items/items.json` inside each game folder. Each item:
+```json
+{
+  "id": "seal",
+  "name": "Seal",
+  "icon": "images/items/seal.png",
+  "stackable": false,
+  "droppable": true,
+  "options": [
+    { "text": "Stare at", "icon": "👁️", "actions": [{ "say": "...", "speaker": "..." }] }
+  ]
+}
+```
+
+Scripts can check inventory via conditions: `"if": "items.key.qty >= 1"` (uses `items.<id>.qty` syntax in `if` blocks). Truthiness check `"if": "items.key.qty"` returns true if qty > 0.
+
+The inventory UI is a draggable floating window with Grid and List display modes. Right-click items for defined options or Drop.
 
 ### Communication between modules
 All modules communicate through `EventBus`. Never import one UI module from another — emit an event instead.

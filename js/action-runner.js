@@ -24,16 +24,19 @@
  *   { "effect": { "type": "fade-in", "seconds": 1, "blocking": false } }  // scene-level transition
  *   { "playsound": { "id": "...", "path": "...", "volume": 0.7, "fade": 1, "loop": true, "blocking": false } }
  *   { "stopsound": { "id": "...", "fade": 1, "blocking": true } }
+ *   { "item": { "id": "key", "qty": 1 } }   // add item (negative qty = remove)
  */
 export class ActionRunner {
   /**
    * @param {object} deps
    * @param {import('./event-bus.js').EventBus} deps.bus
    * @param {import('./game-state.js').GameState} deps.state
+   * @param {import('./inventory.js').Inventory} deps.inventory
    */
-  constructor({ bus, state }) {
+  constructor({ bus, state, inventory }) {
     this.bus = bus;
     this.state = state;
+    this.inventory = inventory;
     this._aborted = false;
     this._exited = false;
     this._gotoFired = false;
@@ -97,6 +100,8 @@ export class ActionRunner {
           await this._playsound(action.playsound);
         } else if (action.stopsound) {
           await this._stopsound(action.stopsound);
+        } else if (action.item) {
+          this._applyItem(action.item);
         } else if (action.exit != null) {
           this._exited = true;
           return;
@@ -183,6 +188,20 @@ export class ActionRunner {
   }
 
   /**
+   * Apply an `item` action: add or remove items from inventory.
+   * Positive qty adds, negative qty removes.
+   */
+  _applyItem(itemDef) {
+    const id = itemDef.id;
+    const qty = itemDef.qty ?? 1;
+    if (qty > 0) {
+      this.inventory.add(id, qty);
+    } else if (qty < 0) {
+      this.inventory.remove(id, Math.abs(qty));
+    }
+  }
+
+  /**
    * Apply a `set` action, supporting booleans, direct values,
    * string increment ("+1", "-2"), and object increment ({ add, max, min }).
    */
@@ -210,15 +229,32 @@ export class ActionRunner {
   static _CMP_RE = /^(.+?)\s*(==|!=|>=|<=|>|<)\s*(.+)$/;
 
   /**
+   * Resolve a variable name that may refer to a flag or an inventory property.
+   * Supports:  items.<id>.qty  → inventory quantity
+   *            anything else   → game-state flag
+   */
+  _resolveValue(name) {
+    const itemMatch = /^items\.(.+?)\.qty$/.exec(name);
+    if (itemMatch) return this.inventory.getQty(itemMatch[1]);
+    return this.state.getFlag(name) ?? 0;
+  }
+
+  /**
    * Evaluate an `if` condition string.
    * - Plain name → truthiness check (backward-compatible).
    * - "flag op value" → numeric comparison.
+   * Supports `items.<id>.qty` for inventory checks.
    */
   _evalCondition(expr) {
     const m = ActionRunner._CMP_RE.exec(expr);
-    if (!m) return this.state.hasFlag(expr);
+    if (!m) {
+      // Plain truthiness: check inventory shorthand or flag
+      const itemMatch = /^items\.(.+?)\.qty$/.exec(expr);
+      if (itemMatch) return this.inventory.getQty(itemMatch[1]) > 0;
+      return this.state.hasFlag(expr);
+    }
 
-    const flag = this.state.getFlag(m[1].trim()) ?? 0;
+    const flag = this._resolveValue(m[1].trim());
     const val = Number(m[3].trim());
     switch (m[2]) {
       case '==': return flag === val;

@@ -1,0 +1,40 @@
+[
+  {
+    "id": "seal",
+    "name": "Seal",
+    "icon": "images/items/seal.png",
+    "stackable": false,
+    "droppable": true,
+    "options": [
+      {
+        "text": "Stare at",
+        "icon": "👁️",
+        "actions": [
+          {
+            "say": "The seal is looking pretty cramped. Find a spot for it at once.",
+            "speaker": "Annoyed Narrator"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "key",
+    "name": "Key",
+    "icon": "images/items/key.png",
+    "stackable": false,
+    "droppable": true,
+    "options": [
+      {
+        "text": "Examine",
+        "icon": "🔍",
+        "actions": [
+          {
+            "say": "A rusty old key. Looks like it could open something.",
+            "speaker": "Narrator"
+          }
+        ]
+      }
+    ]
+  }
+]

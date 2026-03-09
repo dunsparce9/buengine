@@ -16,6 +16,7 @@ export class HudUI {
   constructor(bus) {
     this.bus = bus;
     this.el = document.getElementById('hud-bar');
+    this._invBtn = this.el.querySelector('.hud-btn[data-hud="inventory"]');
 
     // Wire up each button via its data-hud attribute
     for (const btn of this.el.querySelectorAll('.hud-btn')) {
@@ -25,10 +26,18 @@ export class HudUI {
     // Engine integration
     this.bus.on('hud:show', () => this.show());
     this.bus.on('hud:hide', () => this.hide());
+    this.bus.on('hud:inventory-enabled', (enabled) => this._setInvVisible(enabled));
   }
 
   show() { this.el.classList.remove('hidden'); }
   hide() { this.el.classList.add('hidden'); }
+
+  /** Show or hide the inventory button. */
+  _setInvVisible(visible) {
+    if (this._invBtn) {
+      this._invBtn.classList.toggle('hidden', !visible);
+    }
+  }
 
   /** @param {string} action */
   _onButton(action) {

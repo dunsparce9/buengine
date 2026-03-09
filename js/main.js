@@ -8,14 +8,17 @@ import { ChoiceUI }      from './choice-ui.js';
 import { OverlayUI }     from './overlay-ui.js';
 import { SoundManager }  from './sound-manager.js';
 import { HudUI }         from './hud-ui.js';
+import { Inventory }     from './inventory.js';
+import { InventoryUI }   from './inventory-ui.js';
 
 /* ── Bootstrap ──────────────────────────────────── */
 
 const bus         = new EventBus();
 const state       = new GameState();
 const loader      = new ScriptLoader();        // basePath set by selectGame()
+const inventory   = new Inventory(bus);
 const scene       = new SceneRenderer(document.getElementById('scene-layer'), bus);
-const runner      = new ActionRunner({ bus, state });
+const runner      = new ActionRunner({ bus, state, inventory });
 const gridOverlay = document.getElementById('grid-overlay');
 
 // UI subsystems (they self-register on the bus)
@@ -24,6 +27,7 @@ new ChoiceUI(bus);
 const overlay = new OverlayUI(bus);
 new SoundManager(bus);
 const hud = new HudUI(bus);
+const inventoryUI = new InventoryUI(bus, inventory, runner);
 
 /** Currently loaded scene data keyed by id. */
 let currentSceneData = null;
@@ -211,11 +215,17 @@ async function showTitle() {
 /** Start a new game: reset state, load first scene. */
 bus.on('game:start', async () => {
   state.reset();
-  hud.show();
+  inventory.reset();
   try {
     const manifest = await loader.load('_game');
+    const invCapacity = manifest.inventory || 0;
+    inventory.configure(invCapacity);
+    await inventory.loadDefinitions(loader.basePath);
+    hud.show();
+    bus.emit('hud:inventory-enabled', inventory.enabled);
     await gotoScene(manifest.startScene || 'intro');
   } catch {
+    hud.show();
     await gotoScene('intro');
   }
 });

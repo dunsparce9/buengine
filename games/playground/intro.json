@@ -10,7 +10,7 @@
       {
         "show": {
           "id": "dream-overlay",
-          "texture": "dream.png",
+          "texture": "images/scenes/dream.png",
           "layer": "overlay",
           "scaling": "fill",
           "effect": {

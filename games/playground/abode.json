@@ -1,6 +1,6 @@
 {
   "id": "abode",
-  "background": "abode.jpg",
+  "background": "images/scenes/abode.jpg",
   "backgroundColor": "#000000",
   "grid": {
     "cols": 20,
@@ -180,7 +180,7 @@
     {
       "id": "seal",
       "label": "Seal!",
-      "texture": "seal.png",
+      "texture": "images/seal.png",
       "x": 12,
       "y": 4,
       "w": 2,

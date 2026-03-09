@@ -3,5 +3,6 @@
   "subtitle": "[working title]",
   "startScene": "intro",
   "scenes": ["intro", "abode", "ending"],
-  "skipTitleScreen": false
+  "skipTitleScreen": false,
+  "inventory": 12
 }
