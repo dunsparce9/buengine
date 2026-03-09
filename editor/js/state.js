@@ -6,10 +6,6 @@
  * after all modules are imported.
  */
 
-const _params = new URLSearchParams(location.search);
-export const GAME_ID = _params.get('game') || '';
-export const SCRIPTS_BASE = GAME_ID ? `../games/${GAME_ID}` : '../scripts';
-
 /* ── Mutable application state ─────────────────── */
 export const state = {
   manifest:   null,       // parsed _game.json
@@ -19,12 +15,11 @@ export const state = {
   dirtySet:   new Set(),  // script ids with unsaved edits
 
   /* ── File system ── */
-  fsMode:          'memory',      // 'memory' | 'native'
-  rootHandle:      null,          // FileSystemDirectoryHandle (native mode)
+  rootHandle:      null,          // FileSystemDirectoryHandle
   fileTree:        [],            // recursive tree of { name, path, type, handle?, children? }
   expandedFolders: new Set(['']), // folder paths currently expanded (root = '')
   selectedPath:    null,          // path of selected item in file tree
-  assetURLCache:   new Map(),     // path → blob URL (native mode only)
+  assetURLCache:   new Map(),     // path → blob URL
 };
 
 /* ── DOM references ────────────────────────────── */

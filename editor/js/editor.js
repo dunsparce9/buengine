@@ -4,7 +4,7 @@
  * Imports all editor modules, wires render hooks, and boots the app.
  */
 
-import { state, hooks, GAME_ID } from './state.js';
+import { state, hooks } from './state.js';
 import { createFloatingWindow } from './floating-window.js';
 import { discoverScripts } from './script-loader.js';
 import { renderFileList, selectScript, initFilePanelDrop } from './file-panel.js';
@@ -130,8 +130,8 @@ hooks.openFolder = handleOpenFolder;
 /* ── Save file ─────────────────────────────────── */
 
 async function saveCurrentFile() {
-  if (state.fsMode !== 'native') {
-    showToast('Save requires an open folder (File → Open Folder)', 'error');
+  if (!state.rootHandle) {
+    showToast('No folder open (File → Open Folder)', 'error');
     return;
   }
   const id = state.selectedId;
@@ -154,8 +154,8 @@ async function saveCurrentFile() {
 }
 
 async function saveAllFiles() {
-  if (state.fsMode !== 'native') {
-    showToast('Save requires an open folder (File → Open Folder)', 'error');
+  if (!state.rootHandle) {
+    showToast('No folder open (File → Open Folder)', 'error');
     return;
   }
   if (state.dirtySet.size === 0) {
@@ -198,25 +198,12 @@ function exportCurrentJson() {
 /* ── Export ZIP ─────────────────────────────────── */
 
 async function exportZip() {
-  if (state.fsMode !== 'native') {
-    // In memory mode, export what we have
-    const files = [];
-    for (const [id, data] of Object.entries(state.scripts)) {
-      const json = JSON.stringify(data, null, 2);
-      const path = id === '_game' ? '_game.json' : `${id}.json`;
-      files.push({ path, data: new TextEncoder().encode(json) });
-    }
-    if (!files.length) {
-      showToast('Nothing to export', 'error');
-      return;
-    }
-    const blob = createZip(files);
-    downloadBlob(blob, 'game-project.zip');
-    showToast('Exported ZIP');
+  if (!state.rootHandle) {
+    showToast('No folder open (File → Open Folder)', 'error');
     return;
   }
 
-  // Native mode — export everything
+  // Export everything from the native folder
   showToast('Preparing ZIP\u2026');
   const allPaths = collectAllPaths();
   const files = [];
@@ -239,8 +226,8 @@ async function exportZip() {
 /* ── Import ZIP ────────────────────────────────── */
 
 async function importZip() {
-  if (state.fsMode !== 'native') {
-    showToast('Import requires an open folder (File → Open Folder)', 'error');
+  if (!state.rootHandle) {
+    showToast('No folder open (File → Open Folder)', 'error');
     return;
   }
   const input = document.createElement('input');
@@ -322,9 +309,9 @@ async function runInNewTab() {
   }
   localStorage.setItem('buegame_editor_preview', JSON.stringify(overrides));
 
-  // In native FS mode, create blob URLs for all non-JSON assets so the
+  // Create blob URLs for all non-JSON assets so the
   // game tab can load images/sounds from the local folder.
-  if (state.fsMode === 'native') {
+  if (state.rootHandle) {
     const assetMap = {};
     const allPaths = collectAllPaths();
     for (const path of allPaths) {
@@ -339,9 +326,7 @@ async function runInNewTab() {
     localStorage.removeItem('buegame_editor_assets');
   }
 
-  const params = new URLSearchParams({ preview: '' });
-  if (GAME_ID) params.set('game', GAME_ID);
-  window.open(`../index.html?${params}`, '_blank');
+  window.open('../index.html?preview', '_blank');
 }
 
 /* ── Menu setup ────────────────────────────────── */
@@ -353,10 +338,7 @@ initMenu({
   'export-zip':  exportZip,
   'import-zip':  importZip,
   'exit':        () => {
-    const params = new URLSearchParams();
-    if (GAME_ID) params.set('game', GAME_ID);
-    const qs = params.toString();
-    window.location.href = qs ? `../index.html?${qs}` : '../index.html';
+    window.location.href = '../index.html';
   },
   'about':       () => aboutWindow.open(),
   'run-in-tab':  runInNewTab,
@@ -396,14 +378,6 @@ window.addEventListener('resize', () => renderViewport());
 
 /* ── Boot ──────────────────────────────────────── */
 (async () => {
-  if (GAME_ID) {
-    try {
-      await discoverScripts();
-      selectScript('_game');
-    } catch (err) {
-      showToast(`Failed to load game: ${err.message}`, 'error');
-    }
-  }
   updateMenuVisibility();
   renderFileList();
 })();

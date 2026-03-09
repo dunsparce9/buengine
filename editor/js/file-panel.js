@@ -1,9 +1,5 @@
 /**
  * Left-side file panel — folder tree view with drag/drop and context menu.
- *
- * Two modes:
- *   - memory (legacy): flat list from discovered scripts
- *   - native: full folder tree from File System Access API
  */
 
 import { state, dom, hooks, escapeHtml } from './state.js';
@@ -11,7 +7,7 @@ import { showContextMenu } from './context-menu.js';
 import { getFileExtension } from './file-types.js';
 import {
   buildTree, deleteEntry, renameEntry, moveEntry, createDir,
-  writeFileBinary, findNode, hasNativeFS,
+  writeFileBinary, findNode,
 } from './fs-provider.js';
 
 /* ── File type helpers ─────────────────────────── */
@@ -59,10 +55,10 @@ function scriptIdFromPath(path) {
 export function renderFileList() {
   dom.fileList.innerHTML = '';
 
-  if (state.fsMode === 'native' && state.fileTree.length) {
+  if (state.fileTree.length) {
     renderTree(state.fileTree, dom.fileList, 0);
   } else {
-    renderFlatList();
+    renderEmptyState();
   }
 }
 
@@ -94,37 +90,16 @@ export function selectPath(path) {
   hooks.renderProperties();
 }
 
-/* ── Flat list (memory/legacy mode) ────────────── */
+/* ── Empty state ────────────────────────────────── */
 
-function renderFlatList() {
-  const scriptIds = Object.keys(state.scripts);
-  const ids = scriptIds.length
-    ? ['_game', ...scriptIds.filter(id => id !== '_game')]
-    : [];
-  for (const id of ids) {
-    const li = document.createElement('li');
-    li.className = 'tree-file tree-depth-0';
-    const icon = id === '_game' ? 'settings' : 'public';
-    li.innerHTML =
-      `<span class="material-symbols-outlined tree-icon">${icon}</span>` +
-      `<span class="tree-label">${escapeHtml(id)}.json</span>`;
-    if (state.dirtySet.has(id)) li.classList.add('dirty');
-    li.dataset.path = id === '_game' ? '_game.json' : `${id}.json`;
-    if (id === state.selectedId) li.classList.add('selected');
-    li.addEventListener('click', () => selectScript(id));
-    dom.fileList.appendChild(li);
-  }
-
-  // "Open Folder" button at the bottom if native FS is available
-  if (hasNativeFS) {
-    const btn = document.createElement('li');
-    btn.className = 'tree-open-folder-btn';
-    btn.innerHTML =
-      '<span class="material-symbols-outlined tree-icon">folder_open</span>' +
-      '<span class="tree-label">Open local folder\u2026</span>';
-    btn.addEventListener('click', () => hooks.openFolder?.());
-    dom.fileList.appendChild(btn);
-  }
+function renderEmptyState() {
+  const btn = document.createElement('li');
+  btn.className = 'tree-open-folder-btn';
+  btn.innerHTML =
+    '<span class="material-symbols-outlined tree-icon">folder_open</span>' +
+    '<span class="tree-label">Open local folder\u2026</span>';
+  btn.addEventListener('click', () => hooks.openFolder?.());
+  dom.fileList.appendChild(btn);
 }
 
 /* ── Tree rendering (native mode) ──────────────── */

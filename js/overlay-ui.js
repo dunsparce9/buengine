@@ -7,15 +7,12 @@ export class OverlayUI {
    */
   constructor(bus) {
     this.bus = bus;
-    this._basePath = '';
 
     // Title screen elements
     this.title        = document.getElementById('title-screen');
     this.titleText    = document.getElementById('title-text');
     this.titleSub     = document.getElementById('title-subtitle');
     this.startBtn     = document.getElementById('title-start-btn');
-
-    this.editBtn     = document.getElementById('title-edit-btn');
 
     // Pause screen elements
     this.pause        = document.getElementById('pause-screen');
@@ -26,12 +23,6 @@ export class OverlayUI {
     this.startBtn.addEventListener('click', () => {
       this.hideTitle();
       this.bus.emit('game:start');
-    });
-    this.editBtn.addEventListener('click', () => {
-      const gameId = this._basePath.split('/').pop();
-      window.location.href = gameId
-        ? `editor/index.html?game=${encodeURIComponent(gameId)}`
-        : 'editor/index.html';
     });
     this.resumeBtn.addEventListener('click', () => this.hidePause());
     this.toTitleBtn.addEventListener('click', () => {
@@ -48,7 +39,6 @@ export class OverlayUI {
     });
 
     // Listen for engine events
-    this.bus.on('game:basepath', (bp) => { this._basePath = bp; });
     this.bus.on('overlay:title', (cfg) => this.showTitle(cfg));
     this.bus.on('overlay:pause', () => this.showPause());
   }
@@ -56,7 +46,6 @@ export class OverlayUI {
   showTitle(cfg = {}) {
     this.titleText.textContent = cfg.title || 'büegame';
     this.titleSub.textContent  = cfg.subtitle || '';
-    this.editBtn.classList.toggle('hidden', cfg.editVisible === false);
     this.title.classList.remove('hidden');
     this.pause.classList.add('hidden');
   }

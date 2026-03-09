@@ -1,11 +1,8 @@
 /**
- * File system abstraction — supports in-memory (fetch) and native (File System Access API) modes.
- *
- * Native mode gives full read/write to a local game folder via showDirectoryPicker().
- * Memory mode (legacy) loads via fetch and keeps edits in-memory only.
+ * File system provider — uses the File System Access API for local folder access.
  */
 
-import { state, SCRIPTS_BASE } from './state.js';
+import { state } from './state.js';
 
 /** Whether the browser supports the File System Access API. */
 export const hasNativeFS = typeof window.showDirectoryPicker === 'function';
@@ -23,7 +20,6 @@ export async function openFolder() {
   try {
     const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
     state.rootHandle = handle;
-    state.fsMode = 'native';
     await buildTree();
     return handle;
   } catch (e) {
@@ -38,7 +34,7 @@ export async function openFolder() {
  * Recursively scan the root handle and populate state.fileTree.
  */
 export async function buildTree() {
-  if (state.fsMode !== 'native' || !state.rootHandle) return;
+  if (!state.rootHandle) return;
   state.fileTree = await _scanDir(state.rootHandle, '');
 }
 
@@ -60,43 +56,6 @@ async function _scanDir(dirHandle, basePath) {
   return entries;
 }
 
-/**
- * Build a synthetic tree from known paths (for legacy/memory mode).
- * Accepts an array of relative path strings.
- */
-export function buildSyntheticTree(paths) {
-  const root = [];
-  for (const p of paths) {
-    const parts = p.split('/');
-    let level = root;
-    let current = '';
-    for (let i = 0; i < parts.length; i++) {
-      current = current ? `${current}/${parts[i]}` : parts[i];
-      const isLast = i === parts.length - 1;
-      let node = level.find(n => n.name === parts[i]);
-      if (!node) {
-        node = isLast
-          ? { name: parts[i], path: current, type: 'file' }
-          : { name: parts[i], path: current, type: 'dir', children: [] };
-        level.push(node);
-      }
-      if (!isLast) level = node.children;
-    }
-  }
-  _sortTree(root);
-  return root;
-}
-
-function _sortTree(nodes) {
-  nodes.sort((a, b) => {
-    if (a.type !== b.type) return a.type === 'dir' ? -1 : 1;
-    return a.name.localeCompare(b.name);
-  });
-  for (const n of nodes) {
-    if (n.children) _sortTree(n.children);
-  }
-}
-
 /* ── Node lookup ───────────────────────────────── */
 
 export function findNode(path) {
@@ -115,27 +74,17 @@ export function findNode(path) {
 /* ── Read ──────────────────────────────────────── */
 
 export async function readFileText(path) {
-  if (state.fsMode === 'native') {
-    const node = findNode(path);
-    if (!node || node.type !== 'file') throw new Error(`Not found: ${path}`);
-    const file = await node.handle.getFile();
-    return await file.text();
-  }
-  const res = await fetch(`${SCRIPTS_BASE}/${path}`);
-  if (!res.ok) throw new Error(`Fetch failed: ${path} (${res.status})`);
-  return await res.text();
+  const node = findNode(path);
+  if (!node || node.type !== 'file') throw new Error(`Not found: ${path}`);
+  const file = await node.handle.getFile();
+  return await file.text();
 }
 
 export async function readFileBinary(path) {
-  if (state.fsMode === 'native') {
-    const node = findNode(path);
-    if (!node || node.type !== 'file') throw new Error(`Not found: ${path}`);
-    const file = await node.handle.getFile();
-    return await file.arrayBuffer();
-  }
-  const res = await fetch(`${SCRIPTS_BASE}/${path}`);
-  if (!res.ok) throw new Error(`Fetch failed: ${path} (${res.status})`);
-  return await res.arrayBuffer();
+  const node = findNode(path);
+  if (!node || node.type !== 'file') throw new Error(`Not found: ${path}`);
+  const file = await node.handle.getFile();
+  return await file.arrayBuffer();
 }
 
 /* ── Write ─────────────────────────────────────── */
@@ -149,7 +98,6 @@ async function _navigateToDir(pathParts, create = false) {
 }
 
 export async function writeFile(path, content) {
-  if (state.fsMode !== 'native') throw new Error('Write requires native FS mode');
   const parts = path.split('/').filter(Boolean);
   const fileName = parts.pop();
   const dir = await _navigateToDir(parts, true);
@@ -160,7 +108,6 @@ export async function writeFile(path, content) {
 }
 
 export async function writeFileBinary(path, data) {
-  if (state.fsMode !== 'native') throw new Error('Write requires native FS mode');
   const parts = path.split('/').filter(Boolean);
   const fileName = parts.pop();
   const dir = await _navigateToDir(parts, true);
@@ -173,7 +120,6 @@ export async function writeFileBinary(path, data) {
 /* ── Delete ────────────────────────────────────── */
 
 export async function deleteEntry(path) {
-  if (state.fsMode !== 'native') throw new Error('Delete requires native FS mode');
   const parts = path.split('/').filter(Boolean);
   const name = parts.pop();
   const dir = await _navigateToDir(parts);
@@ -183,14 +129,12 @@ export async function deleteEntry(path) {
 /* ── Create folder ─────────────────────────────── */
 
 export async function createDir(path) {
-  if (state.fsMode !== 'native') throw new Error('Create requires native FS mode');
   await _navigateToDir(path.split('/').filter(Boolean), true);
 }
 
 /* ── Move / Rename ─────────────────────────────── */
 
 export async function moveEntry(oldPath, newPath) {
-  if (state.fsMode !== 'native') throw new Error('Move requires native FS mode');
   const node = findNode(oldPath);
   if (!node) throw new Error(`Not found: ${oldPath}`);
   if (node.type === 'file') {
@@ -229,12 +173,9 @@ export async function renameEntry(path, newName) {
 /* ── Asset URL cache ───────────────────────────── */
 
 /**
- * Get a displayable URL for an asset path.
- * In native mode, creates (and caches) a blob URL.
- * In memory mode, returns the fetch URL.
+ * Get a displayable blob URL for an asset path.
  */
 export async function resolveAssetURL(path) {
-  if (state.fsMode !== 'native') return `${SCRIPTS_BASE}/${path}`;
   if (state.assetURLCache.has(path)) return state.assetURLCache.get(path);
   const node = findNode(path);
   if (!node || node.type !== 'file') return '';
@@ -245,17 +186,14 @@ export async function resolveAssetURL(path) {
 }
 
 /**
- * Synchronous URL lookup — returns cached URL or falls back to SCRIPTS_BASE.
- * Use for rendering contexts where async is impractical.
+ * Synchronous URL lookup — returns cached blob URL or empty string.
  */
 export function resolveAssetURLSync(path) {
-  if (state.fsMode !== 'native') return `${SCRIPTS_BASE}/${path}`;
   return state.assetURLCache.get(path) || '';
 }
 
 /** Pre-warm the asset URL cache for a set of paths. */
 export async function cacheAssetURLs(paths) {
-  if (state.fsMode !== 'native') return;
   await Promise.all(paths.map(p => resolveAssetURL(p)));
 }
 

@@ -19,7 +19,7 @@ editor/
   js/
     editor.js             ← orchestrator — wires modules, boots app
     state.js              ← shared state, DOM refs, render hooks, utilities
-    fs-provider.js        ← file system abstraction (native FS + fetch fallback)
+    fs-provider.js        ← file system access via File System Access API
     zip-utils.js          ← minimal ZIP creation/extraction (no dependencies)
     floating-window.js    ← draggable/resizable floating panel component
     script-loader.js      ← fetch & cache JSON scripts (uses fs-provider)
@@ -32,16 +32,9 @@ editor/
     resize.js             ← column resize handles
 ```
 
-### Two file system modes
+### File System
 
-| Mode | Triggered by | Capabilities |
-|------|-------------|----------------|
-| **memory** (legacy) | `?game=playground` URL param | Read via `fetch()`, edits in-memory only. Flat script list. |
-| **native** | File → Open Folder (File System Access API) | Full read/write to local disk. Complete folder tree. Drag-and-drop. Save/rename/delete. |
-
-In **native mode**, the browser grants read/write access to a local game folder via `showDirectoryPicker()`. All file operations (save, create, rename, delete, move) go through `fs-provider.js` which wraps `FileSystemDirectoryHandle` / `FileSystemFileHandle`.
-
-In **memory mode** (fallback), scripts are loaded via `fetch()` from `../games/{GAME_ID}/`. Edits stay in-memory. The file panel shows a flat list of loaded scripts plus an "Open Folder" button.
+The editor operates exclusively via the **File System Access API** (`showDirectoryPicker()`). The user opens a local game folder, and the browser grants read/write access. All file operations (save, create, rename, delete, move) go through `fs-provider.js` which wraps `FileSystemDirectoryHandle` / `FileSystemFileHandle`.
 
 Modules avoid circular imports by using a `hooks` object (in `state.js`) for cross-module render calls. The orchestrator (`editor.js`) sets `hooks.renderFileList`, `hooks.renderViewport`, `hooks.renderProperties`, `hooks.toast`, and `hooks.openFolder` after importing all modules.
 
@@ -59,7 +52,7 @@ Modules avoid circular imports by using a `hooks` object (in `state.js`) for cro
 └──────────┴──────────────────────┴───────────────┘
 ```
 
-- **Left panel** (`#file-panel` / `#file-list`) — folder tree (native mode) or flat script list (memory mode). Supports expand/collapse, drag-to-move, drag-from-OS, right-click context menu.
+- **Left panel** (`#file-panel` / `#file-list`) — folder tree with expand/collapse, drag-to-move, drag-from-OS, right-click context menu.
 - **Viewport** (`#viewport-scene`) — sized dynamically to preserve the scene grid aspect ratio; shows background image and hotspot outlines.
 - **Right panel** (`#props-panel` / `#props-content`) — property inspector. Read-only for scenes/hotspots; editable inputs for `_game.json` manifest fields.
 - **Resize handles** — two draggable column dividers between panels (CSS vars `--left-w`, `--right-w`).
@@ -75,12 +68,11 @@ All mutable state lives in the `state` object exported from `state.js`:
 | `state.selectedId` | Currently highlighted script id in the file panel |
 | `state.selectedHs` | Currently highlighted hotspot id within the viewport |
 | `state.dirtySet` | `Set` of script ids with unsaved edits |
-| `state.fsMode` | `'memory'` (legacy fetch) or `'native'` (File System Access API) |
-| `state.rootHandle` | `FileSystemDirectoryHandle` — only set in native mode |
+| `state.rootHandle` | `FileSystemDirectoryHandle` from `showDirectoryPicker()` |
 | `state.fileTree` | Recursive array of `{ name, path, type, handle?, children? }` |
 | `state.expandedFolders` | `Set` of folder paths currently expanded in the tree (root = `''`) |
 | `state.selectedPath` | Path of the selected item in the file tree |
-| `state.assetURLCache` | `Map<path, blobURL>` — cached blob URLs for native-mode assets |
+| `state.assetURLCache` | `Map<path, blobURL>` — cached blob URLs for assets |
 
 ## Rendering Pipeline
 
@@ -92,10 +84,10 @@ The viewport computes pixel dimensions from the scene's `grid.cols` / `grid.rows
 
 | Feature | Module | Entry point |
 |---------|--------|-------------|
-| Open local folder | `fs-provider.js` | `openFolder()` — `showDirectoryPicker()`, scans tree, enables native mode |
-| Save / Save All | `editor.js` | `saveCurrentFile()` / `saveAllFiles()` — writes JSON to disk (native mode) |
+| Open local folder | `fs-provider.js` | `openFolder()` — `showDirectoryPicker()`, scans tree |
+| Save / Save All | `editor.js` | `saveCurrentFile()` / `saveAllFiles()` — writes JSON to disk |
 | Export ZIP | `editor.js` + `zip-utils.js` | `exportZip()` — packages all files into a downloadable ZIP |
-| Import ZIP | `editor.js` + `zip-utils.js` | `importZip()` — extracts ZIP into the open folder (native mode) |
+| Import ZIP | `editor.js` + `zip-utils.js` | `importZip()` — extracts ZIP into the open folder |
 | File tree | `file-panel.js` | `renderFileList()` — folder tree with expand/collapse, type icons |
 | Drag-and-drop files | `file-panel.js` | Drop from OS to add files, drag within tree to move between folders |
 | File context menu | `file-panel.js` | Right-click → Rename, Delete, Copy Path, Download, New File/Folder |
@@ -114,7 +106,7 @@ The viewport computes pixel dimensions from the scene's `grid.cols` / `grid.rows
 1. **Same rules as the game engine** — vanilla JS, no frameworks, no build tools.
 2. **Editor CSS goes in `editor/css/editor.css`** — do not touch `css/style.css` (that's the game).
 3. **Editor JS goes in `editor/js/`** — one file per concern. Shared state lives in `state.js`. Cross-module render calls go through `hooks` (set by the orchestrator `editor.js`). Direct imports are fine for non-circular dependencies.
-4. **Don't import game modules** — the editor is a separate app. It reads game scripts via `fs-provider.js` (native mode) or `fetch()` (memory mode), not by importing engine code.
+4. **Don't import game modules** — the editor is a separate app. It reads game scripts via `fs-provider.js`, not by importing engine code.
 5. **Colour palette** — the editor uses Gruvbox Dark (`#282828` bg, `#ebdbb2` fg, `#fe8019` accent, `#1d2021` panel bg, `#3c3836` borders). Keep new UI consistent.
 6. **Hotspot visualisation** — dashed orange outlines (`.editor-hotspot`), yellow when selected. Labels are 10px overlays.
 7. **Grid-aware positioning** — all hotspot coordinates are in tile units. Convert to percentages (`tile / cols * 100%`) for CSS positioning.

@@ -4,7 +4,7 @@
 
 import { state, dom, hooks, escapeHtml, markDirty, collectImagePaths, deleteHotspot } from './state.js';
 import { openActionViewer } from './action-viewer.js';
-import { findNode, resolveAssetURL } from './fs-provider.js';
+import { findNode } from './fs-provider.js';
 import { getFileExtension, getFileKind, isPreviewableMedia } from './file-types.js';
 
 let _assetInfoRequestId = 0;
@@ -365,21 +365,9 @@ async function loadAssetInfo(path, kind, detailsGroup) {
 }
 
 async function readSelectedFile(path) {
-  if (state.fsMode === 'native') {
-    const node = findNode(path);
-    if (!node || node.type !== 'file') return null;
-    return await node.handle.getFile();
-  }
-
-  const url = await resolveAssetURL(path);
-  if (!url) return null;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
-  const blob = await res.blob();
-  return new File([blob], path.split('/').pop() || 'asset', {
-    type: blob.type,
-    lastModified: Date.now(),
-  });
+  const node = findNode(path);
+  if (!node || node.type !== 'file') return null;
+  return await node.handle.getFile();
 }
 
 function readImageInfo(file, path) {

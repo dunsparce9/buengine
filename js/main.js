@@ -188,6 +188,22 @@ async function showGameSelector() {
       entry.addEventListener('click', () => selectGame(id));
       gameListEl.appendChild(entry);
     }
+
+    // Editor entry
+    const editorEntry = document.createElement('div');
+    editorEntry.className = 'game-entry';
+    const editorTitle = document.createElement('div');
+    editorTitle.className = 'game-entry-title';
+    editorTitle.textContent = 'b\u00fcegame editor';
+    editorEntry.appendChild(editorTitle);
+    const editorSub = document.createElement('div');
+    editorSub.className = 'game-entry-subtitle';
+    editorSub.textContent = 'Open the scene editor';
+    editorEntry.appendChild(editorSub);
+    editorEntry.addEventListener('click', () => {
+      window.location.href = 'editor/index.html';
+    });
+    gameListEl.appendChild(editorEntry);
   } catch {
     gameListEl.innerHTML = '<p style="opacity:0.7">No games found.</p>';
   }
@@ -206,16 +222,15 @@ function selectGame(id) {
 
 /** Load manifest and show title overlay (or skip straight to game). */
 async function showTitle() {
-  const editVisible = !(loader.isPreview && loader.assetMap);
   try {
     const manifest = await loader.load('_game');
     if (manifest.skipTitleScreen) {
       bus.emit('game:start');
       return;
     }
-    overlay.showTitle({ title: manifest.title, subtitle: manifest.subtitle, editVisible });
+    overlay.showTitle({ title: manifest.title, subtitle: manifest.subtitle });
   } catch {
-    overlay.showTitle({ title: 'büegame', subtitle: 'A point-and-click adventure', editVisible });
+    overlay.showTitle({ title: 'b\u00fcegame', subtitle: 'A point-and-click adventure' });
   }
 }
 
