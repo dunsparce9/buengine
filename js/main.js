@@ -351,7 +351,26 @@ if (_urlGame) {
   // Editor preview of a local folder — no game ID needed.
   // Broadcast the asset map so renderers can resolve blob URLs.
   if (loader.assetMap) bus.emit('game:assetmap', loader.assetMap);
-  showTitle();
+
+  const _sceneParam = _params.get('scene');
+  if (_sceneParam) {
+    // "Run current scene" — skip title, jump straight into the scene
+    (async () => {
+      const manifest = await loader.load('_game');
+      const invCapacity = manifest.inventory || 0;
+      inventory.configure(invCapacity);
+      try {
+        const defs = await loader.load('items/items');
+        inventory.loadDefinitionsFromData(defs);
+      } catch {
+        await inventory.loadDefinitions(loader.basePath).catch(() => {});
+      }
+      bus.emit('hud:inventory-enabled', inventory.enabled);
+      await gotoScene(_sceneParam);
+    })();
+  } else {
+    showTitle();
+  }
 } else {
   showGameSelector();
 }
