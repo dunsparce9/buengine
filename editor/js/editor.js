@@ -38,6 +38,22 @@ function updateMenuVisibility() {
   }
 }
 
+function isStandalonePWA() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function updateRunLabels() {
+  const standalone = isStandalonePWA();
+  const label = standalone ? 'Run in new window' : 'Run in new tab';
+  const menuRunBtn = document.querySelector('[data-action="run-in-tab"]');
+  const topRunBtn = document.getElementById('run-btn');
+  if (menuRunBtn) {
+    const textNode = [...menuRunBtn.childNodes].find(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim().length > 0);
+    if (textNode) textNode.textContent = label;
+  }
+  if (topRunBtn) topRunBtn.title = label;
+}
+
 /* ── Toast notifications ───────────────────────── */
 const toastContainer = document.getElementById('toast-container');
 
@@ -334,7 +350,55 @@ async function runInNewTab() {
     localStorage.removeItem('buegame_editor_assets');
   }
 
+  if (isStandalonePWA()) {
+    window.open('../index.html?preview', '_blank', 'popup');
+    return;
+  }
   window.open('../index.html?preview', '_blank');
+}
+
+let deferredInstallPrompt = null;
+
+function updateInstallMenuVisibility() {
+  const installBtn = document.getElementById('install-app-btn');
+  const canInstall = Boolean(deferredInstallPrompt) && !isStandalonePWA();
+  if (installBtn) installBtn.disabled = !canInstall;
+}
+
+function setupPWAInstall() {
+  updateRunLabels();
+  updateInstallMenuVisibility();
+  window.matchMedia('(display-mode: standalone)').addEventListener('change', updateRunLabels);
+
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    updateInstallMenuVisibility();
+    showToast('Install this app? Open Help → Install app…', 'info');
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    updateInstallMenuVisibility();
+    showToast('Editor installed successfully', 'info');
+  });
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js');
+    });
+  }
+}
+
+async function installApp() {
+  if (!deferredInstallPrompt) {
+    showToast('Install prompt is not available in this browser/session', 'error');
+    return;
+  }
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  updateInstallMenuVisibility();
 }
 
 /* ── Menu setup ────────────────────────────────── */
@@ -348,10 +412,12 @@ initMenu({
   'exit':        () => {
     window.location.href = '../index.html';
   },
+  'install-app': installApp,
   'about':       () => aboutWindow.open(),
   'run-in-tab':  runInNewTab,
 });
 document.getElementById('run-btn').addEventListener('click', runInNewTab);
+setupPWAInstall();
 
 /* ── Keyboard shortcuts ────────────────────────── */
 document.addEventListener('keydown', (e) => {

@@ -1,0 +1,18 @@
+{
+  "name": "büegame Editor",
+  "short_name": "büe Editor",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#282828",
+  "theme_color": "#1d2021",
+  "description": "Static editor for büegame point-and-click adventures.",
+  "icons": [
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

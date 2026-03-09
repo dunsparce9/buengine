@@ -57,6 +57,15 @@
   background: #3c3836;
 }
 
+.menu-action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.menu-action:disabled:hover {
+  background: none;
+}
+
 .menu-sep {
   height: 1px;
   background: #3c3836;
