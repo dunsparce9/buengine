@@ -42,6 +42,19 @@ function isStandalonePWA() {
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 }
 
+function updateWindowTitle() {
+  const appName = 'b\u00fcegame editor';
+  const context = state.selectedPath || state.rootHandle?.name || '';
+
+  if (!context) {
+    document.title = appName;
+    return;
+  }
+  // On many Chromium-based browsers, the PWA's name is already prepended - this prevents a duped name
+  document.title = isStandalonePWA() ? context : `${appName} - ${context}`;
+}
+hooks.updateWindowTitle = updateWindowTitle;
+
 function updateRunLabels() {
   const standalone = isStandalonePWA();
   const label = standalone ? 'Run in new window' : 'Run in new tab';
@@ -115,6 +128,7 @@ async function handleOpenFolder() {
   clearAssetCache();
   state.manifest = null;
   updateMenuVisibility();
+  updateWindowTitle();
 
   // Load scripts from the newly opened folder
   try {
@@ -143,7 +157,7 @@ async function handleOpenFolder() {
   }
   await cacheAssetURLs(imagePaths);
 
-  document.title = `büegame editor — ${handle.name}`;
+  updateWindowTitle();
   updateMenuVisibility();
   renderFileList();
   selectScript('_game');
@@ -367,8 +381,12 @@ function updateInstallMenuVisibility() {
 
 function setupPWAInstall() {
   updateRunLabels();
+  updateWindowTitle();
   updateInstallMenuVisibility();
-  window.matchMedia('(display-mode: standalone)').addEventListener('change', updateRunLabels);
+  window.matchMedia('(display-mode: standalone)').addEventListener('change', () => {
+    updateRunLabels();
+    updateWindowTitle();
+  });
 
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
@@ -452,6 +470,7 @@ window.addEventListener('resize', () => renderViewport());
 
 /* ── Boot ──────────────────────────────────────── */
 (async () => {
+  updateWindowTitle();
   updateMenuVisibility();
   renderFileList();
 })();

@@ -37,6 +37,7 @@ export const hooks = {
   renderFileList:   () => {},
   renderViewport:   () => {},
   renderProperties: () => {},
+  updateWindowTitle: () => {},
 };
 
 /* ── Utilities ─────────────────────────────────── */

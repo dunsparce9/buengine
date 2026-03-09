@@ -1,6 +1,6 @@
 {
-  "name": "büegame Editor",
-  "short_name": "büe Editor",
+  "name": "büegame editor",
+  "short_name": "büe editor",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

@@ -70,6 +70,8 @@ export function selectScript(id) {
   // Sync selectedPath
   if (id === '_game') state.selectedPath = '_game.json';
   else if (id) state.selectedPath = `${id}.json`;
+  else state.selectedPath = null;
+  hooks.updateWindowTitle();
   renderFileList();
   hooks.renderViewport();
   hooks.renderProperties();
@@ -88,6 +90,7 @@ export function selectPath(path) {
   }
   state.selectedHs = null;
   state.selectedItem = null;
+  hooks.updateWindowTitle();
   renderFileList();
   hooks.renderViewport();
   hooks.renderProperties();
@@ -228,6 +231,7 @@ function selectFileNode(node) {
   state.selectedPath = node.path;
   state.selectedHs = null;
   state.selectedItem = null;
+  hooks.updateWindowTitle();
   renderFileList();
   hooks.renderViewport();
   hooks.renderProperties();
@@ -439,6 +443,7 @@ async function promptRename(node) {
     await buildTree();
     if (state.selectedPath === node.path) {
       state.selectedPath = newPath;
+      hooks.updateWindowTitle();
     }
     renderFileList();
     hooks.toast?.(`Renamed to ${trimmedName}`);
@@ -598,6 +603,7 @@ async function confirmDelete(node) {
     if (state.selectedPath === node.path) {
       state.selectedPath = null;
       state.selectedId = null;
+      hooks.updateWindowTitle();
     }
     await buildTree();
     renderFileList();
