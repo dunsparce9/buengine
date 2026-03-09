@@ -19,6 +19,7 @@ js/
   game-state.js          ← flags, current scene, history
   script-loader.js       ← fetches & caches JSON scripts
   scene-renderer.js      ← background, scene objects, show/hide entity system
+  action-schema.js       ← **shared** action type registry (fields, metadata, defaults)
   action-runner.js       ← walks action arrays, dispatches commands
   dialogue-ui.js         ← dialogue box with typewriter effect
   choice-ui.js           ← multiple-choice modal

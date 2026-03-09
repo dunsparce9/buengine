@@ -8,97 +8,18 @@
 
 import { createFloatingWindow } from './floating-window.js';
 import { escapeHtml } from './state.js';
+import { ACTION_TYPES, detectType, createDefaultAction } from '../../js/action-schema.js';
 
-/* ── Action type metadata ──────────────────────── */
+/* ── Action type metadata (derived from shared schema) ── */
 
-const ACTION_META = {
-  say:       { icon: 'chat_bubble',         color: '#83a598', label: 'Say' },
-  choice:    { icon: 'account_tree',        color: '#d3869b', label: 'Choice' },
-  goto:      { icon: 'exit_to_app',         color: '#8ec07c', label: 'Go to' },
-  set:       { icon: 'flag',                color: '#fabd2f', label: 'Set flag' },
-  if:        { icon: 'call_split',          color: '#fe8019', label: 'If' },
-  wait:      { icon: 'hourglass_empty',     color: '#a89984', label: 'Wait' },
-  emit:      { icon: 'cell_tower',          color: '#b8bb26', label: 'Emit' },
-  run:       { icon: 'play_circle',         color: '#83a598', label: 'Run' },
-  exit:      { icon: 'block',               color: '#fb4934', label: 'Exit' },
-  show:      { icon: 'visibility',          color: '#d3869b', label: 'Show' },
-  hide:      { icon: 'visibility_off',      color: '#928374', label: 'Hide' },
-  effect:    { icon: 'auto_awesome',        color: '#b8bb26', label: 'Effect' },
-  playsound: { icon: 'volume_up',           color: '#83a598', label: 'Play sound' },
-  stopsound: { icon: 'volume_off',          color: '#928374', label: 'Stop sound' },
-  item:      { icon: 'inventory_2',         color: '#d79921', label: 'Item' },
-  unknown:   { icon: 'help_outline',        color: '#7c6f64', label: 'Unknown' },
-};
+const _UNKNOWN_META = { icon: 'help_outline', color: '#7c6f64', label: 'Unknown', fields: [] };
 
-/* ── Full field schemas per action type ────────── */
+/** Resolve metadata for a type, falling back to unknown. */
+function getActionMeta(type) {
+  return ACTION_TYPES[type] || _UNKNOWN_META;
+}
 
-const ACTION_SCHEMAS = {
-  say: [
-    { key: 'say',     label: 'Text',       type: 'textarea', required: true },
-    { key: 'speaker', label: 'Speaker',    type: 'string' },
-    { key: 'speaker_color', label: 'Speaker color', type: 'color', defaultValue: '#f0c040' },
-    { key: 'delay',   label: 'Delay (s)',  type: 'number', step: 0.5 },
-  ],
-  choice: [
-    { key: 'choice.prompt', label: 'Prompt', type: 'string' },
-  ],
-  goto: [
-    { key: 'goto', label: 'Scene ID', type: 'string', required: true },
-  ],
-  set: [],
-  if: [
-    { key: 'if', label: 'Condition', type: 'string', required: true },
-  ],
-  wait: [
-    { key: 'wait', label: 'Duration (ms)', type: 'number', required: true, step: 100 },
-  ],
-  emit: [
-    { key: 'emit', label: 'Event name', type: 'string', required: true },
-  ],
-  run: [
-    { key: 'run', label: 'Definition', type: 'string', required: true },
-  ],
-  exit: [
-    { key: 'exit', label: 'Exit', type: 'boolean', fixed: true },
-  ],
-  show: [
-    { key: 'show.id',              label: 'ID',              type: 'string', required: true },
-    { key: 'show.texture',         label: 'Texture',         type: 'string' },
-    { key: 'show.layer',           label: 'Layer',           type: 'select', options: ['', 'overlay', 'background'] },
-    { key: 'show.scaling',         label: 'Scaling',         type: 'select', options: ['', 'fill', 'contain', 'cover'] },
-    { key: 'show.effect.type',     label: 'Effect type',     type: 'select', options: ['', 'fade-in', 'fade-out'] },
-    { key: 'show.effect.seconds',  label: 'Effect secs',     type: 'number', step: 0.5 },
-    { key: 'show.effect.blocking', label: 'Effect blocking', type: 'boolean' },
-  ],
-  hide: [
-    { key: 'hide.id',              label: 'ID',              type: 'string', required: true },
-    { key: 'hide.effect.type',     label: 'Effect type',     type: 'select', options: ['', 'fade-in', 'fade-out'] },
-    { key: 'hide.effect.seconds',  label: 'Effect secs',     type: 'number', step: 0.5 },
-    { key: 'hide.effect.blocking', label: 'Effect blocking', type: 'boolean' },
-  ],
-  effect: [
-    { key: 'effect.type',     label: 'Type',         type: 'select', options: ['', 'fade-in', 'fade-out'], required: true },
-    { key: 'effect.seconds',  label: 'Duration (s)', type: 'number', step: 0.5 },
-    { key: 'effect.blocking', label: 'Blocking',     type: 'boolean' },
-  ],
-  playsound: [
-    { key: 'playsound.id',       label: 'ID',       type: 'string', required: true },
-    { key: 'playsound.path',     label: 'Path',     type: 'string' },
-    { key: 'playsound.volume',   label: 'Volume',   type: 'number', step: 0.1, min: 0, max: 1 },
-    { key: 'playsound.fade',     label: 'Fade (s)', type: 'number', step: 0.5 },
-    { key: 'playsound.loop',     label: 'Loop',     type: 'boolean' },
-    { key: 'playsound.blocking', label: 'Blocking', type: 'boolean' },
-  ],
-  stopsound: [
-    { key: 'stopsound.id',       label: 'ID',       type: 'string', required: true },
-    { key: 'stopsound.fade',     label: 'Fade (s)', type: 'number', step: 0.5 },
-    { key: 'stopsound.blocking', label: 'Blocking', type: 'boolean' },
-  ],
-  item: [
-    { key: 'item.id',  label: 'Item ID',  type: 'string', required: true },
-    { key: 'item.qty', label: 'Quantity',  type: 'number', step: 1 },
-  ],
-};
+/* ── Field schemas are now accessed via ACTION_TYPES[type].fields ── */
 
 /* ── Open viewer registry (dedup by title) ─────── */
 
@@ -424,25 +345,6 @@ function renderRawJson(action) {
 
 /* ── Helpers ───────────────────────────────────── */
 
-function detectType(action) {
-  if (action.say != null)       return 'say';
-  if (action.choice != null)    return 'choice';
-  if (action.goto != null)      return 'goto';
-  if (action.set != null)       return 'set';
-  if (action.if != null)        return 'if';
-  if (action.wait != null)      return 'wait';
-  if (action.emit != null)      return 'emit';
-  if (action.run != null)       return 'run';
-  if (action.exit != null)      return 'exit';
-  if (action.show != null)      return 'show';
-  if (action.hide != null)      return 'hide';
-  if (action.effect != null)    return 'effect';
-  if (action.playsound != null) return 'playsound';
-  if (action.stopsound != null) return 'stopsound';
-  if (action.item != null)      return 'item';
-  return 'unknown';
-}
-
 function getBadges(action, type) {
   const badges = [];
 
@@ -557,7 +459,7 @@ function buildEditableList(actions, fw, opts) {
 
 function buildEditableBlock(action, index, ctx) {
   const type = detectType(action);
-  const meta = ACTION_META[type] || ACTION_META.unknown;
+  const meta = getActionMeta(type);
   const isEditing = ctx.editingIdx === index;
 
   const block = document.createElement('div');
@@ -627,9 +529,9 @@ function buildEditForm(action, type, ctx) {
   const form = document.createElement('div');
   form.className = 'av-edit-form';
 
-  const schema = ACTION_SCHEMAS[type];
-  if (schema) {
-    for (const field of schema) {
+  const fields = ACTION_TYPES[type]?.fields;
+  if (fields) {
+    for (const field of fields) {
       form.appendChild(buildFieldRow(action, field, ctx));
     }
   }
@@ -1001,8 +903,7 @@ function pickActionType(parentFw) {
     const grid = document.createElement('div');
     grid.className = 'av-type-grid';
 
-    for (const [type, meta] of Object.entries(ACTION_META)) {
-      if (type === 'unknown') continue;
+    for (const [type, meta] of Object.entries(ACTION_TYPES)) {
       const card = document.createElement('button');
       card.className = 'av-type-card';
       card.style.setProperty('--av-accent', meta.color);
@@ -1028,29 +929,6 @@ function pickActionType(parentFw) {
     fw.onClose(() => { if (!resolved) { resolved = true; resolve(null); } });
     fw.open();
   });
-}
-
-/* ── Default action constructors ───────────────── */
-
-function createDefaultAction(type) {
-  switch (type) {
-    case 'say':       return { say: '', speaker: '' };
-    case 'choice':    return { choice: { prompt: '', options: [{ text: '', actions: [] }] } };
-    case 'goto':      return { goto: '' };
-    case 'set':       return { set: {} };
-    case 'if':        return { if: '', then: [], else: [] };
-    case 'wait':      return { wait: 500 };
-    case 'emit':      return { emit: '' };
-    case 'run':       return { run: '' };
-    case 'exit':      return { exit: true };
-    case 'show':      return { show: { id: '' } };
-    case 'hide':      return { hide: { id: '' } };
-    case 'effect':    return { effect: { type: 'fade-in', seconds: 1 } };
-    case 'playsound': return { playsound: { id: '', path: '' } };
-    case 'stopsound': return { stopsound: { id: '' } };
-    case 'item':      return { item: { id: '', qty: 1 } };
-    default:          return {};
-  }
 }
 
 /* ── Drag-and-drop reorder ─────────────────────── */
@@ -1124,7 +1002,7 @@ function buildReadOnlyList(actions) {
   c.className = 'av-list';
   for (let i = 0; i < actions.length; i++) {
     const type = detectType(actions[i]);
-    const meta = ACTION_META[type] || ACTION_META.unknown;
+    const meta = getActionMeta(type);
     const block = document.createElement('div');
     block.className = `av-block av-block-${type}`;
     block.style.setProperty('--av-accent', meta.color);
@@ -1181,9 +1059,9 @@ function setNestedValue(obj, path, value) {
 /* ── Post-edit cleanup ─────────────────────────── */
 
 function cleanAction(action, type) {
-  const schema = ACTION_SCHEMAS[type];
-  if (!schema) return;
-  for (const field of schema) {
+  const fields = ACTION_TYPES[type]?.fields;
+  if (!fields) return;
+  for (const field of fields) {
     if (field.required) continue;
     const v = getNestedValue(action, field.key);
     if (v === undefined || v === '' || v === null || (field.type === 'boolean' && v === false)) {

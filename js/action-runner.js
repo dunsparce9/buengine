@@ -26,6 +26,8 @@
  *   { "stopsound": { "id": "...", "fade": 1, "blocking": true } }
  *   { "item": { "id": "key", "qty": 1 } }   // add item (negative qty = remove)
  */
+import { detectType } from './action-schema.js';
+
 export class ActionRunner {
   /**
    * @param {object} deps
@@ -81,42 +83,34 @@ export class ActionRunner {
       for (const action of actions) {
         if (this._aborted || this._exited || this._gotoFired) return;
 
-        if (action.say != null) {
-          await this._say(action);
-        } else if (action.choice) {
-          await this._choice(action.choice);
-        } else if (action.goto) {
-          this._gotoFired = true;
-          this._gotoTarget = action.goto;
-          return; // scene change — emitted after the full chain unwinds
-        } else if (action.set) {
-          this._applySet(action.set);
-        } else if (action.if != null) {
-          const result = this._evalCondition(action.if);
-          const branch = result ? action.then : action.else;
-          if (branch) await this.run(branch, true);
-        } else if (action.wait) {
-          await this._delay(action.wait);
-        } else if (action.emit) {
-          this.bus.emit(action.emit, action.payload);
-        } else if (action.run) {
-          const def = this.definitions[action.run];
-          if (def) await this.run(def, true);
-        } else if (action.show) {
-          await this._show(action.show);
-        } else if (action.hide) {
-          await this._hide(action.hide);
-        } else if (action.effect) {
-          await this._effect(action.effect);
-        } else if (action.playsound) {
-          await this._playsound(action.playsound);
-        } else if (action.stopsound) {
-          await this._stopsound(action.stopsound);
-        } else if (action.item) {
-          this._applyItem(action.item);
-        } else if (action.exit != null) {
-          this._exited = true;
-          return;
+        switch (detectType(action)) {
+          case 'say':       await this._say(action); break;
+          case 'choice':    await this._choice(action.choice); break;
+          case 'goto':
+            this._gotoFired = true;
+            this._gotoTarget = action.goto;
+            return; // scene change — emitted after the full chain unwinds
+          case 'set':       this._applySet(action.set); break;
+          case 'if': {
+            const result = this._evalCondition(action.if);
+            const branch = result ? action.then : action.else;
+            if (branch) await this.run(branch, true);
+            break;
+          }
+          case 'wait':      await this._delay(action.wait); break;
+          case 'emit':      this.bus.emit(action.emit, action.payload); break;
+          case 'run': {
+            const def = this.definitions[action.run];
+            if (def) await this.run(def, true);
+            break;
+          }
+          case 'show':      await this._show(action.show); break;
+          case 'hide':      await this._hide(action.hide); break;
+          case 'effect':    await this._effect(action.effect); break;
+          case 'playsound': await this._playsound(action.playsound); break;
+          case 'stopsound': await this._stopsound(action.stopsound); break;
+          case 'item':      this._applyItem(action.item); break;
+          case 'exit':      this._exited = true; return;
         }
       }
     } finally {
