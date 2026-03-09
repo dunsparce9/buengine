@@ -72,6 +72,19 @@
       "h": 4,
       "actions": [
         {
+          "if": "items.seal.qty > 0",
+          "then": [
+            {
+              "speaker": "Narrator",
+              "say": "The seal is too heavy, you can't even walk to the ladder. Put down the seal first."
+            },
+            {
+              "exit": true
+            }
+          ],
+          "else": []
+        },
+        {
           "if": "abode.ladder.clicks >= 2",
           "then": [
             {
