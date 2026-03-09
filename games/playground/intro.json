@@ -31,19 +31,18 @@
         }
       },
       {
-        "say": "Do you wish to proceed?",
+        "say": "SHALL IT COMMENCE?",
         "speaker": "GAME",
         "delay": 6
       },
       {
         "choice": {
-          "prompt": "",
           "options": [
             {
               "text": "Yes.",
               "actions": [
                 {
-                  "say": "Understood. They will not act upon thee.",
+                  "say": "IS IT AGREEABLE?",
                   "speaker": "GAME"
                 },
                 {
@@ -51,10 +50,10 @@
                     "prompt": "",
                     "options": [
                       {
-                        "text": "I accept this arrangement.",
+                        "text": "It is.",
                         "actions": [
                           {
-                            "say": "Understood. You may proceed.",
+                            "say": "THEN, LET US SEIZE.",
                             "speaker": "GAME"
                           },
                           {
@@ -67,10 +66,10 @@
                         ]
                       },
                       {
-                        "text": "I do not accept this arrangement.",
+                        "text": "It is not.",
                         "actions": [
                           {
-                            "say": "Very well.",
+                            "say": "THEN, THOU SHALT NOT.",
                             "speaker": "GAME"
                           },
                           {
@@ -79,7 +78,7 @@
                         ]
                       },
                       {
-                        "text": "Why is that?",
+                        "text": "What is?",
                         "actions": [
                           {
                             "say": "...",
@@ -99,7 +98,7 @@
               "text": "No.",
               "actions": [
                 {
-                  "say": "Do as you please.",
+                  "say": "THEN, IT SHALL NOT.",
                   "speaker": "GAME"
                 },
                 {
