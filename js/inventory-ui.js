@@ -81,7 +81,13 @@ export class InventoryUI {
     this._open = false;
     this._closeCtx();
     if (this._win) {
-      this._win.el.remove();
+      const winEl = this._win.el;
+      winEl.classList.remove('inv-window-opening');
+      winEl.classList.add('inv-window-closing');
+      winEl.addEventListener('animationend', () => {
+        if (!winEl.isConnected) return;
+        winEl.remove();
+      }, { once: true });
       this._win = null;
     }
   }
