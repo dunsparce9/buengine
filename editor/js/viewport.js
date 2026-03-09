@@ -7,6 +7,7 @@ import { state, dom, hooks, markDirty, addHotspot, deleteHotspot, uniqueHotspotI
 import { showContextMenu } from './context-menu.js';
 import { resolveAssetURL, resolveAssetURLSync } from './fs-provider.js';
 import { getFileKind, isPreviewableMedia } from './file-types.js';
+import { renderItemsViewport } from './items-viewer.js';
 
 /* ── Drag state (module-scoped, survives re-renders) ── */
 let _selectionBox = null; // { x, y, w, h } in grid units (for drag-to-create)
@@ -43,7 +44,7 @@ export function renderViewport() {
   const { viewport, viewportWrap, viewportEmpty } = dom;
 
   // Clear previous hotspot elements (keep selection box if present)
-  viewport.querySelectorAll('.editor-media-preview, .editor-media-empty').forEach(el => el.remove());
+  viewport.querySelectorAll('.editor-media-preview, .editor-media-empty, .items-viewer').forEach(el => el.remove());
   viewport.querySelectorAll('.editor-hotspot, .editor-resize-handle').forEach(el => el.remove());
   viewport.style.backgroundImage = '';
   viewport.style.backgroundColor = '#181825';
@@ -63,6 +64,15 @@ export function renderViewport() {
 
   if (state.selectedId === '_game') {
     viewport.style.backgroundColor = '#11111b';
+    return;
+  }
+
+  // Items table (items/items.json is an array, not a scene)
+  if (Array.isArray(data)) {
+    viewport.style.width = `${Math.max(320, viewportWrap.clientWidth - 48)}px`;
+    viewport.style.height = `${Math.max(220, viewportWrap.clientHeight - 48)}px`;
+    viewport.style.backgroundColor = '#11111b';
+    renderItemsViewport(data, viewport);
     return;
   }
 

@@ -6,6 +6,7 @@ import { state, dom, hooks, escapeHtml, markDirty, collectImagePaths, deleteHots
 import { openActionViewer } from './action-viewer.js';
 import { findNode } from './fs-provider.js';
 import { getFileExtension, getFileKind, isPreviewableMedia } from './file-types.js';
+import { renderItemsProperties } from './items-viewer.js';
 
 let _assetInfoRequestId = 0;
 
@@ -26,6 +27,11 @@ export function renderProperties() {
 
   if (state.selectedId === '_game') {
     renderGameProps(data);
+    return;
+  }
+
+  if (Array.isArray(data)) {
+    renderItemsProperties(data, dom.propsContent);
     return;
   }
 

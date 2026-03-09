@@ -109,6 +109,13 @@ async function handleOpenFolder() {
   // Pre-cache asset URLs for images referenced in scripts
   const imagePaths = [];
   for (const data of Object.values(state.scripts)) {
+    if (Array.isArray(data)) {
+      // Items array — cache item icons
+      for (const item of data) {
+        if (item.icon) imagePaths.push(item.icon);
+      }
+      continue;
+    }
     if (data.background) imagePaths.push(data.background);
     const objects = data.objects ?? data.hotspots;
     if (Array.isArray(objects)) {
