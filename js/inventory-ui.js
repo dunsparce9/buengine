@@ -92,7 +92,7 @@ export class InventoryUI {
     if (this._win) { this._win.el.remove(); this._win = null; }
 
     const el = document.createElement('div');
-    el.className = 'inv-window';
+    el.className = 'inv-window inv-window-opening';
 
     // Header
     const header = document.createElement('div');
@@ -144,6 +144,10 @@ export class InventoryUI {
       el.style.left = `${(container.offsetWidth - el.offsetWidth) / 2}px`;
       el.style.top = `${(container.offsetHeight - el.offsetHeight) / 2}px`;
     });
+
+    el.addEventListener('animationend', () => {
+      el.classList.remove('inv-window-opening');
+    }, { once: true });
 
     this._win = { el, body };
   }

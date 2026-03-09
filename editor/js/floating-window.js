@@ -3,6 +3,7 @@
  */
 
 let _zTop = 1000;
+const OPENING_CLASS = 'fw-opening';
 function bringToFront(el) {
   el.style.zIndex = ++_zTop;
 }
@@ -159,12 +160,16 @@ export function createFloatingWindow({ title, icon = '', iconClass = '', width =
     el.classList.remove('hidden');
     centerOnScreen();
     bringToFront(el);
+    el.classList.remove(OPENING_CLASS);
+    void el.offsetWidth;
+    el.classList.add(OPENING_CLASS);
     if (backdrop) backdrop.style.zIndex = parseInt(el.style.zIndex) - 1;
   }
 
   let _onClose = null;
 
   function close() {
+    el.classList.remove(OPENING_CLASS);
     el.classList.add('hidden');
     if (backdrop) backdrop.remove();
     if (parent) parent.el.classList.remove('fw-blocked');
