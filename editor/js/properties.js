@@ -79,6 +79,9 @@ function renderSceneProps(data) {
     addActionLinkGroup('onEnter', [['actions', data.onEnter.length]],
       () => openActionViewer(`${data.id} — onEnter`, data.onEnter, {
         onChange: () => markDirty(data.id),
+        sceneId: data.id,
+        sceneData: data,
+        markDirty,
       })
     );
   }
@@ -299,6 +302,9 @@ function renderHotspotProps(hs) {
     addActionLinkGroup('Actions', [['count', hs.actions.length]],
       () => openActionViewer(`${hs.id} — actions`, hs.actions, {
         onChange: () => { markDirty(sceneId); hooks.renderProperties(); },
+        sceneId,
+        sceneData: data,
+        markDirty,
       })
     );
   }
@@ -569,6 +575,9 @@ function addDefinitionsGroup(data, names) {
     link.addEventListener('click', () =>
       openActionViewer(`${data.id} — ${name}`, actions, {
         onChange: () => markDirty(data.id),
+        sceneId: data.id,
+        sceneData: data,
+        markDirty,
       })
     );
 

@@ -62,16 +62,16 @@ export function openActionViewer(title, actions, opts = {}) {
 
 /* ── View-mode body renderer ───────────────────── */
 
-function renderActionBody(action, type) {
+function renderActionBody(action, type, viewCtx = {}) {
   switch (type) {
     case 'say':       return renderSay(action);
-    case 'choice':    return renderChoice(action.choice);
+    case 'choice':    return renderChoice(action.choice, viewCtx);
     case 'goto':      return renderChip(action.goto, '#8ec07c');
     case 'set':       return renderSet(action.set);
-    case 'if':        return renderIf(action);
+    case 'if':        return renderIf(action, viewCtx);
     case 'wait':      return renderSimpleValue(`${action.wait} ms`);
     case 'emit':      return renderChip(action.emit, '#b8bb26');
-    case 'run':       return renderChip(action.run, '#83a598');
+    case 'run':       return renderRunChip(action.run, '#83a598', viewCtx);
     case 'exit':      return null;
     case 'show':      return renderOverlay(action.show);
     case 'hide':      return renderOverlay(action.hide);
@@ -105,7 +105,7 @@ function renderSay(action) {
   return body;
 }
 
-function renderChoice(choice) {
+function renderChoice(choice, viewCtx = {}) {
   const body = document.createElement('div');
   body.className = 'av-body av-choice-body';
 
@@ -130,7 +130,7 @@ function renderChoice(choice) {
       optBlock.appendChild(optHeader);
 
       if (Array.isArray(opt.actions) && opt.actions.length > 0) {
-        const nested = buildReadOnlyList(opt.actions);
+        const nested = buildReadOnlyList(opt.actions, viewCtx);
         nested.className += ' av-nested';
         optBlock.appendChild(nested);
       }
@@ -177,7 +177,7 @@ function renderSet(setObj) {
   return body;
 }
 
-function renderIf(action) {
+function renderIf(action, viewCtx = {}) {
   const body = document.createElement('div');
   body.className = 'av-body av-if-body';
 
@@ -192,7 +192,7 @@ function renderIf(action) {
     thenLabel.textContent = 'then';
     body.appendChild(thenLabel);
 
-    const thenList = buildReadOnlyList(action.then);
+    const thenList = buildReadOnlyList(action.then, viewCtx);
     thenList.className += ' av-nested';
     body.appendChild(thenList);
   }
@@ -203,7 +203,7 @@ function renderIf(action) {
     elseLabel.textContent = 'else';
     body.appendChild(elseLabel);
 
-    const elseList = buildReadOnlyList(action.else);
+    const elseList = buildReadOnlyList(action.else, viewCtx);
     elseList.className += ' av-nested';
     body.appendChild(elseList);
   }
@@ -319,6 +319,35 @@ function renderChip(value, color) {
   chip.className = 'av-chip';
   chip.style.setProperty('--chip-color', color);
   chip.textContent = value;
+  body.appendChild(chip);
+  return body;
+}
+
+function renderRunChip(defName, color, viewCtx = {}) {
+  const body = document.createElement('div');
+  body.className = 'av-body';
+
+  const canOpenDefinition = !!(viewCtx.sceneData?.definitions && defName in viewCtx.sceneData.definitions);
+  const chipTag = canOpenDefinition ? 'button' : 'span';
+  const chip = document.createElement(chipTag);
+  chip.className = 'av-chip';
+  chip.style.setProperty('--chip-color', color);
+  chip.textContent = defName;
+
+  if (canOpenDefinition) {
+    chip.type = 'button';
+    chip.title = `Open definition: ${defName}`;
+    chip.addEventListener('click', () => {
+      const actions = viewCtx.sceneData.definitions[defName];
+      openActionViewer(`${viewCtx.sceneId} — ${defName}`, actions, {
+        onChange: () => viewCtx.markDirty?.(viewCtx.sceneId),
+        sceneId: viewCtx.sceneId,
+        sceneData: viewCtx.sceneData,
+        markDirty: viewCtx.markDirty,
+      });
+    });
+  }
+
   body.appendChild(chip);
   return body;
 }
@@ -516,7 +545,7 @@ function buildEditableBlock(action, index, ctx) {
   if (isEditing) {
     block.appendChild(buildEditForm(action, type, ctx));
   } else {
-    const body = renderActionBody(action, type);
+    const body = renderActionBody(action, type, ctx.opts);
     if (body) block.appendChild(body);
   }
 
@@ -819,6 +848,9 @@ function buildChoiceEditor(action, ctx) {
             ctx.onFieldChange();
             actBtn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${opt.actions.length}`;
           },
+          sceneId: ctx.opts.sceneId,
+          sceneData: ctx.opts.sceneData,
+          markDirty: ctx.opts.markDirty,
         });
       });
 
@@ -873,6 +905,9 @@ function buildIfBranchesEditor(action, ctx) {
           ctx.onFieldChange();
           btn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${action[key].length} action(s)`;
         },
+        sceneId: ctx.opts.sceneId,
+        sceneData: ctx.opts.sceneData,
+        markDirty: ctx.opts.markDirty,
       });
     });
     row.append(lbl, btn);
@@ -998,7 +1033,7 @@ function setupDragAndDrop(container, onReorder) {
 
 /* ── Read-only action list (nested views) ──────── */
 
-function buildReadOnlyList(actions) {
+function buildReadOnlyList(actions, viewCtx = {}) {
   const c = document.createElement('div');
   c.className = 'av-list';
   for (let i = 0; i < actions.length; i++) {
@@ -1028,7 +1063,7 @@ function buildReadOnlyList(actions) {
       hdr.appendChild(el);
     }
     block.appendChild(hdr);
-    const body = renderActionBody(actions[i], type);
+    const body = renderActionBody(actions[i], type, viewCtx);
     if (body) block.appendChild(body);
     c.appendChild(block);
   }
