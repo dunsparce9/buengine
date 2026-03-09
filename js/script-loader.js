@@ -28,6 +28,7 @@ export class ScriptLoader {
   /** Update the base path (e.g. when a different game is selected). */
   setBasePath(path) {
     this.basePath = path;
+    this._cache.clear();
   }
 
   /**
