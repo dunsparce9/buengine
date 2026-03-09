@@ -26,12 +26,12 @@ js/
   sound-manager.js       ← audio playback, fade in/out
 games/
   index.json             ← list of available game folder names
-  playground/            ← example game
+  playground/            ← example game (main testing ground, fleshed-out)
     _game.json           ← game manifest (title, startScene)
     intro.json           ← scene
     sounds/              ← audio assets
       common/            ← shared UI sounds (button-click, dialogue-click)
-  lmaooo/               ← another game
+  lmaooo/                ← another game (tiny, just to test game picker system)
     ...
 ```
 

@@ -7,6 +7,7 @@ import { DialogueUI }    from './dialogue-ui.js';
 import { ChoiceUI }      from './choice-ui.js';
 import { OverlayUI }     from './overlay-ui.js';
 import { SoundManager }  from './sound-manager.js';
+import { HudUI }         from './hud-ui.js';
 
 /* ── Bootstrap ──────────────────────────────────── */
 
@@ -22,6 +23,7 @@ new DialogueUI(bus);
 new ChoiceUI(bus);
 const overlay = new OverlayUI(bus);
 new SoundManager(bus);
+const hud = new HudUI(bus);
 
 /** Currently loaded scene data keyed by id. */
 let currentSceneData = null;
@@ -209,6 +211,7 @@ async function showTitle() {
 /** Start a new game: reset state, load first scene. */
 bus.on('game:start', async () => {
   state.reset();
+  hud.show();
   try {
     const manifest = await loader.load('_game');
     await gotoScene(manifest.startScene || 'intro');
@@ -221,7 +224,17 @@ bus.on('game:start', async () => {
 bus.on('game:title', () => {
   runner.abort();
   scene.clear();
+  hud.hide();
   showTitle();
+});
+
+/** Quit: return to game selector. */
+bus.on('game:quit', () => {
+  runner.abort();
+  scene.clear();
+  hud.hide();
+  bus.emit('sound:stopall');
+  showGameSelector();
 });
 
 /* ── Debug mode (key 1) ─────────────────────────── */

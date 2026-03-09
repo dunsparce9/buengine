@@ -22,6 +22,7 @@ export class SoundManager {
     });
     bus.on('sound:play',    (p)     => this._play(p));
     bus.on('sound:stop',    (p)     => this._stop(p));
+    bus.on('sound:stopall', ()      => this._stopAll());
   }
 
   /** Resolve a relative sound path against the game's base directory. */
@@ -115,6 +116,13 @@ export class SoundManager {
     entry.audio.pause();
     entry.audio.src = '';
     this._sounds.delete(id);
+  }
+
+  /** Stop all currently playing sounds immediately. */
+  _stopAll() {
+    for (const id of [...this._sounds.keys()]) {
+      this._stopImmediate(id);
+    }
   }
 
   /**
