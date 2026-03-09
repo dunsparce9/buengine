@@ -1,6 +1,10 @@
 /**
- * Renders a scene: sets the background and creates clickable hotspot elements
- * positioned on a tile grid.
+ * Renders a scene: sets the background and creates clickable object elements
+ * positioned on a tile grid.  Also manages runtime image overlays.
+ *
+ * Both scene-defined objects (formerly "hotspots") and runtime overlays
+ * created by `show` actions are tracked in a unified entity map so that
+ * `show` / `hide` actions work on any entity by id.
  */
 export class SceneRenderer {
   /**
@@ -17,8 +21,12 @@ export class SceneRenderer {
     this._tooltip.className = 'hotspot-tooltip hidden';
     this.el.appendChild(this._tooltip);
 
-    /** @type {Map<string, HTMLElement>} active image overlays keyed by id */
-    this._overlays = new Map();
+    /**
+     * Unified entity registry.
+     * Scene objects and runtime overlays are both tracked here.
+     * @type {Map<string, { el: HTMLElement, def: object|null, runtime: boolean, visible: boolean }>}
+     */
+    this._entities = new Map();
 
     /** Base path for resolving relative asset URLs. */
     this._basePath = '';
@@ -27,9 +35,9 @@ export class SceneRenderer {
 
     bus.on('game:basepath', (bp) => { this._basePath = bp; });
     bus.on('scene:effect',  (payload) => this._applyEffect(payload));
-    bus.on('overlay:show',  (payload) => this._showOverlay(payload));
-    bus.on('overlay:hide',  (payload) => this._hideOverlay(payload));
-    bus.on('overlay:clear', ()        => this._clearOverlays());
+    bus.on('overlay:show',  (payload) => this._showEntity(payload));
+    bus.on('overlay:hide',  (payload) => this._hideEntity(payload));
+    bus.on('overlay:clear', ()        => this._clearRuntimeOverlays());
   }
 
   /** Resize the scene layer to fit its parent while preserving the grid aspect ratio. */
@@ -65,7 +73,9 @@ export class SceneRenderer {
    * @param {object} scene  Parsed scene JSON
    */
   render(scene) {
-    // Clear previous hotspots
+    // Clear all tracked entities (scene objects + runtime overlays)
+    this._clearAllEntities();
+    // Safety net: remove any orphaned .hotspot elements
     this.el.querySelectorAll('.hotspot').forEach(h => h.remove());
 
     // Background
@@ -85,28 +95,38 @@ export class SceneRenderer {
     const tilePctW = 100 / cols;
     const tilePctH = 100 / rows;
 
-    // Hotspots
-    if (Array.isArray(scene.hotspots)) {
-      for (const hs of scene.hotspots) {
+    // Scene objects (backward-compat: fall back to "hotspots")
+    const objects = scene.objects ?? scene.hotspots;
+    if (Array.isArray(objects)) {
+      for (const obj of objects) {
         const div = document.createElement('div');
         div.className = 'hotspot';
-        div.style.left   = `${hs.x * tilePctW}%`;
-        div.style.top    = `${hs.y * tilePctH}%`;
-        div.style.width  = `${hs.w * tilePctW}%`;
-        div.style.height = `${hs.h * tilePctH}%`;
+        div.dataset.objectId = obj.id;
+        div.style.left   = `${obj.x * tilePctW}%`;
+        div.style.top    = `${obj.y * tilePctH}%`;
+        div.style.width  = `${obj.w * tilePctW}%`;
+        div.style.height = `${obj.h * tilePctH}%`;
 
-        if (hs.texture) {
+        if (obj.texture) {
           div.classList.add('hotspot-textured');
-          div.style.backgroundImage = `url('${CSS.escape(this._resolve(hs.texture))}')`;  
+          div.style.backgroundImage = `url('${CSS.escape(this._resolve(obj.texture))}')`;
         }
 
-        if (hs.cursor) div.style.cursor = hs.cursor;
+        if (obj.cursor) div.style.cursor = obj.cursor;
+        if (obj.z != null) div.style.zIndex = obj.z;
 
-        if (hs.label) {
+        // Visibility: objects default to visible unless `visible: false`
+        const visible = obj.visible !== false;
+        if (!visible) {
+          div.style.opacity = '0';
+          div.style.pointerEvents = 'none';
+        }
+
+        if (obj.label) {
           div.addEventListener('mouseenter', () => {
-            this._tooltip.textContent = hs.label;
-            this._tooltip.style.left = `${hs.x * tilePctW + (hs.w * tilePctW) / 2}%`;
-            this._tooltip.style.top  = `${hs.y * tilePctH}%`;
+            this._tooltip.textContent = obj.label;
+            this._tooltip.style.left = `${obj.x * tilePctW + (obj.w * tilePctW) / 2}%`;
+            this._tooltip.style.top  = `${obj.y * tilePctH}%`;
             this._tooltip.classList.remove('hidden');
           });
           div.addEventListener('mouseleave', () => {
@@ -115,10 +135,11 @@ export class SceneRenderer {
         }
 
         div.addEventListener('click', () => {
-          this.bus.emit('hotspot:click', hs);
+          this.bus.emit('hotspot:click', obj);
         });
 
         this.el.appendChild(div);
+        this._entities.set(obj.id, { el: div, def: obj, runtime: false, visible });
       }
     }
   }
@@ -158,58 +179,100 @@ export class SceneRenderer {
     }
   }
 
-  /* ── Image overlays (show/hide actions) ─────── */
+  /* ── Unified entity show/hide ────────────────── */
 
   /**
-   * @param {object} p
-   * @param {string} p.id
-   * @param {string} p.texture
-   * @param {string} [p.scaling]   "fill" | "contain" | "cover"
-   * @param {object} [p.effect]    { type, seconds, blocking }
-   * @param {function} [p.onDone]
+   * Show an entity.  If `id` matches a scene object, make it visible.
+   * Otherwise, create a new fullscreen runtime overlay (requires `texture`).
    */
-  _showOverlay({ id, texture, scaling, effect, onDone }) {
-    this._removeOverlay(id);
+  _showEntity({ id, texture, scaling, z, effect, onDone }) {
+    const entry = this._entities.get(id);
 
-    const el = document.createElement('div');
-    el.className = 'image-overlay';
-    el.dataset.overlayId = id;
-    el.style.backgroundImage = `url('${CSS.escape(this._resolve(texture))}')`;  
+    if (entry) {
+      // Existing entity — make visible
+      const el = entry.el;
+      entry.visible = true;
+      el.style.pointerEvents = '';
 
-    if (scaling === 'fill' || scaling === 'cover') {
-      el.style.backgroundSize = 'cover';
-    } else if (scaling === 'contain') {
-      el.style.backgroundSize = 'contain';
+      if (effect?.type === 'fade-in' && effect.seconds > 0) {
+        el.style.transition = 'none';
+        el.style.opacity = '0';
+        el.offsetWidth; // force reflow
+        el.style.transition = `opacity ${effect.seconds}s ease`;
+        el.style.opacity = '1';
+
+        if (effect.blocking) {
+          el.addEventListener('transitionend', () => onDone?.(), { once: true });
+        } else {
+          onDone?.();
+        }
+      } else {
+        el.style.opacity = '';
+        el.style.transition = '';
+        onDone?.();
+      }
+      return;
     }
 
-    this.el.appendChild(el);
-    this._overlays.set(id, el);
+    if (texture) {
+      // Runtime overlay — create new fullscreen element
+      const el = document.createElement('div');
+      el.className = 'image-overlay';
+      el.dataset.objectId = id;
+      el.style.backgroundImage = `url('${CSS.escape(this._resolve(texture))}')`;
 
-    if (effect?.type === 'fade-in' && effect.seconds > 0) {
-      el.style.opacity = '0';
-      el.style.transition = `opacity ${effect.seconds}s ease`;
-      el.offsetWidth; // force reflow
-      el.style.opacity = '1';
+      if (scaling === 'fill' || scaling === 'cover') {
+        el.style.backgroundSize = 'cover';
+      } else if (scaling === 'contain') {
+        el.style.backgroundSize = 'contain';
+      }
 
-      if (effect.blocking) {
-        el.addEventListener('transitionend', () => onDone?.(), { once: true });
+      if (z != null) el.style.zIndex = z;
+
+      this.el.appendChild(el);
+      this._entities.set(id, { el, def: null, runtime: true, visible: true });
+
+      if (effect?.type === 'fade-in' && effect.seconds > 0) {
+        el.style.opacity = '0';
+        el.style.transition = `opacity ${effect.seconds}s ease`;
+        el.offsetWidth; // force reflow
+        el.style.opacity = '1';
+
+        if (effect.blocking) {
+          el.addEventListener('transitionend', () => onDone?.(), { once: true });
+        } else {
+          onDone?.();
+        }
       } else {
         onDone?.();
       }
-    } else {
-      onDone?.();
+      return;
     }
+
+    // No matching entity and no texture — nothing to show
+    onDone?.();
   }
 
   /**
-   * @param {object} p
-   * @param {string} p.id
-   * @param {object} [p.effect]   { type, seconds, blocking }
-   * @param {function} [p.onDone]
+   * Hide an entity by id.  Scene objects stay in the DOM (can be re-shown).
+   * Runtime overlays are removed from the DOM after the transition.
    */
-  _hideOverlay({ id, effect, onDone }) {
-    const el = this._overlays.get(id);
-    if (!el) { onDone?.(); return; }
+  _hideEntity({ id, effect, onDone }) {
+    const entry = this._entities.get(id);
+    if (!entry) { onDone?.(); return; }
+
+    const el = entry.el;
+
+    const finish = () => {
+      entry.visible = false;
+      if (entry.runtime) {
+        el.remove();
+        this._entities.delete(id);
+      } else {
+        el.style.opacity = '0';
+        el.style.pointerEvents = 'none';
+      }
+    };
 
     if (effect?.type === 'fade-out' && effect.seconds > 0) {
       const current = getComputedStyle(el).opacity;
@@ -219,31 +282,38 @@ export class SceneRenderer {
 
       el.style.transition = `opacity ${effect.seconds}s ease`;
       el.style.opacity = '0';
-
-      const finish = () => { this._removeOverlay(id); onDone?.(); };
+      el.style.pointerEvents = 'none';
 
       if (effect.blocking) {
-        el.addEventListener('transitionend', finish, { once: true });
+        el.addEventListener('transitionend', () => { finish(); onDone?.(); }, { once: true });
       } else {
         onDone?.();
-        el.addEventListener('transitionend', () => this._removeOverlay(id), { once: true });
+        el.addEventListener('transitionend', finish, { once: true });
       }
     } else {
-      this._removeOverlay(id);
+      finish();
       onDone?.();
     }
   }
 
-  _removeOverlay(id) {
-    const el = this._overlays.get(id);
-    if (el) { el.remove(); this._overlays.delete(id); }
+  _removeEntity(id) {
+    const entry = this._entities.get(id);
+    if (entry) { entry.el.remove(); this._entities.delete(id); }
   }
 
-  _clearOverlays() {
-    for (const [id] of this._overlays) this._removeOverlay(id);
+  /** Remove only runtime overlays (used by overlay:clear). */
+  _clearRuntimeOverlays() {
+    for (const [id, entry] of this._entities) {
+      if (entry.runtime) this._removeEntity(id);
+    }
   }
 
-  /** Remove all hotspots and background. */
+  /** Remove all tracked entities (scene objects + runtime overlays). */
+  _clearAllEntities() {
+    for (const [id] of this._entities) this._removeEntity(id);
+  }
+
+  /** Remove all scene objects, overlays, and background. */
   clear() {
     this.el.style.backgroundImage = '';
     this.el.style.backgroundColor = '#111';
@@ -253,6 +323,6 @@ export class SceneRenderer {
     this.el.style.transition = '';
     this.el.querySelectorAll('.hotspot').forEach(h => h.remove());
     this._tooltip.classList.add('hidden');
-    this._clearOverlays();
+    this._clearAllEntities();
   }
 }

@@ -62,7 +62,7 @@
       }
     ]
   },
-  "hotspots": [
+  "objects": [
     {
       "id": "ladder",
       "label": "Mysterious ladder",

@@ -128,7 +128,7 @@
       }
     ]
   },
-  "hotspots": [],
+  "objects": [],
   "onEnter": [
     {
       "run": "intro_sequence"

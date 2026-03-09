@@ -50,6 +50,20 @@ export function markDirty(id) {
   }
 }
 
+/** Get the objects array from scene data (supports both "objects" and "hotspots" keys). */
+function getObjectsArray(data) {
+  return data?.objects ?? data?.hotspots;
+}
+
+/** Get or create the objects array on scene data. */
+function ensureObjectsArray(data) {
+  if (!data) return [];
+  if (data.objects) return data.objects;
+  if (data.hotspots) return data.hotspots;
+  data.objects = [];
+  return data.objects;
+}
+
 /**
  * Collect all image paths referenced across loaded scripts.
  * Returns a sorted, deduplicated array of paths.
@@ -58,9 +72,10 @@ export function collectImagePaths() {
   const paths = new Set();
   for (const data of Object.values(state.scripts)) {
     if (data.background) paths.add(data.background);
-    if (Array.isArray(data.hotspots)) {
-      for (const hs of data.hotspots) {
-        if (hs.texture) paths.add(hs.texture);
+    const objects = getObjectsArray(data);
+    if (Array.isArray(objects)) {
+      for (const obj of objects) {
+        if (obj.texture) paths.add(obj.texture);
       }
     }
     // Walk actions for show.texture references
@@ -79,24 +94,25 @@ export function collectImagePaths() {
     if (data.definitions) {
       for (const acts of Object.values(data.definitions)) walkActions(acts);
     }
-    if (Array.isArray(data.hotspots)) {
-      for (const hs of data.hotspots) walkActions(hs.actions);
+    if (Array.isArray(objects)) {
+      for (const obj of objects) walkActions(obj.actions);
     }
   }
   return [...paths].sort();
 }
 
 /**
- * Delete a hotspot from the currently selected scene.
+ * Delete an object from the currently selected scene.
  */
 export function deleteHotspot(hsId) {
   const sceneId = state.selectedId;
   if (!sceneId) return;
   const data = state.scripts[sceneId];
-  if (!data?.hotspots) return;
-  const idx = data.hotspots.findIndex(h => h.id === hsId);
+  const objects = getObjectsArray(data);
+  if (!objects) return;
+  const idx = objects.findIndex(h => h.id === hsId);
   if (idx < 0) return;
-  data.hotspots.splice(idx, 1);
+  objects.splice(idx, 1);
   if (state.selectedHs === hsId) state.selectedHs = null;
   markDirty(sceneId);
   hooks.renderViewport();
@@ -104,15 +120,15 @@ export function deleteHotspot(hsId) {
 }
 
 /**
- * Add a hotspot to the currently selected scene.
+ * Add an object to the currently selected scene.
  */
 export function addHotspot(hs) {
   const sceneId = state.selectedId;
   if (!sceneId) return;
   const data = state.scripts[sceneId];
   if (!data) return;
-  if (!data.hotspots) data.hotspots = [];
-  data.hotspots.push(hs);
+  const objects = ensureObjectsArray(data);
+  objects.push(hs);
   state.selectedHs = hs.id;
   markDirty(sceneId);
   hooks.renderViewport();
@@ -120,11 +136,12 @@ export function addHotspot(hs) {
 }
 
 /**
- * Generate a unique hotspot id within the current scene.
+ * Generate a unique object id within the current scene.
  */
-export function uniqueHotspotId(base = 'hotspot') {
+export function uniqueHotspotId(base = 'object') {
   const data = state.scripts[state.selectedId];
-  const existing = new Set((data?.hotspots || []).map(h => h.id));
+  const objects = getObjectsArray(data) || [];
+  const existing = new Set(objects.map(h => h.id));
   if (!existing.has(base)) return base;
   let i = 1;
   while (existing.has(`${base}_${i}`)) i++;

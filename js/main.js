@@ -87,8 +87,9 @@ function preloadAssets(data) {
 function preloadNeighbors(data) {
   const ids = new Set();
   if (Array.isArray(data.onEnter)) collectGotos(data.onEnter, ids);
-  if (Array.isArray(data.hotspots)) {
-    for (const hs of data.hotspots) collectGotos(hs.actions, ids);
+  const objects = data.objects ?? data.hotspots;
+  if (Array.isArray(objects)) {
+    for (const obj of objects) collectGotos(obj.actions, ids);
   }
   if (data.definitions) {
     for (const actions of Object.values(data.definitions)) collectGotos(actions, ids);
@@ -124,16 +125,18 @@ async function gotoScene(id) {
   }
 }
 
-/* ── Hotspot clicks → run attached actions ──────── */
-bus.on('hotspot:click', async (hs) => {
+/* ── Object clicks → run attached actions ────────── */
+bus.on('hotspot:click', async (obj) => {
   if (runner.running) return;
-  // Auto-track clicks per hotspot ID: {scene}.{hotspot}.clicks
-  if (hs.id) {
-    const key = `${state.currentScene}.${hs.id}.clicks`;
+  // Auto-track clicks per object ID: {scene}.{object}.clicks
+  if (obj.id) {
+    const key = `${state.currentScene}.${obj.id}.clicks`;
     state.setFlag(key, (state.getFlag(key) ?? 0) + 1);
   }
-  if (Array.isArray(hs.actions)) {
-    await runner.run(hs.actions);
+  if (Array.isArray(obj.actions)) {
+    runner.currentObjectId = obj.id || null;
+    await runner.run(obj.actions);
+    runner.currentObjectId = null;
   }
 });
 
@@ -249,24 +252,25 @@ sceneLayer.addEventListener('mousemove', (e) => {
   const tileY = Math.floor((e.clientY - rect.top) / tileH);
   debugTile.textContent = `Tile: ${tileX}, ${tileY}`;
 
-  // Find hovered hotspot
+  // Find hovered object
   let hoveredLabel = '—';
-  if (Array.isArray(currentSceneData.hotspots)) {
-    for (const hs of currentSceneData.hotspots) {
-      if (tileX >= hs.x && tileX < hs.x + hs.w &&
-          tileY >= hs.y && tileY < hs.y + hs.h) {
-        hoveredLabel = hs.id || hs.label || '(unnamed)';
+  const sceneObjects = currentSceneData.objects ?? currentSceneData.hotspots;
+  if (Array.isArray(sceneObjects)) {
+    for (const obj of sceneObjects) {
+      if (tileX >= obj.x && tileX < obj.x + obj.w &&
+          tileY >= obj.y && tileY < obj.y + obj.h) {
+        hoveredLabel = obj.id || obj.label || '(unnamed)';
         break;
       }
     }
   }
-  debugHotspot.textContent = `Hotspot: ${hoveredLabel}`;
+  debugHotspot.textContent = `Object: ${hoveredLabel}`;
 });
 
 sceneLayer.addEventListener('mouseleave', () => {
   if (!debugActive) return;
   debugTile.textContent = 'Tile: —, —';
-  debugHotspot.textContent = 'Hotspot: —';
+  debugHotspot.textContent = 'Object: —';
 });
 
 /* ── Initial boot ───────────────────────────────── */

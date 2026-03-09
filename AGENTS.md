@@ -18,7 +18,7 @@ js/
   event-bus.js           ← pub/sub decoupling
   game-state.js          ← flags, current scene, history
   script-loader.js       ← fetches & caches JSON scripts
-  scene-renderer.js      ← background, hotspot DOM elements, image overlays
+  scene-renderer.js      ← background, scene objects, show/hide entity system
   action-runner.js       ← walks action arrays, dispatches commands
   dialogue-ui.js         ← dialogue box with typewriter effect
   choice-ui.js           ← multiple-choice modal
@@ -45,7 +45,7 @@ Scene scripts are JSON files in each game's folder (e.g. `games/playground/`). E
 - `id` — unique scene identifier (matches filename)
 - `background` / `backgroundColor` — visual backdrop
 - `grid` — `{ "cols": N, "rows": N }` tile grid dimensions (default 16×9)
-- `hotspots[]` — clickable regions with `{ id, x, y, w, h, label?, texture?, actions[] }` where `id` is a unique identifier (within the scene), `x`, `y` are tile coordinates and `w`, `h` are tile counts. Optional `label` shows a tooltip on hover. Optional `texture` renders an image snapped to the grid. Each click auto-increments the flag `{sceneId}.{id}.clicks`, so scripts can check click counts via conditions (e.g. `"if": "intro.beer.clicks >= 3"`) without manual `set` actions.
+- `objects[]` — scene objects (clickable regions, decorative images, etc.) with `{ id, x, y, w, h, label?, texture?, visible?, z?, actions[] }`. `id` is unique within the scene; `x`, `y` are tile coordinates; `w`, `h` are tile counts. Optional `label` shows a tooltip on hover. Optional `texture` renders an image snapped to the grid. Optional `visible: false` starts the object hidden (can be revealed via `show` action or in `onEnter`). Optional `z` sets the CSS z-index for stacking control. Each click auto-increments the flag `{sceneId}.{id}.clicks`, so scripts can check click counts via conditions (e.g. `"if": "intro.beer.clicks >= 3"`) without manual `set` actions. (Legacy key `hotspots[]` is still accepted for backward compatibility.)
 - `definitions` — `{ "name": [...actions] }` named action sequences callable via `{ "run": "name" }`. Supports recursion.
 - `onEnter[]` — action array run when the scene is entered
 
@@ -65,6 +65,8 @@ Actions are objects in an array. Supported commands:
 | Custom event | `{ "emit": "event_name" }` |
 | Run definition | `{ "run": "definition_name" }` |
 | Exit actions | `{ "exit": true }` |
+| Show object | `{ "show": "object_id" }` — string shorthand to make a scene object visible. Use `"this"` to reference the object whose actions are running. Full form: `{ "show": { "id": "...", "texture": "...", "scaling": "fill", "z": 10, "effect": { "type": "fade-in", "seconds": 2, "blocking": false } } }` — if `id` matches a scene object, makes it visible; otherwise creates a fullscreen runtime overlay (requires `texture`) |
+| Hide object | `{ "hide": "object_id" }` — string shorthand to hide a scene object. Use `"this"` for self-reference. Full form: `{ "hide": { "id": "...", "effect": { "type": "fade-out", "seconds": 1, "blocking": true } } }` — scene objects stay in DOM (can be re-shown); runtime overlays are removed |
 | Scene effect | `{ "effect": { "type": "fade-in", "seconds": 1, "blocking": false } }` — scene-level transition (fade-in / fade-out) |
 | Play sound | `{ "playsound": { "id": "bgm", "path": "scripts/sounds/file.opus", "volume": 0.7, "fade": 1, "loop": true, "blocking": false } }` — `volume` (0–1, default 1), `fade` (seconds, default 0), `loop` (default false), `blocking` waits for fade-in to finish |
 | Stop sound | `{ "stopsound": { "id": "bgm", "fade": 1, "blocking": true } }` — stops a playing sound by id; `fade` (seconds, default 0), `blocking` waits for fade-out to finish |
@@ -73,7 +75,7 @@ Actions are objects in an array. Supported commands:
 All modules communicate through `EventBus`. Never import one UI module from another — emit an event instead.
 
 ### DOM structure
-All game UI lives inside `#game-container`. The `#scene-layer` holds backgrounds and hotspots. The `#ui-layer` holds overlays, dialogues, and choice modals, using `.hidden` class toggling.
+All game UI lives inside `#game-container`. The `#scene-layer` holds backgrounds and scene objects. The `#ui-layer` holds overlays, dialogues, and choice modals, using `.hidden` class toggling.
 
 ## Coding Rules
 1. **Vanilla JS only** — no frameworks, no dependencies.
@@ -81,5 +83,5 @@ All game UI lives inside `#game-container`. The `#scene-layer` holds backgrounds
 3. **Keep scripts JSON** — don't embed JS logic in script files.
 4. **Prefer events over imports** — use `bus.emit()` / `bus.on()` for cross-module communication.
 5. When adding new action commands, add them to `ActionRunner.run()` and document them in this file's action table.
-6. CSS lives in `css/style.css` — don't use inline styles in JS except for dynamic positioning (hotspots, images).
+6. CSS lives in `css/style.css` — don't use inline styles in JS except for dynamic positioning (objects, images).
 7. New UI components should follow the pattern: constructor takes `bus`, queries its own DOM elements, subscribes to relevant events.

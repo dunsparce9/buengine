@@ -83,9 +83,10 @@ export function renderViewport() {
     viewport.style.backgroundColor = data.backgroundColor || '#111';
   }
 
-  // Hotspots
-  if (Array.isArray(data.hotspots)) {
-    for (const hs of data.hotspots) {
+  // Objects (supports both "objects" and "hotspots" keys)
+  const objects = data.objects ?? data.hotspots;
+  if (Array.isArray(objects)) {
+    for (const hs of objects) {
       const div = document.createElement('div');
       div.className = 'editor-hotspot';
       const selected = hs.id === state.selectedHs;

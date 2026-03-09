@@ -2,7 +2,7 @@
   "id": "ending",
   "backgroundColor": "#000000",
   "grid": { "cols": 16, "rows": 9 },
-  "hotspots": [
+  "objects": [
   ],
   "onEnter": [
   ]

@@ -5,7 +5,7 @@
     "cols": 16,
     "rows": 9
   },
-  "hotspots": [],
+  "objects": [],
   "onEnter": [
     {
       "playsound": {

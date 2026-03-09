@@ -21,7 +21,8 @@ export function renderProperties() {
   }
 
   if (state.selectedHs) {
-    const hs = data.hotspots?.find(h => h.id === state.selectedHs);
+    const objects = data.objects ?? data.hotspots;
+    const hs = objects?.find(h => h.id === state.selectedHs);
     if (hs) {
       renderHotspotProps(hs);
       return;
@@ -53,8 +54,9 @@ function renderSceneProps(data) {
     ['grid',            data.grid ? `${data.grid.cols} × ${data.grid.rows}` : '16 × 9'],
   ]);
 
-  addPropGroup(`Hotspots (${data.hotspots?.length ?? 0})`,
-    (data.hotspots || []).map(hs => [hs.id || '?', hs.label || '—'])
+  const objects = data.objects ?? data.hotspots;
+  addPropGroup(`Objects (${objects?.length ?? 0})`,
+    (objects || []).map(hs => [hs.id || '?', hs.label || '—'])
   );
 
   {
@@ -97,7 +99,7 @@ function renderHotspotProps(hs) {
     group.className = 'prop-group';
     const heading = document.createElement('div');
     heading.className = 'prop-group-title';
-    heading.textContent = 'Hotspot';
+    heading.textContent = 'Object';
     group.appendChild(heading);
 
     // id — editable with uniqueness validation
@@ -114,7 +116,7 @@ function renderHotspotProps(hs) {
       input.addEventListener('change', () => {
         const v = input.value.trim().replace(/\s+/g, '_');
         if (!v) { input.value = hs.id; return; }
-        const others = (data.hotspots || []).filter(h => h !== hs);
+        const others = (data.objects ?? data.hotspots ?? []).filter(h => h !== hs);
         if (others.some(h => h.id === v)) {
           input.classList.add('prop-input-error');
           return;
@@ -259,13 +261,13 @@ function renderHotspotProps(hs) {
     );
   }
 
-  // ── Delete hotspot button ──
+  // ── Delete object button ──
   {
     const group = document.createElement('div');
     group.className = 'prop-group';
     const btn = document.createElement('button');
     btn.className = 'prop-danger-btn';
-    btn.innerHTML = '<span class="material-symbols-outlined">delete</span> Delete hotspot';
+    btn.innerHTML = '<span class="material-symbols-outlined">delete</span> Delete object';
     btn.addEventListener('click', () => deleteHotspot(hs.id));
     group.appendChild(btn);
     dom.propsContent.appendChild(group);

@@ -15,7 +15,11 @@
  *   { "emit": "custom:event" } // fire a bus event
  *   { "run": "definition_name" } // call a named definition (supports recursion)
  *   { "exit": true }           // stop the entire action chain
- *   { "show": { "id": "...", "texture": "...", "layer": "overlay", "scaling": "fill", "effect": { "type": "fade-in", "seconds": 2, "blocking": false } } }
+ *   { "show": "object_id" }    // show a scene object by id (string shorthand)
+ *   { "show": "this" }         // show the object whose actions are running
+ *   { "show": { "id": "...", "texture": "...", "scaling": "fill", "z": 10, "effect": { "type": "fade-in", "seconds": 2, "blocking": false } } }
+ *   { "hide": "object_id" }    // hide a scene object by id (string shorthand)
+ *   { "hide": "this" }         // hide the object whose actions are running
  *   { "hide": { "id": "...", "effect": { "type": "fade-out", "seconds": 1, "blocking": true } } }
  *   { "effect": { "type": "fade-in", "seconds": 1, "blocking": false } }  // scene-level transition
  *   { "playsound": { "id": "...", "path": "...", "volume": 0.7, "fade": 1, "loop": true, "blocking": false } }
@@ -35,6 +39,8 @@ export class ActionRunner {
     this._gotoFired = false;
     this._gotoTarget = null;
     this.running = false;
+    /** @type {string|null} ID of the object whose actions are currently running (for "this" resolution). */
+    this.currentObjectId = null;
     /** @type {Record<string, object[]>} Named action sequences from the current scene. */
     this.definitions = {};
   }
@@ -143,12 +149,16 @@ export class ActionRunner {
   }
 
   _show(showDef) {
+    if (typeof showDef === 'string') showDef = { id: showDef };
+    if (showDef.id === 'this') showDef = { ...showDef, id: this.currentObjectId };
     return new Promise(resolve => {
       this.bus.emit('overlay:show', { ...showDef, onDone: resolve });
     });
   }
 
   _hide(hideDef) {
+    if (typeof hideDef === 'string') hideDef = { id: hideDef };
+    if (hideDef.id === 'this') hideDef = { ...hideDef, id: this.currentObjectId };
     return new Promise(resolve => {
       this.bus.emit('overlay:hide', { ...hideDef, onDone: resolve });
     });
