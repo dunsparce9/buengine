@@ -7,8 +7,18 @@ import { openActionViewer } from './action-viewer.js';
 import { findNode } from './fs-provider.js';
 import { getFileExtension, getFileKind, isPreviewableMedia } from './file-types.js';
 import { renderItemsProperties } from './items-viewer.js';
+import { selectScript } from './file-panel.js';
 
 let _assetInfoRequestId = 0;
+
+
+function focusSceneInEditor(sceneId) {
+  if (!sceneId) return;
+  const target = state.scripts[sceneId];
+  if (!target || Array.isArray(target) || sceneId === '_game') return;
+  selectScript(sceneId);
+}
+
 
 export function renderProperties() {
   dom.propsContent.innerHTML = '';
@@ -82,6 +92,7 @@ function renderSceneProps(data) {
         sceneId: data.id,
         sceneData: data,
         markDirty,
+        focusScene: focusSceneInEditor,
       })
     );
   }
@@ -305,6 +316,7 @@ function renderHotspotProps(hs) {
         sceneId,
         sceneData: data,
         markDirty,
+        focusScene: focusSceneInEditor,
       })
     );
   }
@@ -578,6 +590,7 @@ function addDefinitionsGroup(data, names) {
         sceneId: data.id,
         sceneData: data,
         markDirty,
+        focusScene: focusSceneInEditor,
       })
     );
 

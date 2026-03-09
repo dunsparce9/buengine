@@ -66,7 +66,7 @@ function renderActionBody(action, type, viewCtx = {}) {
   switch (type) {
     case 'say':       return renderSay(action);
     case 'choice':    return renderChoice(action.choice, viewCtx);
-    case 'goto':      return renderChip(action.goto, '#8ec07c');
+    case 'goto':      return renderGotoChip(action.goto, '#8ec07c', viewCtx);
     case 'set':       return renderSet(action.set);
     case 'if':        return renderIf(action, viewCtx);
     case 'wait':      return renderSimpleValue(`${action.wait} ms`);
@@ -323,6 +323,30 @@ function renderChip(value, color) {
   return body;
 }
 
+
+function renderGotoChip(sceneId, color, viewCtx = {}) {
+  const body = document.createElement('div');
+  body.className = 'av-body';
+
+  const canFocusScene = typeof viewCtx.focusScene === 'function' && !!sceneId;
+  const chipTag = canFocusScene ? 'button' : 'span';
+  const chip = document.createElement(chipTag);
+  chip.className = 'av-chip';
+  chip.style.setProperty('--chip-color', color);
+  chip.textContent = sceneId;
+
+  if (canFocusScene) {
+    chip.type = 'button';
+    chip.title = `Focus scene: ${sceneId}`;
+    chip.addEventListener('click', () => {
+      viewCtx.focusScene(sceneId);
+    });
+  }
+
+  body.appendChild(chip);
+  return body;
+}
+
 function renderRunChip(defName, color, viewCtx = {}) {
   const body = document.createElement('div');
   body.className = 'av-body';
@@ -344,6 +368,7 @@ function renderRunChip(defName, color, viewCtx = {}) {
         sceneId: viewCtx.sceneId,
         sceneData: viewCtx.sceneData,
         markDirty: viewCtx.markDirty,
+        focusScene: viewCtx.focusScene,
       });
     });
   }
@@ -851,6 +876,7 @@ function buildChoiceEditor(action, ctx) {
           sceneId: ctx.opts.sceneId,
           sceneData: ctx.opts.sceneData,
           markDirty: ctx.opts.markDirty,
+          focusScene: ctx.opts.focusScene,
         });
       });
 
@@ -908,6 +934,7 @@ function buildIfBranchesEditor(action, ctx) {
         sceneId: ctx.opts.sceneId,
         sceneData: ctx.opts.sceneData,
         markDirty: ctx.opts.markDirty,
+        focusScene: ctx.opts.focusScene,
       });
     });
     row.append(lbl, btn);
