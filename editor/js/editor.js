@@ -388,13 +388,6 @@ function setupPWAInstall() {
     updateWindowTitle();
   });
 
-  window.addEventListener('beforeinstallprompt', (event) => {
-    event.preventDefault();
-    deferredInstallPrompt = event;
-    updateInstallMenuVisibility();
-    showToast('Install this app? Open Help → Install app…', 'info');
-  });
-
   window.addEventListener('appinstalled', () => {
     deferredInstallPrompt = null;
     updateInstallMenuVisibility();
