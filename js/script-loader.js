@@ -10,6 +10,8 @@ export class ScriptLoader {
     this.basePath = basePath;
     /** @type {Map<string, object>} */
     this._cache = new Map();
+    /** @type {Map<string, object>|null} */
+    this._previewOverrides = null;
 
     // Editor preview mode: pre-populate cache from localStorage
     if (new URLSearchParams(location.search).has('preview')) {
@@ -17,7 +19,8 @@ export class ScriptLoader {
         const raw = localStorage.getItem('buegame_editor_preview');
         if (raw) {
           const overrides = JSON.parse(raw);
-          for (const [id, data] of Object.entries(overrides)) {
+          this._previewOverrides = new Map(Object.entries(overrides));
+          for (const [id, data] of this._previewOverrides) {
             this._cache.set(id, data);
           }
         }
@@ -29,6 +32,12 @@ export class ScriptLoader {
   setBasePath(path) {
     this.basePath = path;
     this._cache.clear();
+    // Re-apply editor preview overrides that were wiped by clear()
+    if (this._previewOverrides) {
+      for (const [id, data] of this._previewOverrides) {
+        this._cache.set(id, data);
+      }
+    }
   }
 
   /**
