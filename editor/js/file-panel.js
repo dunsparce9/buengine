@@ -7,7 +7,17 @@ import { state, dom, hooks, escapeHtml } from './state.js';
 export function renderFileList() {
   dom.fileList.innerHTML = '';
 
-  const ids = ['_game', ...Object.keys(state.scripts).filter(id => id !== '_game')];
+  const ids = [];
+  if (state.scripts._game) ids.push('_game');
+  ids.push(...Object.keys(state.scripts).filter(id => id !== '_game'));
+
+  if (ids.length === 0) {
+    const empty = document.createElement('li');
+    empty.className = 'file-empty';
+    empty.textContent = 'No game loaded. Use File → Open folder…';
+    dom.fileList.appendChild(empty);
+    return;
+  }
 
   for (const id of ids) {
     const li = document.createElement('li');

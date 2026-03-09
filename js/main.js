@@ -312,9 +312,29 @@ sceneLayer.addEventListener('mouseleave', () => {
 /* ── Initial boot ───────────────────────────────── */
 const _params = new URLSearchParams(location.search);
 const _urlGame = _params.get('game');
+const _isPreview = _params.has('preview');
 
-if (_urlGame) {
-  selectGame(_urlGame);
+let _previewGameId = '';
+if (_isPreview) {
+  try {
+    const raw = localStorage.getItem('buegame_editor_preview');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      _previewGameId = parsed?.gameId || '';
+    }
+  } catch {
+    _previewGameId = '';
+  }
+}
+
+const _effectiveGameId = _urlGame || _previewGameId;
+
+if (_effectiveGameId) {
+  selectGame(_effectiveGameId);
+} else if (_isPreview) {
+  loader.setBasePath('');
+  bus.emit('game:basepath', '');
+  showTitle();
 } else {
   showGameSelector();
 }

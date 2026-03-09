@@ -3,7 +3,7 @@
  * Supports: selection, drag-to-move, drag-to-resize, drag-to-create, context menu.
  */
 
-import { SCRIPTS_BASE, state, dom, hooks, markDirty, addHotspot, deleteHotspot, uniqueHotspotId } from './state.js';
+import { resolveAssetPath, state, dom, hooks, markDirty, addHotspot, deleteHotspot, uniqueHotspotId } from './state.js';
 import { showContextMenu } from './context-menu.js';
 
 /* ── Drag state (module-scoped, survives re-renders) ── */
@@ -78,7 +78,7 @@ export function renderViewport() {
 
   // Background
   if (data.background) {
-    viewport.style.backgroundImage = `url('${SCRIPTS_BASE}/${data.background}')`;
+    viewport.style.backgroundImage = `url('${resolveAssetPath(data.background)}')`;
   } else {
     viewport.style.backgroundColor = data.backgroundColor || '#111';
   }
@@ -99,7 +99,7 @@ export function renderViewport() {
 
       if (hs.texture) {
         div.classList.add('editor-hotspot-textured');
-        div.style.backgroundImage = `url('${SCRIPTS_BASE}/${hs.texture}')`;
+        div.style.backgroundImage = `url('${resolveAssetPath(hs.texture)}')`;
       }
 
       const label = document.createElement('span');

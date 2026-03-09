@@ -1,30 +1,38 @@
 /**
- * Loads JSON scene/script files from the scripts/ directory.
- * Caches loaded scripts so each file is fetched only once.
+ * Loads and caches scene JSON scripts for the engine.
  *
+ * Base path is set by `setBasePath()` when a game is selected.
  * When the page is opened with ?preview, loads override data
- * from localStorage (set by the editor) instead of fetching files.
+ * from localStorage key `buegame_editor_preview`.
  */
 export class ScriptLoader {
-  constructor(basePath = '') {
-    this.basePath = basePath;
+  constructor() {
+    /** @type {string} */
+    this.basePath = '';
     /** @type {Map<string, object>} */
     this._cache = new Map();
     /** @type {Map<string, object>|null} */
     this._previewOverrides = null;
+    /** @type {Map<string, string>} */
+    this._previewAssetUrls = new Map();
 
     // Editor preview mode: pre-populate cache from localStorage
     if (new URLSearchParams(location.search).has('preview')) {
       try {
         const raw = localStorage.getItem('buegame_editor_preview');
         if (raw) {
-          const overrides = JSON.parse(raw);
-          this._previewOverrides = new Map(Object.entries(overrides));
+          const parsed = JSON.parse(raw);
+          const scripts = parsed?.scripts ?? parsed;
+          const assetUrls = parsed?.assetUrls ?? {};
+          this._previewOverrides = new Map(Object.entries(scripts));
+          this._previewAssetUrls = new Map(Object.entries(assetUrls));
           for (const [id, data] of this._previewOverrides) {
             this._cache.set(id, data);
           }
         }
-      } catch { /* ignore corrupt data */ }
+      } catch {
+        /* ignore corrupt data */
+      }
     }
   }
 
@@ -41,12 +49,16 @@ export class ScriptLoader {
   }
 
   /**
-   * Resolve a relative asset path against the current base.
+   * Resolve a relative asset path against the current source.
    * @param {string} relativePath
    * @returns {string}
    */
   resolvePath(relativePath) {
-    if (!this.basePath || !relativePath) return relativePath;
+    if (!relativePath) return relativePath;
+    if (this._previewAssetUrls.has(relativePath)) {
+      return this._previewAssetUrls.get(relativePath);
+    }
+    if (!this.basePath) return relativePath;
     return `${this.basePath}/${relativePath}`;
   }
 

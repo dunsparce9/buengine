@@ -145,6 +145,16 @@ html, body {
   margin-left: auto;
 }
 
+
+#file-list li.file-empty {
+  cursor: default;
+  color: #a89984;
+  white-space: normal;
+  line-height: 1.4;
+}
+#file-list li.file-empty:hover {
+  background: transparent;
+}
 /* ── Viewport ──────────────────────────────────── */
 #viewport {
   background: #1d2021;

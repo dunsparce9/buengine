@@ -12,11 +12,15 @@ export const SCRIPTS_BASE = GAME_ID ? `../games/${GAME_ID}` : '../scripts';
 
 /* ── Mutable application state ─────────────────── */
 export const state = {
-  manifest:   null,       // parsed _game.json
-  scripts:    {},         // id → parsed JSON
-  selectedId: null,       // currently selected script id
-  selectedHs: null,       // currently selected hotspot id
-  dirtySet:   new Set(),  // script ids with unsaved edits
+  manifest:     null,       // parsed _game.json
+  scripts:      {},         // id → parsed JSON
+  selectedId:   null,       // currently selected script id
+  selectedHs:   null,       // currently selected hotspot id
+  dirtySet:     new Set(),  // script ids with unsaved edits
+  scriptsBase:  SCRIPTS_BASE,
+  assetUrls:    {},         // relative path -> blob/data URL (for local folder mode)
+  localSource:  null,       // in-memory script source when loading from local folder
+  gameId:       GAME_ID,
 };
 
 /* ── DOM references ────────────────────────────── */
@@ -34,6 +38,26 @@ export const hooks = {
   renderViewport:   () => {},
   renderProperties: () => {},
 };
+
+export function resolveAssetPath(relativePath) {
+  if (!relativePath) return relativePath;
+  if (state.assetUrls[relativePath]) return state.assetUrls[relativePath];
+  if (!state.scriptsBase) return relativePath;
+  return `${state.scriptsBase}/${relativePath}`;
+}
+
+export function setFolderSource({ scripts, assetUrls, gameTitle }) {
+  state.localSource = { scripts };
+  state.assetUrls = assetUrls || {};
+  state.scriptsBase = '';
+  state.gameId = '';
+  state.scripts = {};
+  state.manifest = null;
+  state.selectedId = null;
+  state.selectedHs = null;
+  state.dirtySet.clear();
+  document.title = gameTitle ? `büegame editor — ${gameTitle}` : 'büegame editor';
+}
 
 /* ── Utilities ─────────────────────────────────── */
 
