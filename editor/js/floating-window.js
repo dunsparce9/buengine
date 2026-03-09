@@ -4,6 +4,7 @@
 
 let _zTop = 1000;
 const OPENING_CLASS = 'fw-opening';
+const CLOSING_CLASS = 'fw-closing';
 function bringToFront(el) {
   el.style.zIndex = ++_zTop;
 }
@@ -165,7 +166,7 @@ export function createFloatingWindow({ title, icon = '', iconClass = '', width =
     el.classList.remove('hidden');
     centerOnScreen();
     bringToFront(el);
-    el.classList.remove(OPENING_CLASS);
+    el.classList.remove(OPENING_CLASS, CLOSING_CLASS);
     void el.offsetWidth;
     el.classList.add(OPENING_CLASS);
     if (backdrop) backdrop.style.zIndex = parseInt(el.style.zIndex) - 1;
@@ -174,14 +175,33 @@ export function createFloatingWindow({ title, icon = '', iconClass = '', width =
   let _onClose = null;
 
   function close() {
-    el.classList.remove(OPENING_CLASS);
-    el.classList.add('hidden');
-    if (backdrop) backdrop.remove();
-    if (parent) parent.el.classList.remove('fw-blocked');
-    if (_onClose) _onClose();
+    if (el.classList.contains('hidden') || el.classList.contains(CLOSING_CLASS)) return;
+
+    el.classList.remove(OPENING_CLASS, CLOSING_CLASS);
+    el.classList.add(CLOSING_CLASS);
+
+    const finishClose = () => {
+      el.classList.remove(CLOSING_CLASS);
+      el.classList.add('hidden');
+      if (backdrop) backdrop.remove();
+      if (parent) parent.el.classList.remove('fw-blocked');
+      if (_onClose) _onClose();
+    };
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reducedMotion) {
+      finishClose();
+      return;
+    }
+
+    el.addEventListener('animationend', (e) => {
+      if (e.target !== el) return;
+      finishClose();
+    }, { once: true });
   }
 
   function destroy() {
+    el.classList.remove(CLOSING_CLASS);
     el.remove();
     if (backdrop) backdrop.remove();
     if (parent) parent.el.classList.remove('fw-blocked');
