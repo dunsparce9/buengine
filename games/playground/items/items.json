@@ -11,8 +11,20 @@
         "icon": "👁️",
         "actions": [
           {
+            "playsound": {
+              "id": "büe",
+              "path": "sounds/objects/büe.opus",
+              "volume": 0.1
+            }
+          },
+          {
+            "say": "Büe?",
+            "speaker": "Seal",
+            "accent": "#9edfff"
+          },
+          {
             "say": "The seal is looking pretty cramped. Find a spot for it at once.",
-            "speaker": "Annoyed Narrator"
+            "speaker": "Narrator"
           }
         ]
       },
@@ -22,11 +34,12 @@
         "actions": [
           {
             "say": "PUT DOWN? What the hell?\nWhat did the seal do to you? To deserve to die?",
-            "speaker": "Annoyed Narrator"
+            "speaker": "Annoyed Narrator",
+            "accent": "#ff6171"
           },
           {
             "say": "Oh wait I get whatchu mean",
-            "speaker": "Annoyed Narrator"
+            "speaker": "Narrator"
           },
           {
             "item": {
