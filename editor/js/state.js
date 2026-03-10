@@ -28,7 +28,7 @@ export const dom = {
   fileList:      document.getElementById('file-list'),
   viewportWrap:  document.getElementById('viewport'),
   viewport:      document.getElementById('viewport-scene'),
-  viewportEmpty: document.getElementById('viewport-empty'),
+
   propsContent:  document.getElementById('props-content'),
 };
 

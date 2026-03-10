@@ -41,7 +41,7 @@ function clampGrid(v, max) {
 /* ── Main render ───────────────────────────────── */
 
 export function renderViewport() {
-  const { viewport, viewportWrap, viewportEmpty } = dom;
+  const { viewport, viewportWrap } = dom;
 
   // Clear previous hotspot elements (keep selection box if present)
   viewport.querySelectorAll('.editor-media-preview, .editor-media-empty, .items-viewer').forEach(el => el.remove());
@@ -52,25 +52,22 @@ export function renderViewport() {
   viewport.style.height = '';
   viewport.classList.remove('viewport-items-mode');
   viewportWrap.classList.remove('viewport-items-mode');
-  viewportEmpty.classList.add('hidden');
 
   if (state.selectedPath && !state.selectedId) {
+    viewport.classList.remove('hidden');
     renderMediaViewport(state.selectedPath);
     return;
   }
 
-  viewportEmpty.classList.toggle('hidden', !!state.selectedId);
-
   if (!state.selectedId || !state.scripts[state.selectedId]) {
-    // Fill available space so the empty-state message is visible
-    viewport.style.width  = `${Math.max(320, viewportWrap.clientWidth  - 48)}px`;
-    viewport.style.height = `${Math.max(220, viewportWrap.clientHeight - 48)}px`;
+    viewport.classList.add('hidden');
     return;
   }
+  viewport.classList.remove('hidden');
   const data = state.scripts[state.selectedId];
 
   if (state.selectedId === '_game') {
-    viewport.style.backgroundColor = '#11111b';
+    viewport.classList.add('hidden');
     return;
   }
 
@@ -417,7 +414,7 @@ export function initViewportInteractions() {
   vp.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
     // Only start creation drag if clicking on the viewport background itself
-    if (e.target !== vp && !e.target.matches('#viewport-empty')) return;
+    if (e.target !== vp) return;
 
     const data = state.scripts[state.selectedId];
     if (!data || state.selectedId === '_game') return;
