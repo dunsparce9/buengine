@@ -371,59 +371,15 @@ async function runInNewTab() {
   window.open('../index.html?preview', '_blank');
 }
 
-/** Run the currently selected scene directly (skip title screen). */
-async function runCurrentScene() {
-  const id = state.selectedId;
-  if (!id || id === '_game' || id === 'items/items') {
-    showToast('Select a scene to run', 'error');
-    return;
-  }
-  // Reuse the same preview data pipeline as "Run in new tab"
-  const overrides = {};
-  for (const [sid, data] of Object.entries(state.scripts)) {
-    overrides[sid] = data;
-  }
-  localStorage.setItem('buegame_editor_preview', JSON.stringify(overrides));
-
-  if (state.rootHandle) {
-    const assetMap = {};
-    const allPaths = collectAllPaths();
-    for (const path of allPaths) {
-      if (path.endsWith('.json')) continue;
-      try {
-        const url = await resolveAssetURL(path);
-        if (url) assetMap[path] = url;
-      } catch { /* skip unreadable files */ }
-    }
-    localStorage.setItem('buegame_editor_assets', JSON.stringify(assetMap));
-  } else {
-    localStorage.removeItem('buegame_editor_assets');
-  }
-
-  const url = `../index.html?preview&scene=${encodeURIComponent(id)}`;
-  if (isStandalonePWA()) {
-    window.open(url, '_blank', 'popup');
-    return;
-  }
-  window.open(url, '_blank');
-}
-
 let deferredInstallPrompt = null;
 
 function updateInstallMenuVisibility() {
   const installBtn = document.getElementById('install-app-btn');
   const installSep = document.getElementById('install-app-sep');
   const standalone = isStandalonePWA();
-  const canInstall = Boolean(deferredInstallPrompt) && !standalone;
 
-  if (installBtn) {
-    installBtn.hidden = standalone;
-    installBtn.disabled = !canInstall;
-  }
-
-  if (installSep) {
-    installSep.hidden = standalone;
-  }
+  if (installBtn) installBtn.hidden = standalone;
+  if (installSep) installSep.hidden = standalone;
 }
 
 function setupPWAInstall() {
@@ -438,7 +394,6 @@ function setupPWAInstall() {
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
     deferredInstallPrompt = event;
-    updateInstallMenuVisibility();
   });
 
   window.addEventListener('appinstalled', () => {
@@ -479,7 +434,6 @@ initMenu({
   'install-app': installApp,
   'about':       () => aboutWindow.open(),
   'run-in-tab':  runInNewTab,
-  'run-scene':   runCurrentScene,
 });
 document.getElementById('run-btn').addEventListener('click', runInNewTab);
 setupPWAInstall();

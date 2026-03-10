@@ -61,7 +61,12 @@ export function renderViewport() {
 
   viewportEmpty.classList.toggle('hidden', !!state.selectedId);
 
-  if (!state.selectedId || !state.scripts[state.selectedId]) return;
+  if (!state.selectedId || !state.scripts[state.selectedId]) {
+    // Fill available space so the empty-state message is visible
+    viewport.style.width  = `${Math.max(320, viewportWrap.clientWidth  - 48)}px`;
+    viewport.style.height = `${Math.max(220, viewportWrap.clientHeight - 48)}px`;
+    return;
+  }
   const data = state.scripts[state.selectedId];
 
   if (state.selectedId === '_game') {
