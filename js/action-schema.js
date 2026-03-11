@@ -6,12 +6,23 @@
  *   - icon:     Material Symbols icon name (for editor UI)
  *   - color:    accent colour (for editor UI)
  *   - label:    human-readable name
+ *   - quip:     short editor-facing description
+ *   - engine:   execution metadata used by ActionRunner dispatch
  *   - fields:   array of field descriptors (for editor forms / validation)
  *   - defaults: template object returned by createDefaultAction()
  *
- * Engine imports: detectType, ACTION_TYPES (for reference)
- * Editor imports: ACTION_TYPES, detectType, createDefaultAction
+ * Engine imports: detectType, ACTION_TYPES, getActionMeta (for reference)
+ * Editor imports: ACTION_TYPES, detectType, createDefaultAction, getActionMeta
  */
+
+export const UNKNOWN_ACTION_META = {
+  icon: 'help_outline',
+  color: '#7c6f64',
+  label: 'Unknown',
+  quip: 'do something useful',
+  engine: { kind: 'noop' },
+  fields: [],
+};
 
 /* ── Canonical type registry ───────────────────── */
 
@@ -20,6 +31,8 @@ export const ACTION_TYPES = {
     icon: 'chat_bubble',
     color: '#83a598',
     label: 'Say',
+    quip: 'show a dialogue box',
+    engine: { kind: 'await', method: '_say', arg: 'action' },
     fields: [
       { key: 'say',     label: 'Text',      type: 'textarea', required: true },
       { key: 'speaker', label: 'Speaker',   type: 'string' },
@@ -33,6 +46,8 @@ export const ACTION_TYPES = {
     icon: 'account_tree',
     color: '#d3869b',
     label: 'Choice',
+    quip: 'offer a branching choice',
+    engine: { kind: 'await', method: '_choice', arg: 'choice' },
     fields: [
       { key: 'choice.prompt', label: 'Prompt', type: 'string' },
     ],
@@ -43,6 +58,8 @@ export const ACTION_TYPES = {
     icon: 'exit_to_app',
     color: '#8ec07c',
     label: 'Go to',
+    quip: 'jump to another scene',
+    engine: { kind: 'goto', arg: 'goto' },
     fields: [
       { key: 'goto', label: 'Scene ID', type: 'string', required: true },
     ],
@@ -53,6 +70,8 @@ export const ACTION_TYPES = {
     icon: 'flag',
     color: '#fabd2f',
     label: 'Set flag',
+    quip: 'flip or count flags',
+    engine: { kind: 'call', method: '_applySet', arg: 'set' },
     fields: [],
     defaults: { set: {} },
   },
@@ -61,6 +80,8 @@ export const ACTION_TYPES = {
     icon: 'call_split',
     color: '#fe8019',
     label: 'If',
+    quip: 'branch on a condition',
+    engine: { kind: 'branch', condition: 'if', trueActions: 'then', falseActions: 'else' },
     fields: [
       { key: 'if', label: 'Condition', type: 'string', required: true },
     ],
@@ -71,6 +92,8 @@ export const ACTION_TYPES = {
     icon: 'repeat',
     color: '#b16286',
     label: 'Loop',
+    quip: 'repeat while a condition holds',
+    engine: { kind: 'loop', condition: 'loop' },
     fields: [
       { key: 'loop', label: 'Condition', type: 'string', required: true },
     ],
@@ -81,6 +104,8 @@ export const ACTION_TYPES = {
     icon: 'hourglass_empty',
     color: '#a89984',
     label: 'Wait',
+    quip: 'pause for a moment',
+    engine: { kind: 'await', method: '_delay', arg: 'wait' },
     fields: [
       { key: 'wait', label: 'Duration (ms)', type: 'number', required: true, step: 100 },
     ],
@@ -91,6 +116,8 @@ export const ACTION_TYPES = {
     icon: 'cell_tower',
     color: '#b8bb26',
     label: 'Emit',
+    quip: 'broadcast an event',
+    engine: { kind: 'emit', event: 'emit', payload: 'payload' },
     fields: [
       { key: 'emit', label: 'Event name', type: 'string', required: true },
     ],
@@ -101,6 +128,8 @@ export const ACTION_TYPES = {
     icon: 'play_circle',
     color: '#83a598',
     label: 'Run',
+    quip: 'run a definition',
+    engine: { kind: 'run-definition', arg: 'run' },
     fields: [
       { key: 'run', label: 'Definition', type: 'string', required: true },
     ],
@@ -111,6 +140,8 @@ export const ACTION_TYPES = {
     icon: 'fork_right',
     color: '#8ec07c',
     label: 'Fork',
+    quip: 'start a background sequence',
+    engine: { kind: 'fork', arg: 'fork' },
     fields: [
       { key: 'fork.run', label: 'Definition', type: 'string', required: true },
     ],
@@ -121,6 +152,8 @@ export const ACTION_TYPES = {
     icon: 'block',
     color: '#fb4934',
     label: 'Exit',
+    quip: 'stop this action chain',
+    engine: { kind: 'exit' },
     fields: [
       { key: 'exit', label: 'Exit', type: 'boolean', fixed: true },
     ],
@@ -131,6 +164,8 @@ export const ACTION_TYPES = {
     icon: 'visibility',
     color: '#d3869b',
     label: 'Show',
+    quip: 'reveal something on screen',
+    engine: { kind: 'await', method: '_show', arg: 'show' },
     fields: [
       { key: 'show.id',              label: 'ID',              type: 'string', required: true },
       { key: 'show.texture',         label: 'Texture',         type: 'string' },
@@ -147,6 +182,8 @@ export const ACTION_TYPES = {
     icon: 'title',
     color: '#fabd2f',
     label: 'Text',
+    quip: 'place text on screen',
+    engine: { kind: 'await', method: '_text', arg: 'text' },
     fields: [
       { key: 'text.id',                    label: 'ID',                type: 'string', required: true },
       { key: 'text.text',                  label: 'Text',              type: 'textarea', required: true },
@@ -168,6 +205,8 @@ export const ACTION_TYPES = {
     icon: 'visibility_off',
     color: '#928374',
     label: 'Hide',
+    quip: 'make something disappear',
+    engine: { kind: 'await', method: '_hide', arg: 'hide' },
     fields: [
       { key: 'hide.id',              label: 'ID',              type: 'string', required: true },
       { key: 'hide.effect.type',     label: 'Effect type',     type: 'select', options: ['', 'fade-in', 'fade-out'] },
@@ -181,6 +220,8 @@ export const ACTION_TYPES = {
     icon: 'auto_awesome',
     color: '#b8bb26',
     label: 'Effect',
+    quip: 'fade the whole scene',
+    engine: { kind: 'await', method: '_effect', arg: 'effect' },
     fields: [
       { key: 'effect.type',     label: 'Type',         type: 'select', options: ['', 'fade-in', 'fade-out'], required: true },
       { key: 'effect.seconds',  label: 'Duration (s)', type: 'number', step: 0.5 },
@@ -193,6 +234,8 @@ export const ACTION_TYPES = {
     icon: 'volume_up',
     color: '#83a598',
     label: 'Play sound',
+    quip: 'start a sound cue',
+    engine: { kind: 'await', method: '_playsound', arg: 'playsound' },
     fields: [
       { key: 'playsound.id',       label: 'ID',       type: 'string', required: true },
       { key: 'playsound.path',     label: 'Path',     type: 'string' },
@@ -208,6 +251,8 @@ export const ACTION_TYPES = {
     icon: 'volume_off',
     color: '#928374',
     label: 'Stop sound',
+    quip: 'cut the current sound',
+    engine: { kind: 'await', method: '_stopsound', arg: 'stopsound' },
     fields: [
       { key: 'stopsound.id',       label: 'ID',       type: 'string', required: true },
       { key: 'stopsound.fade',     label: 'Fade (s)', type: 'number', step: 0.5 },
@@ -220,6 +265,8 @@ export const ACTION_TYPES = {
     icon: 'inventory_2',
     color: '#d79921',
     label: 'Item',
+    quip: 'manage items',
+    engine: { kind: 'call', method: '_applyItem', arg: 'item' },
     fields: [
       { key: 'item.id',  label: 'Item ID',  type: 'string', required: true },
       { key: 'item.qty', label: 'Quantity',  type: 'number', step: 1 },
@@ -250,4 +297,11 @@ export function detectType(action) {
 export function createDefaultAction(type) {
   const def = ACTION_TYPES[type];
   return def ? structuredClone(def.defaults) : {};
+}
+
+/**
+ * Resolve metadata for a type, falling back to shared unknown metadata.
+ */
+export function getActionMeta(type) {
+  return ACTION_TYPES[type] || UNKNOWN_ACTION_META;
 }

@@ -32,7 +32,7 @@
  *   { "stopsound": { "id": "...", "fade": 1, "blocking": true } }
  *   { "item": { "id": "key", "qty": 1 } }   // add item (negative qty = remove)
  */
-import { detectType } from './action-schema.js';
+import { detectType, getActionMeta } from './action-schema.js';
 
 export class ActionRunner {
   /**
@@ -104,48 +104,9 @@ export class ActionRunner {
 
         const action = frame.actions[frame.index++];
 
-        switch (detectType(action)) {
-          case 'say':       await this._say(action); break;
-          case 'choice':    await this._choice(action.choice); break;
-          case 'goto':
-            this._gotoFired = true;
-            this._gotoTarget = action.goto;
-            return; // scene change — emitted after the full chain unwinds
-          case 'set':       this._applySet(action.set); break;
-          case 'if': {
-            const result = this._evalCondition(action.if);
-            const branch = result ? action.then : action.else;
-            if (branch?.length) frames.push({ actions: branch, index: 0 });
-            break;
-          }
-          case 'loop': {
-            const loopActions = this._resolveLoopActions(action);
-            if (loopActions?.length && this._evalCondition(action.loop)) {
-              frames.push({ actions: loopActions, index: 0, loopCondition: action.loop });
-            }
-            break;
-          }
-          case 'wait':      await this._delay(action.wait); break;
-          case 'emit':      this.bus.emit(action.emit, action.payload); break;
-          case 'run': {
-            const def = this.definitions[action.run];
-            if (def?.length) frames.push({ actions: def, index: 0 });
-            break;
-          }
-          case 'fork': {
-            const forkActions = this._resolveForkActions(action.fork);
-            if (forkActions?.length) this._spawnChild(forkActions);
-            break;
-          }
-          case 'show':      await this._show(action.show); break;
-          case 'text':      await this._text(action.text); break;
-          case 'hide':      await this._hide(action.hide); break;
-          case 'effect':    await this._effect(action.effect); break;
-          case 'playsound': await this._playsound(action.playsound); break;
-          case 'stopsound': await this._stopsound(action.stopsound); break;
-          case 'item':      this._applyItem(action.item); break;
-          case 'exit':      this._exited = true; return;
-        }
+        const type = detectType(action);
+        const shouldReturn = await this._dispatchAction(type, action, frames);
+        if (shouldReturn) return;
       }
     } finally {
       if (!_nested) {
@@ -160,6 +121,56 @@ export class ActionRunner {
   }
 
   /* ── private helpers ──────────────────────────── */
+
+  async _dispatchAction(type, action, frames) {
+    const engine = getActionMeta(type).engine;
+    if (!engine) return false;
+
+    switch (engine.kind) {
+      case 'await':
+        await this[engine.method](engine.arg === 'action' ? action : action[engine.arg]);
+        return false;
+      case 'call':
+        this[engine.method](action[engine.arg]);
+        return false;
+      case 'goto':
+        this._gotoFired = true;
+        this._gotoTarget = action[engine.arg];
+        return true;
+      case 'branch': {
+        const result = this._evalCondition(action[engine.condition]);
+        const branch = result ? action[engine.trueActions] : action[engine.falseActions];
+        if (branch?.length) frames.push({ actions: branch, index: 0 });
+        return false;
+      }
+      case 'loop': {
+        const loopActions = this._resolveLoopActions(action);
+        if (loopActions?.length && this._evalCondition(action[engine.condition])) {
+          frames.push({ actions: loopActions, index: 0, loopCondition: action[engine.condition] });
+        }
+        return false;
+      }
+      case 'emit':
+        this.bus.emit(action[engine.event], action[engine.payload]);
+        return false;
+      case 'run-definition': {
+        const def = this.definitions[action[engine.arg]];
+        if (def?.length) frames.push({ actions: def, index: 0 });
+        return false;
+      }
+      case 'fork': {
+        const forkActions = this._resolveForkActions(action[engine.arg]);
+        if (forkActions?.length) this._spawnChild(forkActions);
+        return false;
+      }
+      case 'exit':
+        this._exited = true;
+        return true;
+      case 'noop':
+      default:
+        return false;
+    }
+  }
 
   _say(action) {
     return new Promise(resolve => {

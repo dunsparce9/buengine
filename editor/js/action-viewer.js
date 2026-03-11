@@ -8,36 +8,9 @@
 
 import { createFloatingWindow } from './floating-window.js';
 import { escapeHtml } from './state.js';
-import { ACTION_TYPES, detectType, createDefaultAction } from '../../js/action-schema.js';
+import { ACTION_TYPES, detectType, createDefaultAction, getActionMeta } from '../../js/action-schema.js';
 
 /* ── Action type metadata (derived from shared schema) ── */
-
-const _UNKNOWN_META = { icon: 'help_outline', color: '#7c6f64', label: 'Unknown', fields: [] };
-const ACTION_TYPE_QUIPS = {
-  say: 'show a dialogue box',
-  choice: 'offer a branching choice',
-  goto: 'jump to another scene',
-  set: 'flip or count flags',
-  if: 'branch on a condition',
-  loop: 'repeat while a condition holds',
-  wait: 'pause for a moment',
-  emit: 'broadcast an event',
-  run: 'run a definition',
-  fork: 'start a background sequence',
-  exit: 'stop this action chain',
-  show: 'reveal something on screen',
-  text: 'place text on screen',
-  hide: 'make something disappear',
-  effect: 'fade the whole scene',
-  playsound: 'start a sound cue',
-  stopsound: 'cut the current sound',
-  item: 'manage items',
-};
-
-/** Resolve metadata for a type, falling back to unknown. */
-function getActionMeta(type) {
-  return ACTION_TYPES[type] || _UNKNOWN_META;
-}
 
 /* ── Field schemas are now accessed via ACTION_TYPES[type].fields ── */
 
@@ -1491,7 +1464,7 @@ function pickActionType(parentFw) {
 
       const quip = document.createElement('span');
       quip.className = 'av-type-row-quip';
-      quip.textContent = ACTION_TYPE_QUIPS[type] || 'do something useful';
+      quip.textContent = meta.quip;
 
       row.append(ci, cl, quip);
       row.addEventListener('click', () => {
