@@ -526,40 +526,54 @@ button.av-chip:hover {
   gap: 8px;
 }
 
-/* ── Action viewer: type picker grid ───────────── */
+/* ── Action viewer: type picker list ───────────── */
 
-.av-type-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-
-.av-type-card {
+.av-type-list {
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 6px;
-  padding: 14px 8px;
+}
+
+.av-type-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
   border: 1px solid #3c3836;
   border-radius: 6px;
+  border-left: 3px solid var(--av-accent, #7c6f64);
   background: #1d2021;
   cursor: pointer;
   transition: all 0.15s;
-  border-left: 3px solid var(--av-accent, #7c6f64);
+  text-align: left;
 }
-.av-type-card .material-symbols-outlined { font-size: 26px; }
-.av-type-card:hover {
+
+.av-type-row:hover {
   background: #282828;
   border-color: var(--av-accent, #7c6f64);
   box-shadow: 0 0 0 1px var(--av-accent, #7c6f64);
 }
 
-.av-type-card-label {
+.av-type-row-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.av-type-row-label {
   font-size: 11px;
   font-weight: 600;
   color: #ebdbb2;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.av-type-row-quip {
+  margin-left: auto;
+  font-size: 12px;
+  color: #ae9c8c;
+  font-style: italic;
+  white-space: nowrap;
 }
 
 /* ── Action viewer: drag-and-drop ──────────────── */

@@ -13,6 +13,23 @@ import { ACTION_TYPES, detectType, createDefaultAction } from '../../js/action-s
 /* ── Action type metadata (derived from shared schema) ── */
 
 const _UNKNOWN_META = { icon: 'help_outline', color: '#7c6f64', label: 'Unknown', fields: [] };
+const ACTION_TYPE_QUIPS = {
+  say: 'show a dialogue box',
+  choice: 'offer a branching choice',
+  goto: 'jump to another scene',
+  set: 'flip or count flags',
+  if: 'branch on a condition',
+  wait: 'pause for a moment',
+  emit: 'broadcast an event',
+  run: 'run a definition',
+  exit: 'stop this action chain',
+  show: 'reveal something on screen',
+  hide: 'make something disappear',
+  effect: 'fade the whole scene',
+  playsound: 'start a sound cue',
+  stopsound: 'cut the current sound',
+  item: 'manage items',
+};
 
 /** Resolve metadata for a type, falling back to unknown. */
 function getActionMeta(type) {
@@ -963,32 +980,39 @@ function pickActionType(parentFw) {
       parent: parentFw,
     });
 
-    const grid = document.createElement('div');
-    grid.className = 'av-type-grid';
+    const list = document.createElement('div');
+    list.className = 'av-type-list';
 
     for (const [type, meta] of Object.entries(ACTION_TYPES)) {
-      const card = document.createElement('button');
-      card.className = 'av-type-card';
-      card.style.setProperty('--av-accent', meta.color);
+      const row = document.createElement('button');
+      row.className = 'av-type-row';
+      row.style.setProperty('--av-accent', meta.color);
+
       const ci = document.createElement('span');
-      ci.className = 'material-symbols-outlined';
+      ci.className = 'av-type-row-icon material-symbols-outlined';
       ci.style.color = meta.color;
       ci.textContent = meta.icon;
+
       const cl = document.createElement('span');
-      cl.className = 'av-type-card-label';
+      cl.className = 'av-type-row-label';
       cl.textContent = meta.label;
-      card.append(ci, cl);
-      card.addEventListener('click', () => {
+
+      const quip = document.createElement('span');
+      quip.className = 'av-type-row-quip';
+      quip.textContent = ACTION_TYPE_QUIPS[type] || 'do something useful';
+
+      row.append(ci, cl, quip);
+      row.addEventListener('click', () => {
         if (resolved) return;
         resolved = true;
         fw.destroy();
         resolve(type);
       });
-      grid.appendChild(card);
+      list.appendChild(row);
     }
 
     fw.body.style.padding = '12px';
-    fw.body.appendChild(grid);
+    fw.body.appendChild(list);
     fw.onClose(() => { if (!resolved) { resolved = true; resolve(null); } });
     fw.open();
   });
