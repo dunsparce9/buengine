@@ -45,6 +45,7 @@ export function openOptionsModal({
 
   _openModals.set(modalKey, fw);
   fw.onClose(() => _openModals.delete(modalKey));
+  fw.body.classList.add('options-editor-body');
 
   buildOptionsContent(fw.body, {
     target,
@@ -116,7 +117,7 @@ function buildOptionsContent(container, ctx) {
     tdIcon.className = 'items-opt-td-icon';
     const iconInput = document.createElement('input');
     iconInput.type = 'text';
-    iconInput.className = 'items-options-input';
+    iconInput.className = 'items-options-input items-options-icon-input';
     iconInput.value = opt.icon || '';
     iconInput.placeholder = 'Icon';
     iconInput.addEventListener('input', () => {

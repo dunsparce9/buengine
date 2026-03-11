@@ -14,6 +14,7 @@ import {
 import { resolveAssetURLSync } from './fs-provider.js';
 import { showContextMenu } from './context-menu.js';
 import { openOptionsModal } from './options-editor.js';
+import { openActionViewer } from './action-viewer.js';
 
 export function renderItemsViewport(items, viewport) {
   syncSelectedItem(items);
@@ -305,6 +306,7 @@ function renderSelectedItemEditor(item, items, container) {
 }
 
 function renderReadonlyOptions(item, container, scriptId) {
+  const ownerLabel = item.name || item.id;
   const group = document.createElement('div');
   group.className = 'prop-group';
 
@@ -315,10 +317,10 @@ function renderReadonlyOptions(item, container, scriptId) {
 
   const openBtn = document.createElement('button');
   openBtn.type = 'button';
-  openBtn.className = 'items-options-open-btn';
+  openBtn.className = 'prop-action-btn';
   openBtn.innerHTML =
     '<span class="material-symbols-outlined">tune</span>' +
-    '<span>Inspect options</span>';
+    '<span>Manage options</span>';
   openBtn.addEventListener('click', () => openItemOptionsModal(item));
   group.appendChild(openBtn);
 
@@ -335,10 +337,41 @@ function renderReadonlyOptions(item, container, scriptId) {
   for (let i = 0; i < options.length; i++) {
     const opt = options[i];
     const row = document.createElement('div');
-    row.className = 'prop-row items-option-row';
-    row.innerHTML =
-      `<span class="prop-key">${escapeHtml(opt.text || `Option ${i + 1}`)}</span>` +
-      `<span class="prop-val">${escapeHtml(opt.icon || '—')} · ${(opt.actions || []).length} action(s)</span>`;
+    row.className = 'prop-row';
+
+    const key = document.createElement('span');
+    key.className = 'prop-key';
+    key.textContent = opt.text || `Option ${i + 1}`;
+
+    const meta = document.createElement('span');
+    meta.className = 'prop-val prop-option-meta';
+
+    const icon = document.createElement('span');
+    icon.textContent = opt.icon || '—';
+
+    const separator = document.createElement('span');
+    separator.textContent = '·';
+
+    const link = document.createElement('span');
+    link.className = 'prop-action-link';
+    link.textContent = `${Array.isArray(opt.actions) ? opt.actions.length : 0} action(s)`;
+    link.addEventListener('click', () => {
+      const actions = Array.isArray(opt.actions) ? opt.actions : (opt.actions = []);
+      openActionViewer(
+        `${ownerLabel} — ${opt.text || 'Option ' + (i + 1)}`,
+        actions,
+        {
+          onChange: () => {
+            markDirty(scriptId);
+            hooks.renderViewport();
+            hooks.renderProperties();
+          },
+        }
+      );
+    });
+
+    meta.append(icon, separator, link);
+    row.append(key, meta);
     group.appendChild(row);
   }
 
