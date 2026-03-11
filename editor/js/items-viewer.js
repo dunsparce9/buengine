@@ -15,6 +15,7 @@ import { resolveAssetURLSync } from './fs-provider.js';
 import { showContextMenu } from './context-menu.js';
 import { openOptionsModal } from './options-editor.js';
 import { openActionEditor } from './action-editor.js';
+import { createSectionHeader } from './section-header.js';
 
 const ITEM_SECTION_ICONS = {
   'Items': 'inventory_2',
@@ -23,24 +24,11 @@ const ITEM_SECTION_ICONS = {
   'Options': 'tune',
 };
 
-function createGroupTitle(title) {
-  const heading = document.createElement('div');
-  heading.className = 'prop-group-title';
-
-  const label = String(title);
-  const match = Object.entries(ITEM_SECTION_ICONS).find(([prefix]) => label === prefix || label.startsWith(`${prefix} (`));
-  if (match) {
-    const icon = document.createElement('span');
-    icon.className = 'material-symbols-outlined prop-group-title-icon';
-    icon.setAttribute('aria-hidden', 'true');
-    icon.textContent = match[1];
-    heading.appendChild(icon);
-  }
-
-  const text = document.createElement('span');
-  text.textContent = label;
-  heading.appendChild(text);
-  return heading;
+function createGroupTitle(title, options) {
+  return createSectionHeader(title, {
+    iconMap: ITEM_SECTION_ICONS,
+    ...options,
+  });
 }
 
 export function renderItemsViewport(items, viewport) {
@@ -335,17 +323,10 @@ function renderReadonlyOptions(item, container, scriptId) {
   const group = document.createElement('div');
   group.className = 'prop-group';
 
-  const heading = createGroupTitle(`Options (${(item.options || []).length})`);
+  const heading = createGroupTitle(`Options (${(item.options || []).length})`, {
+    onClick: () => openItemOptionsModal(item),
+  });
   group.appendChild(heading);
-
-  const openBtn = document.createElement('button');
-  openBtn.type = 'button';
-  openBtn.className = 'prop-action-btn';
-  openBtn.innerHTML =
-    '<span class="material-symbols-outlined">tune</span>' +
-    '<span>Manage options</span>';
-  openBtn.addEventListener('click', () => openItemOptionsModal(item));
-  group.appendChild(openBtn);
 
   const options = item.options || [];
   if (!options.length) {

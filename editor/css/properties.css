@@ -51,6 +51,48 @@
   opacity: 0.92;
 }
 
+.prop-group-title-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.prop-group-title-button:focus-visible {
+  outline: 1px solid #83a598;
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+.prop-group-title-text {
+  text-underline-offset: 3px;
+}
+
+.prop-group-title-button .prop-group-title-text {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.prop-group-title-button:hover .prop-group-title-text {
+  color: #d5c4a1;
+}
+
+.prop-group-title-chevron {
+  font-size: 15px;
+  color: inherit;
+}
+
+.prop-group-title-button:hover .prop-group-title-chevron {
+  color: #d5c4a1;
+}
+
 .prop-row {
   display: flex;
   padding: 3px 0;
@@ -131,37 +173,6 @@
 }
 .prop-action-link:hover {
   color: #bdae93;
-}
-
-/* ── Property action buttons ───────────────────── */
-
-.prop-action-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.prop-action-btn {
-  margin-bottom: 8px;
-  border: 1px solid rgba(131, 165, 152, 0.35);
-  background: rgba(131, 165, 152, 0.12);
-  color: #83a598;
-}
-
-.prop-action-btn:hover {
-  background: rgba(131, 165, 152, 0.2);
-  border-color: #83a598;
-}
-
-.prop-action-btn .material-symbols-outlined {
-  font-size: 16px;
 }
 
 .prop-option-meta {

@@ -9,6 +9,7 @@ import { getFileExtension, getFileKind, isPreviewableMedia } from './file-types.
 import { renderItemsProperties } from './items-viewer.js';
 import { openOptionsModal, createDefaultObjectOption } from './options-editor.js';
 import { selectScript } from './file-panel.js';
+import { createSectionHeader } from './section-header.js';
 
 let _assetInfoRequestId = 0;
 
@@ -36,24 +37,11 @@ function focusSceneInEditor(sceneId) {
   selectScript(sceneId);
 }
 
-function createGroupTitle(title) {
-  const heading = document.createElement('div');
-  heading.className = 'prop-group-title';
-
-  const label = String(title);
-  const match = Object.entries(SECTION_ICONS).find(([prefix]) => label === prefix || label.startsWith(`${prefix} (`));
-  if (match) {
-    const icon = document.createElement('span');
-    icon.className = 'material-symbols-outlined prop-group-title-icon';
-    icon.setAttribute('aria-hidden', 'true');
-    icon.textContent = match[1];
-    heading.appendChild(icon);
-  }
-
-  const text = document.createElement('span');
-  text.textContent = label;
-  heading.appendChild(text);
-  return heading;
+function createGroupTitle(title, options) {
+  return createSectionHeader(title, {
+    iconMap: SECTION_ICONS,
+    ...options,
+  });
 }
 
 
@@ -633,15 +621,8 @@ function addOptionsLinkGroup(title, options, onManage, onOpenOptionActions) {
   const group = document.createElement('div');
   group.className = 'prop-group';
 
-  const heading = createGroupTitle(`${title} (${options.length})`);
+  const heading = createGroupTitle(`${title} (${options.length})`, { onClick: onManage });
   group.appendChild(heading);
-
-  const manageBtn = document.createElement('button');
-  manageBtn.type = 'button';
-  manageBtn.className = 'prop-action-btn';
-  manageBtn.innerHTML = '<span class="material-symbols-outlined">tune</span> Manage options';
-  manageBtn.addEventListener('click', onManage);
-  group.appendChild(manageBtn);
 
   if (!options.length) {
     const empty = document.createElement('div');
