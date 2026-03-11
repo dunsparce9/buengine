@@ -308,7 +308,7 @@ function pickActionType(parentFw) {
     let resolved = false;
     const fw = createFloatingWindow({
       title: 'Actions',
-      subtitle: 'Add Action',
+      subtitle: 'Add action...',
       icon: 'add_circle',
       iconClass: 'material-symbols-outlined',
       width: 420,

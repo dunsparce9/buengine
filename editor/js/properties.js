@@ -8,6 +8,7 @@ import { findNode } from './fs-provider.js';
 import { getFileExtension, getFileKind, isPreviewableMedia } from './file-types.js';
 import { renderItemsProperties } from './items-viewer.js';
 import { openOptionsModal, createDefaultObjectOption } from './options-editor.js';
+import { openSequencesModal } from './sequence-editor.js';
 import { selectScript } from './file-panel.js';
 import { createSectionHeader } from './section-header.js';
 
@@ -122,11 +123,9 @@ function renderSceneProps(data) {
     );
   }
 
-  const sequences = data.sequences || data.definitions;
-  if (sequences) {
-    const names = Object.keys(sequences);
-    addSequencesGroup(data, names);
-  }
+  const sequences = data.sequences || data.definitions || {};
+  const names = Object.keys(sequences);
+  addSequencesGroup(data, names);
 }
 
 const STANDARD_CURSORS = [
@@ -699,8 +698,29 @@ function addSequencesGroup(data, names) {
   const group = document.createElement('div');
   group.className = 'prop-group';
 
-  const heading = createGroupTitle(`Sequences (${names.length})`);
+  const openSequencesManager = () => openSequencesModal({
+    sceneData: data,
+    scriptId: data.id,
+    modalKey: `${data.id}:sequences`,
+    actionViewerContext: {
+      sceneId: data.id,
+      sceneData: data,
+      markDirty,
+      focusScene: focusSceneInEditor,
+    },
+  });
+
+  const heading = createGroupTitle(`Sequences (${names.length})`, { onClick: openSequencesManager });
   group.appendChild(heading);
+
+  if (!names.length) {
+    const empty = document.createElement('div');
+    empty.className = 'props-empty';
+    empty.textContent = 'No sequences defined.';
+    group.appendChild(empty);
+    dom.propsContent.appendChild(group);
+    return;
+  }
 
   for (const name of names) {
     const actions = (data.sequences || data.definitions)[name];

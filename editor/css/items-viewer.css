@@ -294,6 +294,11 @@
   width: 84px;
 }
 
+.sequences-th-name,
+.sequences-td-name {
+  width: 70%;
+}
+
 .items-opt-td-icon {
   width: 84px;
 }
