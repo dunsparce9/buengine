@@ -67,6 +67,16 @@ export const ACTION_TYPES = {
     defaults: { if: '', then: [], else: [] },
   },
 
+  loop: {
+    icon: 'repeat',
+    color: '#b16286',
+    label: 'Loop',
+    fields: [
+      { key: 'loop', label: 'Condition', type: 'string', required: true },
+    ],
+    defaults: { loop: '', do: [] },
+  },
+
   wait: {
     icon: 'hourglass_empty',
     color: '#a89984',

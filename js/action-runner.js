@@ -11,6 +11,7 @@
  *   { "set": { "flag_name": { "add": 1, "max": 5 } } }        // increment with optional min/max clamp
  *   { "if": "flag_name", "then": [...], "else": [...] }        // truthiness check
  *   { "if": "flag_name >= 3", "then": [...], "else": [...] }   // numeric comparison (==, !=, >, >=, <, <=)
+ *   { "loop": "flag_name < 3", "do": [...] }                   // repeat while condition remains true
  *   { "wait": 500 }            // milliseconds
  *   { "emit": "custom:event" } // fire a bus event
  *   { "run": "definition_name" } // inline-expand a named definition (supports recursion)
@@ -91,7 +92,11 @@ export class ActionRunner {
 
         const frame = frames[frames.length - 1];
         if (frame.index >= frame.actions.length) {
-          frames.pop();
+          if (frame.loopCondition && this._evalCondition(frame.loopCondition)) {
+            frame.index = 0;
+          } else {
+            frames.pop();
+          }
           continue;
         }
 
@@ -109,6 +114,13 @@ export class ActionRunner {
             const result = this._evalCondition(action.if);
             const branch = result ? action.then : action.else;
             if (branch?.length) frames.push({ actions: branch, index: 0 });
+            break;
+          }
+          case 'loop': {
+            const loopActions = this._resolveLoopActions(action);
+            if (loopActions?.length && this._evalCondition(action.loop)) {
+              frames.push({ actions: loopActions, index: 0, loopCondition: action.loop });
+            }
             break;
           }
           case 'wait':      await this._delay(action.wait); break;
@@ -190,6 +202,12 @@ export class ActionRunner {
     if (Array.isArray(forkDef)) return forkDef;
     if (Array.isArray(forkDef?.actions)) return forkDef.actions;
     if (typeof forkDef?.run === 'string') return this.definitions[forkDef.run] ?? null;
+    return null;
+  }
+
+  _resolveLoopActions(action) {
+    if (Array.isArray(action.do)) return action.do;
+    if (Array.isArray(action.then)) return action.then;
     return null;
   }
 

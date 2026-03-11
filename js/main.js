@@ -51,6 +51,7 @@ function collectGotos(actions, out) {
     if (a.goto) out.add(a.goto);
     if (a.then) collectGotos(a.then, out);
     if (a.else) collectGotos(a.else, out);
+    if (a.do) collectGotos(a.do, out);
     if (Array.isArray(a.fork)) collectGotos(a.fork, out);
     if (Array.isArray(a.fork?.actions)) collectGotos(a.fork.actions, out);
     if (a.choice?.options) {

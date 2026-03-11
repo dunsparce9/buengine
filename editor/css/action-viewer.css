@@ -208,6 +208,7 @@
 
 .av-branch-then { color: #8ec07c; }
 .av-branch-else { color: #fb4934; }
+.av-branch-loop { color: #b16286; }
 
 /* Chip (goto, run, emit) */
 .av-chip {

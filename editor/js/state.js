@@ -90,6 +90,7 @@ export function collectImagePaths() {
         if (a.show?.texture) paths.add(a.show.texture);
         if (Array.isArray(a.then)) walkActions(a.then);
         if (Array.isArray(a.else)) walkActions(a.else);
+        if (Array.isArray(a.do)) walkActions(a.do);
         if (a.choice?.options) {
           for (const o of a.choice.options) walkActions(o.actions);
         }

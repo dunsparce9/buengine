@@ -19,6 +19,7 @@ const ACTION_TYPE_QUIPS = {
   goto: 'jump to another scene',
   set: 'flip or count flags',
   if: 'branch on a condition',
+  loop: 'repeat while a condition holds',
   wait: 'pause for a moment',
   emit: 'broadcast an event',
   run: 'run a definition',
@@ -87,6 +88,7 @@ function renderActionBody(action, type, viewCtx = {}) {
     case 'goto':      return renderGotoChip(action.goto, '#8ec07c', viewCtx);
     case 'set':       return renderSet(action.set);
     case 'if':        return renderIf(action, viewCtx);
+    case 'loop':      return renderLoop(action, viewCtx);
     case 'wait':      return renderSimpleValue(`${action.wait} ms`);
     case 'emit':      return renderChip(action.emit, '#b8bb26');
     case 'run':       return renderRunChip(action.run, '#83a598', viewCtx);
@@ -225,6 +227,30 @@ function renderIf(action, viewCtx = {}) {
     const elseList = buildReadOnlyList(action.else, viewCtx);
     elseList.className += ' av-nested';
     body.appendChild(elseList);
+  }
+
+  return body;
+}
+
+function renderLoop(action, viewCtx = {}) {
+  const body = document.createElement('div');
+  body.className = 'av-body av-if-body';
+
+  const cond = document.createElement('div');
+  cond.className = 'av-if-condition';
+  cond.innerHTML = `<span class="av-if-keyword">loop</span> <code>${escapeHtml(action.loop)}</code>`;
+  body.appendChild(cond);
+
+  const loopActions = Array.isArray(action.do) ? action.do : (Array.isArray(action.then) ? action.then : []);
+  if (loopActions.length > 0) {
+    const doLabel = document.createElement('div');
+    doLabel.className = 'av-branch-label av-branch-loop';
+    doLabel.textContent = 'do';
+    body.appendChild(doLabel);
+
+    const doList = buildReadOnlyList(loopActions, viewCtx);
+    doList.className += ' av-nested';
+    body.appendChild(doList);
   }
 
   return body;
@@ -656,6 +682,7 @@ function buildEditForm(action, type, ctx) {
   if (type === 'set')    form.appendChild(buildSetEditor(action, ctx));
   if (type === 'choice') form.appendChild(buildChoiceEditor(action, ctx));
   if (type === 'if')     form.appendChild(buildIfBranchesEditor(action, ctx));
+  if (type === 'loop')   form.appendChild(buildLoopEditor(action, ctx));
 
   return form;
 }
@@ -1006,6 +1033,48 @@ function buildIfBranchesEditor(action, ctx) {
 
   wrap.appendChild(branchRow('then', 'av-branch-then', 'then'));
   wrap.appendChild(branchRow('else', 'av-branch-else', 'else'));
+  return wrap;
+}
+
+function buildLoopEditor(action, ctx) {
+  const wrap = document.createElement('div');
+  wrap.className = 'av-if-editor';
+
+  const row = document.createElement('div');
+  row.className = 'av-branch-edit-row';
+
+  const lbl = document.createElement('span');
+  lbl.className = 'av-branch-label av-branch-loop';
+  lbl.textContent = 'do';
+
+  const btn = document.createElement('button');
+  btn.className = 'av-mini-btn';
+  const getLoopActions = () => {
+    if (Array.isArray(action.do)) return action.do;
+    if (Array.isArray(action.then)) return action.then;
+    action.do = [];
+    return action.do;
+  };
+  const renderLabel = () => {
+    btn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${getLoopActions().length} action(s)`;
+  };
+  renderLabel();
+  btn.addEventListener('click', () => {
+    const loopActions = getLoopActions();
+    openActionViewer('do', loopActions, {
+      onChange() {
+        ctx.onFieldChange();
+        renderLabel();
+      },
+      sceneId: ctx.opts.sceneId,
+      sceneData: ctx.opts.sceneData,
+      markDirty: ctx.opts.markDirty,
+      focusScene: ctx.opts.focusScene,
+    });
+  });
+
+  row.append(lbl, btn);
+  wrap.appendChild(row);
   return wrap;
 }
 
