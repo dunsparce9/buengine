@@ -1,0 +1,78 @@
+/* ── Shared editor toolbars ───────────────────── */
+
+.editor-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  background: linear-gradient(180deg, rgba(40, 40, 40, 0.98), rgba(40, 40, 40, 0.92));
+  border-bottom: 1px solid #3c3836;
+  backdrop-filter: blur(6px);
+}
+
+.editor-toolbar-group {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.editor-toolbar-group-right {
+  margin-left: auto;
+}
+
+.editor-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid #504945;
+  border-radius: 5px;
+  background: rgba(29, 32, 33, 0.88);
+  color: #a89984;
+  cursor: pointer;
+  transition: all 0.15s;
+  font: inherit;
+}
+
+.editor-toolbar-btn .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.editor-toolbar-btn:hover {
+  background: #32302f;
+}
+
+.editor-toolbar-btn-collapse {
+  width: 28px;
+  padding: 0;
+}
+
+.editor-toolbar-btn-collapse:hover {
+  border-color: #83a598;
+  color: #83a598;
+}
+
+.editor-toolbar-btn-add {
+  color: #8ec07c;
+  border-color: rgba(142, 192, 124, 0.45);
+  background: rgba(142, 192, 124, 0.08);
+}
+
+.editor-toolbar-btn-add:hover {
+  color: #b8d9a8;
+  border-color: #8ec07c;
+  background: rgba(142, 192, 124, 0.18);
+}
+
+.editor-toolbar-btn-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}

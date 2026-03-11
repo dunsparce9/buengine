@@ -1,4 +1,5 @@
 import { createFloatingWindow } from '../floating-window.js';
+import { createEditorToolbar } from '../editor-toolbar.js';
 import { ACTION_TYPES, detectType, createDefaultAction, getActionMeta } from '../../../js/action-schema.js';
 import {
   getOpenEditor,
@@ -90,44 +91,26 @@ function moveActionBetweenEditors(sourceEditor, sourceIdx, targetEditor, targetI
 }
 
 function buildEditorContent(container, editorState) {
-  const toolbar = document.createElement('div');
-  toolbar.className = 'ae-toolbar';
-
-  const collapseBtn = document.createElement('button');
-  collapseBtn.className = 'ae-toolbar-btn ae-toolbar-btn-collapse';
-  collapseBtn.type = 'button';
-  collapseBtn.title = editorState.collapsed ? 'Expand actions' : 'Collapse actions';
-  collapseBtn.setAttribute('aria-label', editorState.collapsed ? 'Expand actions' : 'Collapse actions');
-  collapseBtn.innerHTML = `<span class="material-symbols-outlined">${editorState.collapsed ? 'unfold_more' : 'unfold_less'}</span>`;
-  collapseBtn.addEventListener('click', () => {
-    editorState.collapsed = !editorState.collapsed;
-    editorState.rebuild();
-  });
-
-  const addBtn = document.createElement('button');
-  addBtn.className = 'ae-toolbar-btn ae-toolbar-btn-add';
-  addBtn.type = 'button';
-  addBtn.title = 'Add action';
-  addBtn.setAttribute('aria-label', 'Add action');
-  addBtn.innerHTML = '<span class="material-symbols-outlined">add_circle</span>';
-  addBtn.addEventListener('click', async () => {
-    const type = await pickActionType(editorState.fw);
-    if (!type) return;
-    editorState.actions.push(createDefaultAction(type));
-    notifyEditorChange(editorState);
-    editorState.rebuild();
-  });
-
-  const left = document.createElement('div');
-  left.className = 'ae-toolbar-group ae-toolbar-group-left';
-  left.appendChild(collapseBtn);
-
-  const right = document.createElement('div');
-  right.className = 'ae-toolbar-group ae-toolbar-group-right';
-  right.appendChild(addBtn);
-
-  toolbar.append(left, right);
-  container.appendChild(toolbar);
+  container.appendChild(createEditorToolbar({
+    collapsed: editorState.collapsed,
+    onToggleCollapse: () => {
+      editorState.collapsed = !editorState.collapsed;
+      editorState.rebuild();
+    },
+    addLabel: 'Add',
+    addTitle: 'Add action',
+    addAriaLabel: 'Add action',
+    onAdd: async () => {
+      const type = await pickActionType(editorState.fw);
+      if (!type) return;
+      editorState.actions.push(createDefaultAction(type));
+      notifyEditorChange(editorState);
+      editorState.rebuild();
+    },
+    collapseTitleCollapsed: 'Expand actions',
+    collapseTitleExpanded: 'Collapse actions',
+    extraClassName: 'ae-toolbar',
+  }));
 
   if (editorState.actions && editorState.actions.length > 0) {
     container.appendChild(buildEditableList(editorState));

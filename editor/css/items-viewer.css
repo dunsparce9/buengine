@@ -223,7 +223,26 @@
 /* ── Items Options modal table ─────────────────── */
 
 .options-editor-body {
-  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.options-editor-toolbar {
+  position: relative;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 8px 12px;
+  top: auto;
+  border-bottom: 1px solid #3c3836;
+}
+
+.options-editor-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
 }
 
 .items-options-table {
@@ -258,6 +277,23 @@
 }
 .items-options-table tbody tr:hover {
   background: rgba(131, 165, 152, 0.06);
+}
+
+.items-options-table-compact thead th {
+  padding: 6px 10px;
+  font-size: 10px;
+}
+
+.items-options-table-compact {
+  table-layout: fixed;
+}
+
+.items-options-table-compact tbody td {
+  padding: 6px 10px;
+}
+
+.items-options-table-compact tbody tr:hover {
+  background: transparent;
 }
 
 .items-opt-th-icon {
@@ -307,4 +343,33 @@
 
 .items-options-input:focus {
   border-color: #fe8019;
+}
+
+.items-options-compact-text,
+.items-options-compact-actions {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  color: #d5c4a1;
+  font-size: 12px;
+}
+
+.items-options-compact-text {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.items-options-compact-icon {
+  justify-content: center;
+  width: 100%;
+  color: #ebdbb2;
+  font-size: 15px;
+}
+
+.items-options-compact-actions {
+  color: #83a598;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
