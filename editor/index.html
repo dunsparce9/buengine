@@ -27,19 +27,19 @@
             <div class="menu-action menu-action-empty">No recent folders</div>
           </div>
         </div>
-        <div class="menu-sep" data-requires-game></div>
-        <button class="menu-action" data-action="save" data-requires-game><span class="material-symbols-outlined">save</span>Save<span class="menu-shortcut">Ctrl+S</span></button>
-        <button class="menu-action" data-action="save-all" data-requires-game><span class="material-symbols-outlined">save_as</span>Save All<span class="menu-shortcut">Ctrl+Shift+S</span></button>
+        <div class="menu-sep" data-requires-game hidden></div>
+        <button class="menu-action" data-action="save" data-requires-game hidden><span class="material-symbols-outlined">save</span>Save<span class="menu-shortcut">Ctrl+S</span></button>
+        <button class="menu-action" data-action="save-all" data-requires-game hidden><span class="material-symbols-outlined">save_as</span>Save All<span class="menu-shortcut">Ctrl+Shift+S</span></button>
         <div class="menu-sep"></div>
         <button class="menu-action" data-action="import-zip"><span class="material-symbols-outlined">upload_file</span>Import ZIP&hellip;</button>
-        <button class="menu-action" data-action="export-zip" data-requires-game><span class="material-symbols-outlined">archive</span>Export as ZIP</button>
-        <div class="menu-sep" data-requires-game></div>
-        <button class="menu-action" data-action="export-json" data-requires-game><span class="material-symbols-outlined">file_download</span>Export current JSON</button>
-        <div class="menu-sep" data-requires-game></div>
+        <button class="menu-action" data-action="export-zip" data-requires-game hidden><span class="material-symbols-outlined">archive</span>Export as ZIP</button>
+        <div class="menu-sep" data-requires-game hidden></div>
+        <button class="menu-action" data-action="export-json" data-requires-game hidden><span class="material-symbols-outlined">file_download</span>Export current JSON</button>
+        <div class="menu-sep" data-requires-game hidden></div>
         <button class="menu-action" data-action="exit"><span class="material-symbols-outlined">exit_to_app</span>Exit</button>
       </div>
     </div>
-    <div class="menu-item" data-menu="run" data-requires-game>
+    <div class="menu-item" data-menu="run" data-requires-game hidden>
       Run
       <div class="menu-dropdown" id="menu-run">
         <button class="menu-action" data-action="run-in-tab"><span class="material-symbols-outlined">open_in_new</span>Run in new tab</button>
@@ -55,7 +55,7 @@
       </div>
     </div>
     <div class="menu-spacer"></div>
-    <button class="menu-run-btn" id="run-btn" title="Run in new tab" data-requires-game><span class="material-symbols-outlined">play_arrow</span>Run</button>
+    <button class="menu-run-btn" id="run-btn" title="Run in new tab" data-requires-game hidden><span class="material-symbols-outlined">play_arrow</span>Run</button>
   </div>
 
   <!-- ── Main layout ──────────────────────────── -->
