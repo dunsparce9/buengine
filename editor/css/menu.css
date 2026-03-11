@@ -55,7 +55,8 @@
   opacity: 0.75;
   flex-shrink: 0;
 }
-.menu-action:hover {
+.menu-action:hover,
+.menu-action.menu-hover {
   background: #3c3836;
 }
 

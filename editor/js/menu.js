@@ -8,6 +8,7 @@
  */
 export function initMenu(handlers) {
   const items = [...document.querySelectorAll('.menu-item')];
+  const actionButtons = [...document.querySelectorAll('.menu-action')];
   const closeMenus = () => {
     document.querySelectorAll('.menu-item.open').forEach(m => m.classList.remove('open'));
   };
@@ -16,14 +17,29 @@ export function initMenu(handlers) {
       menuItem.classList.toggle('open', menuItem === item);
     });
   };
+  const dispatchAction = (btn) => {
+    if (!btn || btn.disabled) return;
+    closeMenus();
+    pointerMenuMode = false;
+    const action = btn.dataset.action;
+    if (handlers[action]) handlers[action]();
+  };
+  const setHoveredAction = (btn) => {
+    actionButtons.forEach(actionBtn => {
+      actionBtn.classList.toggle('menu-hover', actionBtn === btn);
+    });
+  };
 
   let pointerMenuMode = false;
+  let pointerPressed = false;
 
   for (const item of items) {
     item.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return;
       pointerMenuMode = true;
+      pointerPressed = true;
       openMenu(item);
+      setHoveredAction(null);
       e.preventDefault();
       e.stopPropagation();
     });
@@ -41,25 +57,41 @@ export function initMenu(handlers) {
     });
   }
 
-  document.addEventListener('pointerup', () => {
+  for (const btn of actionButtons) {
+    btn.addEventListener('pointerenter', () => {
+      if (!pointerPressed) return;
+      setHoveredAction(btn.disabled ? null : btn);
+    });
+
+    btn.addEventListener('pointerleave', () => {
+      if (!pointerPressed) return;
+      setHoveredAction(null);
+    });
+  }
+
+  document.addEventListener('pointerup', (e) => {
+    if (pointerPressed && pointerMenuMode) {
+      dispatchAction(e.target.closest('.menu-action'));
+    }
+    pointerPressed = false;
     pointerMenuMode = false;
+    setHoveredAction(null);
   });
 
   // Close menus on outside click/pointer interaction.
   document.addEventListener('pointerdown', (e) => {
     if (e.target.closest('#menu-bar')) return;
     closeMenus();
+    pointerPressed = false;
     pointerMenuMode = false;
+    setHoveredAction(null);
   });
 
   // Menu actions
-  for (const btn of document.querySelectorAll('.menu-action')) {
+  for (const btn of actionButtons) {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      closeMenus();
-      pointerMenuMode = false;
-      const action = btn.dataset.action;
-      if (handlers[action]) handlers[action]();
+      dispatchAction(btn);
     });
   }
 }
