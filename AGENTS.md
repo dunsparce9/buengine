@@ -8,8 +8,8 @@ applyTo: "**"
 ## Project Overview
 büegame is a **static, browser-only, 2D point-and-click adventure game engine**. There is no server, no build step, no bundler — just ES modules served from files. Games are stored in `games/` as self-contained folders, each with its own JSON scripts and assets.
 
-## Testing and verification (important!)
-No testing, browser automation or CI steps. Just write code. The user handles in-browser verification themselves. (You can still note manual testing steps or any "gotchas" for the user *as necessary*.)
+## Testing and verification
+No testing, browser automation or CI steps (syntax checks are fine). The user handles in-browser verification.
 
 ## Architecture
 
@@ -69,6 +69,7 @@ Actions are objects in an array. Supported commands:
 | Increment (clamped) | `{ "set": { "flag_name": { "add": 1, "max": 5 } } }` — increment with optional `min`/`max` clamp |
 | Conditional (bool) | `{ "if": "flag_name", "then": [...], "else": [...] }` — truthiness check |
 | Conditional (cmp) | `{ "if": "flag_name >= 3", "then": [...], "else": [...] }` — numeric comparison (`==`, `!=`, `>`, `>=`, `<`, `<=`) |
+| Loop | `{ "loop": "flag_name < 3", "do": [...] }` — repeats the nested actions while the condition stays true |
 | Wait | `{ "wait": 500 }` |
 | Custom event | `{ "emit": "event_name" }` |
 | Run definition | `{ "run": "definition_name" }` — expands the definition inline; it is not its own blocking layer |
