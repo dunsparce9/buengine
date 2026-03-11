@@ -12,6 +12,7 @@ import { renderViewport, initViewportInteractions } from './viewport.js';
 import { renderProperties } from './properties.js';
 import { initMenu } from './menu.js';
 import { initResizeHandles } from './resize.js';
+import { promptForConfirmation } from './confirm-dialog.js';
 import {
   openFolder, buildTree, writeFile, writeFileBinary, readFileBinary,
   collectAllPaths, cacheAssetURLs, clearAssetCache, resolveAssetURL,
@@ -26,6 +27,20 @@ hooks.renderProperties = renderProperties;
 
 function hasLoadedGame() {
   return Boolean(state.manifest && Object.keys(state.scripts).length);
+}
+
+function hasUnsavedChanges() {
+  return state.dirtySet.size > 0;
+}
+
+async function confirmDiscardUnsavedChanges(message = 'You have unsaved changes. Discard them?') {
+  if (!hasUnsavedChanges()) return true;
+  return promptForConfirmation({
+    title: 'Unsaved Changes',
+    icon: 'warning',
+    message,
+    confirmLabel: 'Discard',
+  });
 }
 
 function updateMenuVisibility() {
@@ -115,6 +130,10 @@ const aboutWindow = createFloatingWindow({
 /* ── Open Folder ───────────────────────────────── */
 
 async function handleOpenFolder() {
+  if (!await confirmDiscardUnsavedChanges('You have unsaved changes. Open a different folder and discard them?')) {
+    return;
+  }
+
   const handle = await openFolder();
   if (!handle) return;
 
@@ -266,6 +285,9 @@ async function exportZip() {
 async function importZip() {
   if (!state.rootHandle) {
     showToast('No folder open (File → Open Folder)', 'error');
+    return;
+  }
+  if (!await confirmDiscardUnsavedChanges('You have unsaved changes. Importing a ZIP will reload the editor and discard them. Continue?')) {
     return;
   }
   const input = document.createElement('input');
@@ -428,7 +450,10 @@ initMenu({
   'export-json': exportCurrentJson,
   'export-zip':  exportZip,
   'import-zip':  importZip,
-  'exit':        () => {
+  'exit':        async () => {
+    if (!await confirmDiscardUnsavedChanges('You have unsaved changes. Leave the editor and discard them?')) {
+      return;
+    }
     window.location.href = '../index.html';
   },
   'install-app': installApp,
@@ -468,6 +493,11 @@ initFilePanelDrop();
 
 /* ── Viewport resize ───────────────────────────── */
 window.addEventListener('resize', () => renderViewport());
+window.addEventListener('beforeunload', (event) => {
+  if (!hasUnsavedChanges()) return;
+  event.preventDefault();
+  event.returnValue = '';
+});
 
 /* ── Boot ──────────────────────────────────────── */
 (async () => {
