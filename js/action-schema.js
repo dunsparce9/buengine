@@ -143,6 +143,27 @@ export const ACTION_TYPES = {
     defaults: { show: { id: '' } },
   },
 
+  text: {
+    icon: 'title',
+    color: '#fabd2f',
+    label: 'Text',
+    fields: [
+      { key: 'text.id',                    label: 'ID',                type: 'string', required: true },
+      { key: 'text.text',                  label: 'Text',              type: 'textarea', required: true },
+      { key: 'text.color',                 label: 'Color',             type: 'color', defaultValue: '#ffffff' },
+      { key: 'text.fontFamily',            label: 'Font family',       type: 'string' },
+      { key: 'text.fontSize',              label: 'Font size',         type: 'string' },
+      { key: 'text.backgroundColor',       label: 'Background color',  type: 'color' },
+      { key: 'text.position.anchor',       label: 'Anchor',            type: 'select', options: ['top-left', 'top-center', 'top-right', 'middle-left', 'middle-center', 'middle-right', 'bottom-left', 'bottom-center', 'bottom-right'] },
+      { key: 'text.position.x',            label: 'X (% or grid)',     type: 'string' },
+      { key: 'text.position.y',            label: 'Y (% or grid)',     type: 'string' },
+      { key: 'text.effect.type',           label: 'Effect type',       type: 'select', options: ['', 'fade-in', 'fade-out'] },
+      { key: 'text.effect.seconds',        label: 'Effect secs',       type: 'number', step: 0.5 },
+      { key: 'text.effect.blocking',       label: 'Effect blocking',   type: 'boolean' },
+    ],
+    defaults: { text: { id: '', text: '', position: { anchor: 'top-left' } } },
+  },
+
   hide: {
     icon: 'visibility_off',
     color: '#928374',

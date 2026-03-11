@@ -119,14 +119,16 @@
         "loop": "true",
         "do": [
           {
-            "show": {
+            "text": {
               "id": "dream1",
-              "texture": "images/scenes/dream1.png",
-              "layer": "overlay",
-              "scaling": "fill",
+              "text": "This game is for the faint-hearted",
+              "position": {
+                "anchor": "middle-center"
+              },
+              "fontSize": "24",
               "effect": {
-                "seconds": 3,
                 "type": "fade-in",
+                "seconds": 3,
                 "blocking": true
               }
             }
@@ -142,16 +144,18 @@
             }
           },
           {
-            "show": {
+            "text": {
               "id": "dream2",
-              "texture": "images/scenes/dream2.png",
-              "layer": "overlay",
-              "scaling": "fill",
+              "position": {
+                "anchor": "middle-center"
+              },
+              "fontSize": "24",
               "effect": {
                 "type": "fade-in",
                 "seconds": 3,
                 "blocking": true
-              }
+              },
+              "text": "__Nothing__ you do __mattress__"
             }
           },
           {
@@ -165,21 +169,52 @@
             }
           },
           {
-            "show": {
-              "id": "dream3",
-              "texture": "images/scenes/dream3.png",
-              "layer": "overlay",
-              "scaling": "fill",
+            "text": {
+              "id": "dream3a",
+              "position": {
+                "anchor": "middle-center"
+              },
+              "fontSize": "24",
               "effect": {
                 "type": "fade-in",
-                "seconds": 3,
+                "seconds": 4
+              },
+              "text": "The __numbers__ may even *change*",
+              "color": "#ffa3a3"
+            }
+          },
+          {
+            "text": {
+              "id": "dream3b",
+              "position": {
+                "anchor": "middle-center",
+                "y": "10%"
+              },
+              "effect": {
+                "type": "fade-in",
+                "seconds": 4,
                 "blocking": true
+              },
+              "text": "Lower numbers may result in suboptimal gameplay.",
+              "color": "#bdbdbd",
+              "fontSize": "12"
+            }
+          },
+          {
+            "wait": 1000
+          },
+          {
+            "hide": {
+              "id": "dream3a",
+              "effect": {
+                "type": "fade-out",
+                "seconds": 3
               }
             }
           },
           {
             "hide": {
-              "id": "dream3",
+              "id": "dream3b",
               "effect": {
                 "type": "fade-out",
                 "seconds": 3,
@@ -188,16 +223,19 @@
             }
           },
           {
-            "show": {
+            "text": {
               "id": "dream4",
-              "texture": "images/scenes/dream4.png",
-              "layer": "overlay",
-              "scaling": "fill",
+              "position": {
+                "anchor": "middle-center"
+              },
+              "fontSize": "36",
               "effect": {
                 "type": "fade-in",
                 "seconds": 3,
                 "blocking": true
-              }
+              },
+              "text": "Sample Text",
+              "color": "#FFFFFF"
             }
           },
           {

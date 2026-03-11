@@ -1,10 +1,10 @@
 /**
  * Renders a scene: sets the background and creates clickable object elements
- * positioned on a tile grid.  Also manages runtime image overlays.
+ * positioned on a tile grid. Also manages runtime image and text overlays.
  *
- * Both scene-defined objects (formerly "hotspots") and runtime overlays
- * created by `show` actions are tracked in a unified entity map so that
- * `show` / `hide` actions work on any entity by id.
+ * Both scene-defined objects (formerly "hotspots") and runtime entities
+ * created by `show` / `text` actions are tracked in a unified entity map
+ * so that `show` / `hide` actions work on any entity by id.
  */
 export class SceneRenderer {
   /**
@@ -23,8 +23,8 @@ export class SceneRenderer {
 
     /**
      * Unified entity registry.
-     * Scene objects and runtime overlays are both tracked here.
-     * @type {Map<string, { el: HTMLElement, def: object|null, runtime: boolean, visible: boolean }>}
+     * Scene objects and runtime entities are both tracked here.
+     * @type {Map<string, { el: HTMLElement, def: object|null, runtime: boolean, visible: boolean, kind: string }>}
      */
     this._entities = new Map();
 
@@ -41,7 +41,7 @@ export class SceneRenderer {
     bus.on('scene:effect',  (payload) => this._applyEffect(payload));
     bus.on('overlay:show',  (payload) => this._showEntity(payload));
     bus.on('overlay:hide',  (payload) => this._hideEntity(payload));
-    bus.on('overlay:clear', ()        => this._clearRuntimeOverlays());
+    bus.on('overlay:clear', ()        => this._clearRuntimeEntities());
   }
 
   /** Resize the scene layer to fit its parent while preserving the grid aspect ratio. */
@@ -144,7 +144,7 @@ export class SceneRenderer {
         });
 
         this.el.appendChild(div);
-        this._entities.set(obj.id, { el: div, def: obj, runtime: false, visible });
+        this._entities.set(obj.id, { el: div, def: obj, runtime: false, visible, kind: 'scene-object' });
       }
     }
   }
@@ -187,80 +187,34 @@ export class SceneRenderer {
   /* ── Unified entity show/hide ────────────────── */
 
   /**
-   * Show an entity.  If `id` matches a scene object, make it visible.
-   * Otherwise, create a new fullscreen runtime overlay (requires `texture`).
+   * Show an entity. If `id` matches an existing entity, reveal or update it.
+   * Otherwise, create a new runtime image or text entity.
    */
-  _showEntity({ id, texture, scaling, z, effect, onDone }) {
+  _showEntity(payload) {
+    const { id, texture, effect, onDone } = payload;
     const entry = this._entities.get(id);
 
     if (entry) {
-      // Existing entity — make visible
-      const el = entry.el;
-      entry.visible = true;
-      el.style.pointerEvents = '';
-
-      if (effect?.type === 'fade-in' && effect.seconds > 0) {
-        el.style.transition = 'none';
-        el.style.opacity = '0';
-        el.offsetWidth; // force reflow
-        el.style.transition = `opacity ${effect.seconds}s ease`;
-        el.style.opacity = '1';
-
-        if (effect.blocking) {
-          el.addEventListener('transitionend', () => onDone?.(), { once: true });
-        } else {
-          onDone?.();
-        }
-      } else {
-        el.style.opacity = '';
-        el.style.transition = '';
-        onDone?.();
-      }
+      this._updateRuntimeEntity(entry, payload);
+      this._revealEntity(entry, effect, onDone);
       return;
     }
 
-    if (texture) {
-      // Runtime overlay — create new fullscreen element
-      const el = document.createElement('div');
-      el.className = 'image-overlay';
-      el.dataset.objectId = id;
-      el.style.backgroundImage = `url('${CSS.escape(this._resolve(texture))}')`;
-
-      if (scaling === 'fill' || scaling === 'cover') {
-        el.style.backgroundSize = 'cover';
-      } else if (scaling === 'contain') {
-        el.style.backgroundSize = 'contain';
-      }
-
-      if (z != null) el.style.zIndex = z;
-
-      this.el.appendChild(el);
-      this._entities.set(id, { el, def: null, runtime: true, visible: true });
-
-      if (effect?.type === 'fade-in' && effect.seconds > 0) {
-        el.style.opacity = '0';
-        el.style.transition = `opacity ${effect.seconds}s ease`;
-        el.offsetWidth; // force reflow
-        el.style.opacity = '1';
-
-        if (effect.blocking) {
-          el.addEventListener('transitionend', () => onDone?.(), { once: true });
-        } else {
-          onDone?.();
-        }
-      } else {
-        onDone?.();
-      }
+    const runtime = this._createRuntimeEntity(payload);
+    if (runtime) {
+      this.el.appendChild(runtime.el);
+      this._entities.set(id, runtime);
+      this._applyFadeIn(runtime.el, effect, onDone);
       return;
     }
 
-    // No matching entity and no texture — nothing to show
+    // No matching entity and no renderable payload — nothing to show
     onDone?.();
   }
 
   /**
-   * Hide an entity by id.  Scene objects stay in the DOM (can be re-shown).
-   * Runtime overlays are removed from the DOM after the transition.
+   * Hide an entity by id. Scene objects stay in the DOM (can be re-shown).
+   * Runtime entities are removed from the DOM after the transition.
    */
   _hideEntity({ id, effect, onDone }) {
     const entry = this._entities.get(id);
@@ -279,26 +233,7 @@ export class SceneRenderer {
       }
     };
 
-    if (effect?.type === 'fade-out' && effect.seconds > 0) {
-      const current = getComputedStyle(el).opacity;
-      el.style.transition = 'none';
-      el.style.opacity = current;
-      el.offsetWidth; // force reflow
-
-      el.style.transition = `opacity ${effect.seconds}s ease`;
-      el.style.opacity = '0';
-      el.style.pointerEvents = 'none';
-
-      if (effect.blocking) {
-        el.addEventListener('transitionend', () => { finish(); onDone?.(); }, { once: true });
-      } else {
-        onDone?.();
-        el.addEventListener('transitionend', finish, { once: true });
-      }
-    } else {
-      finish();
-      onDone?.();
-    }
+    this._applyFadeOut(el, effect, finish, onDone);
   }
 
   _removeEntity(id) {
@@ -306,8 +241,8 @@ export class SceneRenderer {
     if (entry) { entry.el.remove(); this._entities.delete(id); }
   }
 
-  /** Remove only runtime overlays (used by overlay:clear). */
-  _clearRuntimeOverlays() {
+  /** Remove only runtime entities (used by overlay:clear). */
+  _clearRuntimeEntities() {
     for (const [id, entry] of this._entities) {
       if (entry.runtime) this._removeEntity(id);
     }
@@ -329,5 +264,221 @@ export class SceneRenderer {
     this.el.querySelectorAll('.hotspot').forEach(h => h.remove());
     this._tooltip.classList.add('hidden');
     this._clearAllEntities();
+  }
+
+  _revealEntity(entry, effect, onDone) {
+    const el = entry.el;
+    entry.visible = true;
+    el.style.pointerEvents = entry.runtime ? 'none' : '';
+    this._applyFadeIn(el, effect, onDone);
+  }
+
+  _createRuntimeEntity(payload) {
+    if (payload.kind === 'text' || payload.text != null) {
+      const el = document.createElement('div');
+      el.className = 'text-overlay';
+      el.dataset.objectId = payload.id;
+      this._applyTextContent(el, payload);
+      return { el, def: null, runtime: true, visible: true, kind: 'text-overlay' };
+    }
+
+    if (payload.texture) {
+      const el = document.createElement('div');
+      el.className = 'image-overlay';
+      el.dataset.objectId = payload.id;
+      this._applyImageContent(el, payload);
+      return { el, def: null, runtime: true, visible: true, kind: 'image-overlay' };
+    }
+
+    return null;
+  }
+
+  _updateRuntimeEntity(entry, payload) {
+    if (!entry.runtime) return;
+    if (entry.kind === 'image-overlay') this._applyImageContent(entry.el, payload);
+    if (entry.kind === 'text-overlay') this._applyTextContent(entry.el, payload);
+  }
+
+  _applyImageContent(el, { texture, scaling, z }) {
+    if (texture) {
+      el.style.backgroundImage = `url('${CSS.escape(this._resolve(texture))}')`;
+    }
+
+    if (scaling === 'fill' || scaling === 'cover') {
+      el.style.backgroundSize = 'cover';
+    } else if (scaling === 'contain') {
+      el.style.backgroundSize = 'contain';
+    } else {
+      el.style.backgroundSize = '';
+    }
+
+    if (z != null) el.style.zIndex = z;
+  }
+
+  _applyTextContent(el, payload) {
+    const {
+      text,
+      color,
+      fontFamily,
+      fontSize,
+      backgroundColor,
+      position,
+      z,
+    } = payload;
+
+    el.innerHTML = this._renderMarkdown(text ?? '');
+    el.style.color = color || '';
+    el.style.fontFamily = fontFamily || '';
+    el.style.fontSize = this._normalizeCssSize(fontSize);
+    el.style.backgroundColor = backgroundColor || 'transparent';
+    el.classList.toggle('text-overlay--with-bg', !!backgroundColor);
+
+    if (z != null) el.style.zIndex = z;
+    this._applyTextPosition(el, position);
+  }
+
+  _applyTextPosition(el, position = {}) {
+    const anchor = this._normalizeAnchor(position?.anchor);
+    const xOffset = this._resolvePositionOffset(position?.x, 'x');
+    const yOffset = this._resolvePositionOffset(position?.y, 'y');
+    const [vertical, horizontal] = anchor.split('-');
+    const transforms = [];
+
+    el.style.left = '';
+    el.style.right = '';
+    el.style.top = '';
+    el.style.bottom = '';
+    el.style.transform = '';
+
+    if (horizontal === 'left') {
+      el.style.left = xOffset;
+    } else if (horizontal === 'center') {
+      el.style.left = `calc(50% + ${xOffset})`;
+      transforms.push('translateX(-50%)');
+    } else {
+      el.style.right = xOffset;
+    }
+
+    if (vertical === 'top') {
+      el.style.top = yOffset;
+    } else if (vertical === 'middle') {
+      el.style.top = `calc(50% + ${yOffset})`;
+      transforms.push('translateY(-50%)');
+    } else {
+      el.style.bottom = yOffset;
+    }
+
+    el.style.transform = transforms.join(' ');
+  }
+
+  _normalizeAnchor(anchor) {
+    const normalized = String(anchor || 'top-left').trim().toLowerCase().replace(/\s+/g, '-');
+    const valid = new Set([
+      'top-left', 'top-center', 'top-right',
+      'middle-left', 'middle-center', 'middle-right',
+      'bottom-left', 'bottom-center', 'bottom-right',
+    ]);
+    return valid.has(normalized) ? normalized : 'top-left';
+  }
+
+  _resolvePositionOffset(value, axis) {
+    if (value == null || value === '') return '0%';
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return `${this._gridUnitsToPercent(value, axis)}%`;
+    }
+
+    const text = String(value).trim();
+    if (text === '') return '0%';
+    if (/^-?\d*\.?\d+%$/.test(text)) return text;
+
+    const num = Number(text);
+    if (!Number.isNaN(num)) return `${this._gridUnitsToPercent(num, axis)}%`;
+    return '0%';
+  }
+
+  _gridUnitsToPercent(value, axis) {
+    const span = axis === 'x' ? this._cols : this._rows;
+    return (value * 100) / span;
+  }
+
+  _normalizeCssSize(value) {
+    if (value == null || value === '') return '';
+    if (typeof value === 'number' && Number.isFinite(value)) return `${value}px`;
+
+    const text = String(value).trim();
+    if (text === '') return '';
+    if (/^-?\d*\.?\d+$/.test(text)) return `${text}px`;
+    return text;
+  }
+
+  _renderMarkdown(text) {
+    let html = this._escapeHtml(text);
+    const replacements = [
+      [/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>'],
+      [/__([\s\S]+?)__/g, '<u>$1</u>'],
+      [/~~([\s\S]+?)~~/g, '<s>$1</s>'],
+      [/\*([\s\S]+?)\*/g, '<em>$1</em>'],
+    ];
+
+    for (const [pattern, replacement] of replacements) {
+      html = html.replace(pattern, replacement);
+    }
+
+    return html.replace(/\n/g, '<br>');
+  }
+
+  _escapeHtml(text) {
+    return String(text).replace(/[&<>"']/g, (ch) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    }[ch]));
+  }
+
+  _applyFadeIn(el, effect, onDone) {
+    if (effect?.type === 'fade-in' && effect.seconds > 0) {
+      el.style.transition = 'none';
+      el.style.opacity = '0';
+      el.offsetWidth; // force reflow
+      el.style.transition = `opacity ${effect.seconds}s ease`;
+      el.style.opacity = '1';
+
+      if (effect.blocking) {
+        el.addEventListener('transitionend', () => onDone?.(), { once: true });
+      } else {
+        onDone?.();
+      }
+      return;
+    }
+
+    el.style.opacity = '';
+    el.style.transition = '';
+    onDone?.();
+  }
+
+  _applyFadeOut(el, effect, finish, onDone) {
+    if (effect?.type === 'fade-out' && effect.seconds > 0) {
+      const current = getComputedStyle(el).opacity;
+      el.style.transition = 'none';
+      el.style.opacity = current;
+      el.offsetWidth; // force reflow
+
+      el.style.transition = `opacity ${effect.seconds}s ease`;
+      el.style.opacity = '0';
+      el.style.pointerEvents = 'none';
+
+      if (effect.blocking) {
+        el.addEventListener('transitionend', () => { finish(); onDone?.(); }, { once: true });
+      } else {
+        onDone?.();
+        el.addEventListener('transitionend', finish, { once: true });
+      }
+      return;
+    }
+
+    finish();
+    onDone?.();
   }
 }

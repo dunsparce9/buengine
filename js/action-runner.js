@@ -23,6 +23,7 @@
  *   { "show": "object_id" }    // show a scene object by id (string shorthand)
  *   { "show": "this" }         // show the object whose actions are running
  *   { "show": { "id": "...", "texture": "...", "scaling": "fill", "z": 10, "effect": { "type": "fade-in", "seconds": 2, "blocking": false } } }
+ *   { "text": { "id": "...", "text": "...", "position": { "anchor": "middle-center", "x": "0%", "y": "0%" }, "effect": { "type": "fade-in", "seconds": 1, "blocking": false } } }
  *   { "hide": "object_id" }    // hide a scene object by id (string shorthand)
  *   { "hide": "this" }         // hide the object whose actions are running
  *   { "hide": { "id": "...", "effect": { "type": "fade-out", "seconds": 1, "blocking": true } } }
@@ -137,6 +138,7 @@ export class ActionRunner {
             break;
           }
           case 'show':      await this._show(action.show); break;
+          case 'text':      await this._text(action.text); break;
           case 'hide':      await this._hide(action.hide); break;
           case 'effect':    await this._effect(action.effect); break;
           case 'playsound': await this._playsound(action.playsound); break;
@@ -232,6 +234,13 @@ export class ActionRunner {
     return new Promise(resolve => {
       this._pendingResolve = resolve;
       this.bus.emit('overlay:show', { ...showDef, onDone: resolve });
+    });
+  }
+
+  _text(textDef) {
+    return new Promise(resolve => {
+      this._pendingResolve = resolve;
+      this.bus.emit('overlay:show', { ...textDef, kind: 'text', onDone: resolve });
     });
   }
 

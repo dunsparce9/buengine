@@ -26,6 +26,7 @@ const ACTION_TYPE_QUIPS = {
   fork: 'start a background sequence',
   exit: 'stop this action chain',
   show: 'reveal something on screen',
+  text: 'place text on screen',
   hide: 'make something disappear',
   effect: 'fade the whole scene',
   playsound: 'start a sound cue',
@@ -109,6 +110,7 @@ function renderActionBody(action, type, viewCtx = {}) {
     case 'fork':      return renderFork(action.fork, '#8ec07c', viewCtx);
     case 'exit':      return null;
     case 'show':      return renderOverlay(action.show);
+    case 'text':      return renderTextAction(action.text);
     case 'hide':      return renderOverlay(action.hide);
     case 'effect':    return renderEffect(action.effect);
     case 'playsound': return renderSound(action.playsound);
@@ -279,6 +281,47 @@ function renderOverlay(data) {
   if (data.texture) props.push(['texture', data.texture]);
   if (data.layer) props.push(['layer', data.layer]);
   if (data.scaling) props.push(['scaling', data.scaling]);
+
+  for (const [k, v] of props) {
+    const row = document.createElement('div');
+    row.className = 'av-prop-row';
+    row.innerHTML = `<span class="av-prop-key">${escapeHtml(k)}</span><span class="av-prop-val">${escapeHtml(String(v))}</span>`;
+    body.appendChild(row);
+  }
+
+  if (data.effect) {
+    const effectBlock = renderEffect(data.effect);
+    if (effectBlock) {
+      const effectLabel = document.createElement('div');
+      effectLabel.className = 'av-sub-label';
+      effectLabel.textContent = 'effect';
+      body.append(effectLabel, effectBlock);
+    }
+  }
+
+  return body;
+}
+
+function renderTextAction(data) {
+  const body = document.createElement('div');
+  body.className = 'av-body';
+
+  if (data.text) {
+    const preview = document.createElement('div');
+    preview.className = 'av-say-text';
+    preview.textContent = data.text;
+    body.appendChild(preview);
+  }
+
+  const props = [];
+  if (data.id) props.push(['id', data.id]);
+  if (data.position?.anchor) props.push(['anchor', data.position.anchor]);
+  if (data.position?.x != null && data.position.x !== '') props.push(['x', data.position.x]);
+  if (data.position?.y != null && data.position.y !== '') props.push(['y', data.position.y]);
+  if (data.color) props.push(['color', data.color]);
+  if (data.fontFamily) props.push(['fontFamily', data.fontFamily]);
+  if (data.fontSize) props.push(['fontSize', data.fontSize]);
+  if (data.backgroundColor) props.push(['backgroundColor', data.backgroundColor]);
 
   for (const [k, v] of props) {
     const row = document.createElement('div');
