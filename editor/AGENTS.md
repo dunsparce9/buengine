@@ -25,7 +25,7 @@ editor/
     file-panel.css        ← file tree visuals
     properties.css        ← inspector styling
     viewport.css          ← scene preview styling
-    action-viewer.css     ← Action Viewer window + block styling
+    action-editor.css     ← Action Editor window + block styling
     floating-window.css   ← shared floating window chrome
     context-menu.css      ← menus
     items-viewer.css      ← inventory item editor
@@ -49,10 +49,10 @@ editor/
     viewport.js           ← centre scene preview + object overlays
     properties.js         ← right property inspector panel
     context-menu.js       ← shared context menu component
-    action-viewer.js      ← stable public entry for AV
-    action-viewer/
-      index.js            ← AV public implementation
-      state.js            ← viewer registry + drag state
+    action-editor.js      ← stable public entry for AE
+    action-editor/
+      index.js            ← AE public implementation
+      state.js            ← editor registry + drag state
       utils.js            ← nested value helpers + cleanup
       renderers.js        ← read-only action card renderers/summaries
       forms.js            ← schema-driven field editors + nested action editors
@@ -66,11 +66,11 @@ editor/
 
 ### Shared contract with runtime
 - `../../js/action-schema.js` is the canonical action registry for both the engine and the editor.
-- AV should derive labels, icons, colors, defaults, and editable fields from that shared schema.
+- AE should derive labels, icons, colors, defaults, and editable fields from that shared schema.
 - If an action type is added or changed, update:
   1. `js/action-runner.js` in the runtime
   2. `js/action-schema.js` shared metadata
-  3. Any editor-specific rendering/editing logic in `editor/js/action-viewer.js`
+  3. Any editor-specific rendering/editing logic in `editor/js/action-editor.js`
 
 ### File System
 
@@ -94,9 +94,9 @@ Modules avoid circular imports by using a `hooks` object (in `state.js`) for cro
 
 - **Left panel** (`#file-panel` / `#file-list`) — folder tree with expand/collapse, drag-to-move, drag-from-OS, right-click context menu.
 - **Viewport** (`#viewport-scene`) — sized dynamically to preserve the scene grid aspect ratio; shows background image and object outlines.
-- **Right panel** (`#props-panel` / `#props-content`) — property inspector. It edits `_game.json`, scene/object fields, inventory items, and opens AV for action arrays plus option-management modals for items/objects.
+- **Right panel** (`#props-panel` / `#props-content`) — property inspector. It edits `_game.json`, scene/object fields, inventory items, and opens AE for action arrays plus option-management modals for items/objects.
 - **Resize handles** — two draggable column dividers between panels (CSS vars `--left-w`, `--right-w`).
-- **Floating windows** (`.fw`) — reusable window system for AV, confirmation dialogs, about panel, and other transient tools.
+- **Floating windows** (`.fw`) — reusable window system for AE, confirmation dialogs, about panel, and other transient tools.
 
 ## Key State Variables
 
@@ -129,18 +129,18 @@ Most mutations follow the same pattern:
 
 Do not bypass that flow unless there is a clear reason.
 
-## Action Viewer (AV)
+## Action Editor (AE)
 
-AV is the editor's action array UI rooted at `editor/js/action-viewer.js` and implemented under `editor/js/action-viewer/`. It is a central subsystem, not a minor helper.
+AE is the editor's action array UI rooted at `editor/js/action-editor.js` and implemented under `editor/js/action-editor/`. It is a central subsystem, not a minor helper.
 
 - Opens floating windows for action arrays such as scene `onEnter`, object option actions, choice branches, loop bodies, and named `sequences`
-- Deduplicates windows by title via an internal open-viewer registry
+- Deduplicates windows by title via an internal open-editor registry
 - Mutates the provided action array in place and reports changes through `opts.onChange`
 - Supports nested editors, inline field editing, add/delete, collapse, and drag-to-reorder
-- Supports dragging actions between compatible open AV windows
+- Supports dragging actions between compatible open AE windows
 - Uses shared schema metadata from `js/action-schema.js` for action cards and form generation
 
-When editing AV-related code:
+When editing AE-related code:
 - Keep summaries, badges, and editor forms aligned with the shared schema
 - Preserve in-place mutation semantics so calling modules keep live references
 - Be careful with nested action arrays (`then`, `else`, `do`, choice option `actions`, sequences)
@@ -168,7 +168,7 @@ When editing AV-related code:
 | Scene preview | `viewport.js` | `renderViewport()` — background + dashed object outlines |
 | Property inspector | `properties.js` | `renderProperties()` → delegates to game / scene / object / asset / items renderers |
 | Editable fields | `properties.js` | `addEditablePropGroup()` — direct-bind `<input>` to in-memory data |
-| Action Viewer | `action-viewer/` | `openActionViewer()` — floating action list editor for arrays |
+| Action Editor | `action-editor/` | `openActionEditor()` — floating action list editor for arrays |
 | Items editor | `items-viewer.js` | `renderItemsProperties()` — inventory item editing |
 | Export JSON | `app/archive.js` | `exportCurrentJson()` — Blob download of current script |
 | Run preview | `app/preview.js` | Stores all edited scripts into `localStorage` key `buegame_editor_preview`, opens game in new tab with `?preview` |
@@ -188,4 +188,4 @@ When editing AV-related code:
 8. **Preview round-trip** — edits stay in memory. The Run button serialises everything to `localStorage` under `buegame_editor_preview`. The game should check for this on `?preview` and overlay the data.
 9. **HTML escaping** — use `escapeHtml()` (DOM-based) when injecting user-provided text. Never use `innerHTML` with raw script data.
 10. **Dirty-state discipline** — any edit that changes persistent data should mark the relevant script dirty so Save / Save All remain trustworthy.
-11. **AV changes are high-impact** — if you change action editing behavior, check nested arrays, drag/drop, and schema-derived field rendering, not just the top-level happy path.
+11. **AE changes are high-impact** — if you change action editing behavior, check nested arrays, drag/drop, and schema-derived field rendering, not just the top-level happy path.

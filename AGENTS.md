@@ -40,7 +40,7 @@ editor/
     file-panel.js        ← file tree, drag/drop, context menus
     viewport.js          ← scene preview and object selection
     properties.js        ← inspector for scene/object/game data
-    action-viewer.js     ← floating action array viewer/editor ("AV")
+    action-editor.js     ← floating action array editor ("AE")
     items-viewer.js      ← inventory item editor UI
   AGENTS.md              ← editor-specific instructions
 games/
@@ -102,16 +102,16 @@ Actions are objects in an array. Supported commands:
 | Stop sound | `{ "stopsound": { "id": "bgm", "fade": 1, "blocking": true } }` — stops a playing sound by id; `fade` (seconds, default 0), `blocking` waits for fade-out to finish |
 | Item add/remove | `{ "item": { "id": "key", "qty": 1 } }` — adds item to inventory (negative `qty` removes). Requires inventory enabled in `_game.json` |
 
-### Action Viewer (AV)
-- AV means the editor's Action Viewer in `editor/js/action-viewer.js`.
-- It is not just a viewer: it is the main visual editor for action arrays such as object option actions, scene `onEnter`, choice branches, loop bodies, and named `sequences`.
-- AV opens in floating windows, deduplicates windows by title, mutates the underlying action array in place, and calls `onChange` hooks so the editor can mark files dirty and re-render.
-- AV behavior is schema-driven. Icons, colors, labels, default payloads, field editors, and action summaries should come from `js/action-schema.js`, not hardcoded duplicate metadata elsewhere.
-- AV supports nested action editing, drag-to-reorder, cross-window drag/move between action lists, inline field editing, and add/delete flows.
+### Action Editor (AE)
+- AE means the editor's Action Editor in `editor/js/action-editor.js`.
+- It is the main visual editor for action arrays such as object option actions, scene `onEnter`, choice branches, loop bodies, and named `sequences`.
+- AE opens in floating windows, deduplicates windows by title, mutates the underlying action array in place, and calls `onChange` hooks so the editor can mark files dirty and re-render.
+- AE behavior is schema-driven. Icons, colors, labels, default payloads, field editors, and action summaries should come from `js/action-schema.js`, not hardcoded duplicate metadata elsewhere.
+- AE supports nested action editing, drag-to-reorder, cross-window drag/move between action lists, inline field editing, and add/delete flows.
 - When adding or changing an action type, verify three layers stay aligned:
   1. Runtime dispatch in `js/action-runner.js`
   2. Shared metadata/defaults in `js/action-schema.js`
-  3. AV rendering/editing behavior in `editor/js/action-viewer.js`
+  3. AE rendering/editing behavior in `editor/js/action-editor.js`
 
 ### Inventory system
 
@@ -145,7 +145,7 @@ Editor modules do not use the runtime `EventBus` as their primary coordination m
 ### DOM structure
 All game UI lives inside `#game-container`. The `#scene-layer` holds backgrounds and scene objects. The `#ui-layer` holds overlays, dialogues, and choice modals, using `.hidden` class toggling.
 
-The editor has its own three-pane layout in `editor/index.html`: file tree on the left, viewport in the centre, properties on the right, with floating windows used for AV, confirmations, and auxiliary tools.
+The editor has its own three-pane layout in `editor/index.html`: file tree on the left, viewport in the centre, properties on the right, with floating windows used for AE, confirmations, and auxiliary tools.
 
 ## Coding Rules
 1. **Vanilla JS only** — no frameworks, no dependencies.

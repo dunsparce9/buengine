@@ -14,7 +14,7 @@ import {
 import { resolveAssetURLSync } from './fs-provider.js';
 import { showContextMenu } from './context-menu.js';
 import { openOptionsModal } from './options-editor.js';
-import { openActionViewer } from './action-viewer.js';
+import { openActionEditor } from './action-editor.js';
 
 const ITEM_SECTION_ICONS = {
   'Items': 'inventory_2',
@@ -380,7 +380,7 @@ function renderReadonlyOptions(item, container, scriptId) {
     link.textContent = `${Array.isArray(opt.actions) ? opt.actions.length : 0} action(s)`;
     link.addEventListener('click', () => {
       const actions = Array.isArray(opt.actions) ? opt.actions : (opt.actions = []);
-      openActionViewer(
+      openActionEditor(
         `${ownerLabel} — ${opt.text || 'Option ' + (i + 1)}`,
         actions,
         {

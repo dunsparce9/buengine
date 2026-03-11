@@ -4,7 +4,7 @@
 
 import { hooks, markDirty } from './state.js';
 import { createFloatingWindow } from './floating-window.js';
-import { openActionViewer } from './action-viewer.js';
+import { openActionEditor } from './action-editor.js';
 import { showContextMenu } from './context-menu.js';
 
 /** @type {Map<string, ReturnType<typeof createFloatingWindow>>} */
@@ -197,7 +197,7 @@ function buildOptionsContent(container, ctx) {
     pill.innerHTML = '<span class="material-symbols-outlined">list_alt</span> ' + actions.length;
     pill.title = `${actions.length} action(s)`;
     pill.addEventListener('click', () => {
-      openActionViewer(
+      openActionEditor(
         `${ownerLabel} — ${option.text || 'Option ' + (optionIndex + 1)}`,
         actions,
         {

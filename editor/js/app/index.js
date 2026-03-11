@@ -4,7 +4,7 @@ import { renderProperties } from '../properties.js';
 import { initMenu } from '../menu.js';
 import { initResizeHandles } from '../resize.js';
 import { hooks, state, deleteObject } from '../state.js';
-import '../action-viewer.js';
+import '../action-editor.js';
 
 import { updateMenuVisibility, updateWindowTitle, openAboutWindow, hasUnsavedChanges, showToast } from './ui.js';
 import { handleOpenFolder, saveCurrentFile, saveAllFiles, confirmDiscardUnsavedChanges } from './workspace.js';

@@ -4,7 +4,7 @@ function getSceneSequences(viewCtx = {}) {
   return viewCtx.sceneData?.sequences || viewCtx.sceneData?.definitions || null;
 }
 
-export function createActionRenderers(openActionViewer, buildReadOnlyList) {
+export function createActionRenderers(openActionEditor, buildReadOnlyList) {
   function getForkSequenceName(forkDef) {
     if (typeof forkDef === 'string') return forkDef;
     if (typeof forkDef?.run === 'string') return forkDef.run;
@@ -15,7 +15,7 @@ export function createActionRenderers(openActionViewer, buildReadOnlyList) {
     const sequences = getSceneSequences(viewCtx);
     if (!(sequences && sequenceName in sequences)) return;
     const actions = sequences[sequenceName];
-    openActionViewer(`${viewCtx.sceneId} — ${sequenceName}`, actions, {
+    openActionEditor(`${viewCtx.sceneId} — ${sequenceName}`, actions, {
       onChange: () => viewCtx.markDirty?.(viewCtx.sceneId),
       sceneId: viewCtx.sceneId,
       sceneData: viewCtx.sceneData,
@@ -391,7 +391,7 @@ export function renderCollapsedSummary(action, type, shortenText, viewCtx = {}) 
     onClick = () => viewCtx.focusScene(action.goto);
     title = `Focus scene: ${action.goto}`;
   } else if (type === 'run' && getSceneSequences(viewCtx) && action.run in getSceneSequences(viewCtx)) {
-    onClick = () => viewCtx.openActionViewer?.(`${viewCtx.sceneId} — ${action.run}`, getSceneSequences(viewCtx)[action.run], {
+    onClick = () => viewCtx.openActionEditor?.(`${viewCtx.sceneId} — ${action.run}`, getSceneSequences(viewCtx)[action.run], {
       onChange: () => viewCtx.markDirty?.(viewCtx.sceneId),
       sceneId: viewCtx.sceneId,
       sceneData: viewCtx.sceneData,
@@ -403,7 +403,7 @@ export function renderCollapsedSummary(action, type, shortenText, viewCtx = {}) 
     const sequenceName = typeof action.fork === 'string' ? action.fork : action.fork?.run;
     const sequences = getSceneSequences(viewCtx);
     if (sequenceName && sequences && sequenceName in sequences) {
-      onClick = () => viewCtx.openActionViewer?.(`${viewCtx.sceneId} — ${sequenceName}`, sequences[sequenceName], {
+      onClick = () => viewCtx.openActionEditor?.(`${viewCtx.sceneId} — ${sequenceName}`, sequences[sequenceName], {
         onChange: () => viewCtx.markDirty?.(viewCtx.sceneId),
         sceneId: viewCtx.sceneId,
         sceneData: viewCtx.sceneData,

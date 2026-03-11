@@ -1,7 +1,7 @@
 import { ACTION_TYPES } from '../../../js/action-schema.js';
 import { setNestedValue, getNestedValue } from './utils.js';
 
-export function createFormBuilders(openActionViewer) {
+export function createFormBuilders(openActionEditor) {
   function buildEditForm(action, type, ctx) {
     const form = document.createElement('div');
     form.className = 'av-edit-form';
@@ -278,7 +278,7 @@ export function createFormBuilders(openActionViewer) {
         actionsBtn.title = 'Edit option actions';
         actionsBtn.addEventListener('click', () => {
           if (!opt.actions) opt.actions = [];
-          openActionViewer(`Option ${i + 1}: ${opt.text || '…'}`, opt.actions, {
+          openActionEditor(`Option ${i + 1}: ${opt.text || '…'}`, opt.actions, {
             onChange() {
               ctx.onFieldChange();
               actionsBtn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${opt.actions.length}`;
@@ -336,7 +336,7 @@ export function createFormBuilders(openActionViewer) {
       btn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${action[key]?.length || 0} action(s)`;
       btn.addEventListener('click', () => {
         if (!action[key]) action[key] = [];
-        openActionViewer(label, action[key], {
+        openActionEditor(label, action[key], {
           onChange() {
             ctx.onFieldChange();
             btn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${action[key].length} action(s)`;
@@ -385,7 +385,7 @@ export function createFormBuilders(openActionViewer) {
     renderLabel();
     btn.addEventListener('click', () => {
       const loopActions = getLoopActions();
-      openActionViewer('do', loopActions, {
+      openActionEditor('do', loopActions, {
         onChange() {
           ctx.onFieldChange();
           renderLabel();

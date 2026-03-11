@@ -1,35 +1,35 @@
-const openViewers = new Map();
+const openEditors = new Map();
 const editableLists = new WeakMap();
 const emptyDropZones = new WeakMap();
 
 let dragState = null;
 let dragAutoScrollRaf = 0;
 
-export function getOpenViewer(key) {
-  return openViewers.get(key) || null;
+export function getOpenEditor(key) {
+  return openEditors.get(key) || null;
 }
 
-export function setOpenViewer(key, viewerState) {
-  openViewers.set(key, viewerState);
+export function setOpenEditor(key, editorState) {
+  openEditors.set(key, editorState);
 }
 
-export function deleteOpenViewer(key) {
-  openViewers.delete(key);
+export function deleteOpenEditor(key) {
+  openEditors.delete(key);
 }
 
-export function registerEditableList(container, viewerState) {
-  editableLists.set(container, viewerState);
+export function registerEditableList(container, editorState) {
+  editableLists.set(container, editorState);
 }
 
-export function getEditableListViewer(container) {
+export function getEditableListEditor(container) {
   return editableLists.get(container) || null;
 }
 
-export function registerEmptyDropZone(emptyEl, viewerState) {
-  emptyDropZones.set(emptyEl, viewerState);
+export function registerEmptyDropZone(emptyEl, editorState) {
+  emptyDropZones.set(emptyEl, editorState);
 }
 
-export function getEmptyDropZoneViewer(emptyEl) {
+export function getEmptyDropZoneEditor(emptyEl) {
   return emptyDropZones.get(emptyEl) || null;
 }
 

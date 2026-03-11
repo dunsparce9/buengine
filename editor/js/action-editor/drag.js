@@ -4,14 +4,14 @@ import {
   clearDragState,
   getDragAutoScrollRaf,
   setDragAutoScrollRaf,
-  getEditableListViewer,
-  getEmptyDropZoneViewer,
+  getEditableListEditor,
+  getEmptyDropZoneEditor,
   hasEditableList,
   hasEmptyDropZone,
 } from './state.js';
 
-export function createDragController({ moveActionBetweenViewers }) {
-  function beginActionDrag(event, block, viewerState) {
+export function createDragController({ moveActionBetweenEditors }) {
+  function beginActionDrag(event, block, editorState) {
     if (event.button !== 0) return;
     const dragIdx = parseInt(block.dataset.index, 10);
     if (!Number.isInteger(dragIdx)) return;
@@ -24,11 +24,11 @@ export function createDragController({ moveActionBetweenViewers }) {
 
     const headerRect = header.getBoundingClientRect();
     setDragState({
-      sourceViewer: viewerState,
+      sourceEditor: editorState,
       sourceIdx: dragIdx,
       sourceEl: block,
       previewEl: createActionDragPreview(header, headerRect),
-      currentViewer: viewerState,
+      currentEditor: editorState,
       dropIdx: dragIdx,
       indicator: null,
       emptyEl: null,
@@ -60,10 +60,10 @@ export function createDragController({ moveActionBetweenViewers }) {
   function onActionDragEnd() {
     const dragState = getDragState();
     if (!dragState) return;
-    const { sourceViewer, sourceIdx, currentViewer, dropIdx } = dragState;
+    const { sourceEditor, sourceIdx, currentEditor, dropIdx } = dragState;
     cancelActionDrag();
-    if (currentViewer && Number.isInteger(dropIdx)) {
-      moveActionBetweenViewers(sourceViewer, sourceIdx, currentViewer, dropIdx);
+    if (currentEditor && Number.isInteger(dropIdx)) {
+      moveActionBetweenEditors(sourceEditor, sourceIdx, currentEditor, dropIdx);
     }
   }
 
@@ -96,8 +96,8 @@ export function createDragController({ moveActionBetweenViewers }) {
     const pointEl = document.elementFromPoint(clientX, clientY);
     const emptyEl = pointEl?.closest('.av-drop-empty.av-editable-empty');
     if (emptyEl && hasEmptyDropZone(emptyEl)) {
-      const viewerState = getEmptyDropZoneViewer(emptyEl);
-      dragState.currentViewer = viewerState;
+      const editorState = getEmptyDropZoneEditor(emptyEl);
+      dragState.currentEditor = editorState;
       dragState.dropIdx = 0;
       dragState.scrollHost = emptyEl.closest('.fw-body');
       showActionDragEmptyState(emptyEl);
@@ -106,21 +106,21 @@ export function createDragController({ moveActionBetweenViewers }) {
 
     const container = pointEl?.closest('.av-editable-list');
     if (container && hasEditableList(container)) {
-      const viewerState = getEditableListViewer(container);
-      const dropIdx = getActionDragDropIndex(container, clientY, viewerState);
-      dragState.currentViewer = viewerState;
+      const editorState = getEditableListEditor(container);
+      const dropIdx = getActionDragDropIndex(container, clientY, editorState);
+      dragState.currentEditor = editorState;
       dragState.dropIdx = dropIdx;
       dragState.scrollHost = container.closest('.fw-body');
       showActionDragIndicator(container, dropIdx);
     }
   }
 
-  function getActionDragDropIndex(container, clientY, viewerState) {
+  function getActionDragDropIndex(container, clientY, editorState) {
     const blocks = Array.from(container.children).filter((child) =>
       child.classList?.contains('av-block') && child !== getDragState()?.sourceEl
     );
 
-    let targetIdx = viewerState.actions.length;
+    let targetIdx = editorState.actions.length;
     for (const block of blocks) {
       const rect = block.getBoundingClientRect();
       const blockIdx = parseInt(block.dataset.index, 10);

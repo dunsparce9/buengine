@@ -3,7 +3,7 @@
  */
 
 import { state, dom, hooks, escapeHtml, markDirty, collectImagePaths } from './state.js';
-import { openActionViewer } from './action-viewer.js';
+import { openActionEditor } from './action-editor.js';
 import { findNode } from './fs-provider.js';
 import { getFileExtension, getFileKind, isPreviewableMedia } from './file-types.js';
 import { renderItemsProperties } from './items-viewer.js';
@@ -124,7 +124,7 @@ function renderSceneProps(data) {
   {
     if (!data.onEnter) data.onEnter = [];
     addActionLinkGroup('onEnter', [['actions', data.onEnter.length]],
-      () => openActionViewer(`${data.id} — onEnter`, data.onEnter, {
+      () => openActionEditor(`${data.id} — onEnter`, data.onEnter, {
         onChange: () => markDirty(data.id),
         sceneId: data.id,
         sceneData: data,
@@ -391,7 +391,7 @@ function renderObjectProps(obj) {
       const option = liveOptions[optionIndex];
       if (!option) return;
       if (!Array.isArray(option.actions)) option.actions = [];
-      openActionViewer(
+      openActionEditor(
         `${obj.label || obj.id} — ${option.text || `Option ${optionIndex + 1}`}`,
         option.actions,
         {
@@ -733,7 +733,7 @@ function addSequencesGroup(data, names) {
     link.className = 'prop-action-link';
     link.textContent = `${actions.length} action(s)`;
     link.addEventListener('click', () =>
-      openActionViewer(`${data.id} — ${name}`, actions, {
+      openActionEditor(`${data.id} — ${name}`, actions, {
         onChange: () => markDirty(data.id),
         sceneId: data.id,
         sceneData: data,

@@ -32,17 +32,17 @@ export function setNestedValue(obj, path, value) {
   else cur[parts[parts.length - 1]] = value;
 }
 
-export function notifyViewerChange(viewerState) {
-  viewerState.opts.onChange?.();
+export function notifyEditorChange(editorState) {
+  editorState.opts.onChange?.();
 }
 
-export function adjustEditingIdxAfterRemove(viewerState, idx) {
-  if (viewerState.editingIdx === idx) viewerState.editingIdx = null;
-  else if (viewerState.editingIdx != null && viewerState.editingIdx > idx) viewerState.editingIdx--;
+export function adjustEditingIdxAfterRemove(editorState, idx) {
+  if (editorState.editingIdx === idx) editorState.editingIdx = null;
+  else if (editorState.editingIdx != null && editorState.editingIdx > idx) editorState.editingIdx--;
 }
 
-export function adjustEditingIdxAfterInsert(viewerState, idx) {
-  if (viewerState.editingIdx != null && viewerState.editingIdx >= idx) viewerState.editingIdx++;
+export function adjustEditingIdxAfterInsert(editorState, idx) {
+  if (editorState.editingIdx != null && editorState.editingIdx >= idx) editorState.editingIdx++;
 }
 
 export function cleanAction(action, type) {

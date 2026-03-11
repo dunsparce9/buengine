@@ -1,16 +1,16 @@
 import { createFloatingWindow } from '../floating-window.js';
 import { ACTION_TYPES, detectType, createDefaultAction, getActionMeta } from '../../../js/action-schema.js';
 import {
-  getOpenViewer,
-  setOpenViewer,
-  deleteOpenViewer,
+  getOpenEditor,
+  setOpenEditor,
+  deleteOpenEditor,
   registerEditableList,
   registerEmptyDropZone,
 } from './state.js';
 import {
   shortenText,
   cloneAction,
-  notifyViewerChange,
+  notifyEditorChange,
   cleanAction,
   adjustEditingIdxAfterInsert,
   adjustEditingIdxAfterRemove,
@@ -19,13 +19,13 @@ import { createActionRenderers, getBadges, renderCollapsedSummary } from './rend
 import { createFormBuilders } from './forms.js';
 import { createDragController } from './drag.js';
 
-const renderers = createActionRenderers(openActionViewer, buildReadOnlyList);
-const forms = createFormBuilders(openActionViewer);
-const drag = createDragController({ moveActionBetweenViewers });
+const renderers = createActionRenderers(openActionEditor, buildReadOnlyList);
+const forms = createFormBuilders(openActionEditor);
+const drag = createDragController({ moveActionBetweenEditors });
 
-export function openActionViewer(title, actions, opts = {}) {
+export function openActionEditor(title, actions, opts = {}) {
   const key = title || 'Actions';
-  const existing = getOpenViewer(key);
+  const existing = getOpenEditor(key);
   if (existing && !existing.fw.el.classList.contains('hidden')) {
     existing.fw.open();
     return;
@@ -40,7 +40,7 @@ export function openActionViewer(title, actions, opts = {}) {
     resizable: true,
   });
 
-  const viewerState = {
+  const editorState = {
     key,
     fw,
     actions,
@@ -49,59 +49,59 @@ export function openActionViewer(title, actions, opts = {}) {
     editingIdx: null,
     rebuild() {
       fw.body.innerHTML = '';
-      buildEditorContent(fw.body, viewerState);
+      buildEditorContent(fw.body, editorState);
     },
   };
 
-  setOpenViewer(key, viewerState);
-  fw.onClose(() => deleteOpenViewer(key));
-  viewerState.rebuild();
+  setOpenEditor(key, editorState);
+  fw.onClose(() => deleteOpenEditor(key));
+  editorState.rebuild();
   fw.open();
 }
 
-function moveActionBetweenViewers(sourceViewer, sourceIdx, targetViewer, targetIdx) {
-  if (!sourceViewer || !targetViewer) return;
-  if (sourceIdx == null || sourceIdx < 0 || sourceIdx >= sourceViewer.actions.length) return;
+function moveActionBetweenEditors(sourceEditor, sourceIdx, targetEditor, targetIdx) {
+  if (!sourceEditor || !targetEditor) return;
+  if (sourceIdx == null || sourceIdx < 0 || sourceIdx >= sourceEditor.actions.length) return;
 
-  if (sourceViewer === targetViewer) {
-    const [item] = sourceViewer.actions.splice(sourceIdx, 1);
+  if (sourceEditor === targetEditor) {
+    const [item] = sourceEditor.actions.splice(sourceIdx, 1);
     let insertIdx = targetIdx;
     if (sourceIdx < insertIdx) insertIdx--;
-    sourceViewer.actions.splice(insertIdx, 0, item);
-    if (sourceViewer.editingIdx === sourceIdx) {
-      sourceViewer.editingIdx = insertIdx;
-    } else if (sourceViewer.editingIdx != null) {
-      if (sourceIdx < sourceViewer.editingIdx && insertIdx >= sourceViewer.editingIdx) sourceViewer.editingIdx--;
-      else if (sourceIdx > sourceViewer.editingIdx && insertIdx <= sourceViewer.editingIdx) sourceViewer.editingIdx++;
+    sourceEditor.actions.splice(insertIdx, 0, item);
+    if (sourceEditor.editingIdx === sourceIdx) {
+      sourceEditor.editingIdx = insertIdx;
+    } else if (sourceEditor.editingIdx != null) {
+      if (sourceIdx < sourceEditor.editingIdx && insertIdx >= sourceEditor.editingIdx) sourceEditor.editingIdx--;
+      else if (sourceIdx > sourceEditor.editingIdx && insertIdx <= sourceEditor.editingIdx) sourceEditor.editingIdx++;
     }
-    notifyViewerChange(sourceViewer);
-    sourceViewer.rebuild();
+    notifyEditorChange(sourceEditor);
+    sourceEditor.rebuild();
     return;
   }
 
-  const [item] = sourceViewer.actions.splice(sourceIdx, 1);
-  adjustEditingIdxAfterRemove(sourceViewer, sourceIdx);
-  targetViewer.actions.splice(targetIdx, 0, item);
-  adjustEditingIdxAfterInsert(targetViewer, targetIdx);
-  notifyViewerChange(sourceViewer);
-  notifyViewerChange(targetViewer);
-  sourceViewer.rebuild();
-  targetViewer.rebuild();
+  const [item] = sourceEditor.actions.splice(sourceIdx, 1);
+  adjustEditingIdxAfterRemove(sourceEditor, sourceIdx);
+  targetEditor.actions.splice(targetIdx, 0, item);
+  adjustEditingIdxAfterInsert(targetEditor, targetIdx);
+  notifyEditorChange(sourceEditor);
+  notifyEditorChange(targetEditor);
+  sourceEditor.rebuild();
+  targetEditor.rebuild();
 }
 
-function buildEditorContent(container, viewerState) {
+function buildEditorContent(container, editorState) {
   const toolbar = document.createElement('div');
   toolbar.className = 'av-toolbar';
 
   const collapseBtn = document.createElement('button');
   collapseBtn.className = 'av-toolbar-btn av-toolbar-btn-collapse';
   collapseBtn.type = 'button';
-  collapseBtn.title = viewerState.collapsed ? 'Expand actions' : 'Collapse actions';
-  collapseBtn.setAttribute('aria-label', viewerState.collapsed ? 'Expand actions' : 'Collapse actions');
-  collapseBtn.innerHTML = `<span class="material-symbols-outlined">${viewerState.collapsed ? 'unfold_more' : 'unfold_less'}</span>`;
+  collapseBtn.title = editorState.collapsed ? 'Expand actions' : 'Collapse actions';
+  collapseBtn.setAttribute('aria-label', editorState.collapsed ? 'Expand actions' : 'Collapse actions');
+  collapseBtn.innerHTML = `<span class="material-symbols-outlined">${editorState.collapsed ? 'unfold_more' : 'unfold_less'}</span>`;
   collapseBtn.addEventListener('click', () => {
-    viewerState.collapsed = !viewerState.collapsed;
-    viewerState.rebuild();
+    editorState.collapsed = !editorState.collapsed;
+    editorState.rebuild();
   });
 
   const addBtn = document.createElement('button');
@@ -111,11 +111,11 @@ function buildEditorContent(container, viewerState) {
   addBtn.setAttribute('aria-label', 'Add action');
   addBtn.innerHTML = '<span class="material-symbols-outlined">add_circle</span>';
   addBtn.addEventListener('click', async () => {
-    const type = await pickActionType(viewerState.fw);
+    const type = await pickActionType(editorState.fw);
     if (!type) return;
-    viewerState.actions.push(createDefaultAction(type));
-    notifyViewerChange(viewerState);
-    viewerState.rebuild();
+    editorState.actions.push(createDefaultAction(type));
+    notifyEditorChange(editorState);
+    editorState.rebuild();
   });
 
   const left = document.createElement('div');
@@ -129,69 +129,69 @@ function buildEditorContent(container, viewerState) {
   toolbar.append(left, right);
   container.appendChild(toolbar);
 
-  if (viewerState.actions && viewerState.actions.length > 0) {
-    container.appendChild(buildEditableList(viewerState));
+  if (editorState.actions && editorState.actions.length > 0) {
+    container.appendChild(buildEditableList(editorState));
     return;
   }
 
   const empty = document.createElement('div');
   empty.className = 'av-empty av-drop-empty av-editable-empty';
   empty.textContent = 'No actions yet';
-  registerEmptyDropZone(empty, viewerState);
+  registerEmptyDropZone(empty, editorState);
   container.appendChild(empty);
 }
 
-function buildEditableList(viewerState) {
+function buildEditableList(editorState) {
   const container = document.createElement('div');
   container.className = 'av-list av-editable-list';
 
   function renderBlocks() {
     container.innerHTML = '';
-    for (let i = 0; i < viewerState.actions.length; i++) {
-      container.appendChild(buildEditableBlock(viewerState.actions[i], i, {
-        viewerState,
-        opts: viewerState.opts,
+    for (let i = 0; i < editorState.actions.length; i++) {
+      container.appendChild(buildEditableBlock(editorState.actions[i], i, {
+        editorState,
+        opts: editorState.opts,
         onClone(idx) {
-          viewerState.actions.splice(idx + 1, 0, cloneAction(viewerState.actions[idx]));
-          adjustEditingIdxAfterInsert(viewerState, idx + 1);
-          notifyViewerChange(viewerState);
+          editorState.actions.splice(idx + 1, 0, cloneAction(editorState.actions[idx]));
+          adjustEditingIdxAfterInsert(editorState, idx + 1);
+          notifyEditorChange(editorState);
           renderBlocks();
         },
         onEdit(idx) {
-          if (viewerState.editingIdx === idx) {
-            cleanAction(viewerState.actions[idx], detectType(viewerState.actions[idx]));
-            viewerState.editingIdx = null;
+          if (editorState.editingIdx === idx) {
+            cleanAction(editorState.actions[idx], detectType(editorState.actions[idx]));
+            editorState.editingIdx = null;
           } else {
-            if (viewerState.editingIdx != null) {
-              cleanAction(viewerState.actions[viewerState.editingIdx], detectType(viewerState.actions[viewerState.editingIdx]));
+            if (editorState.editingIdx != null) {
+              cleanAction(editorState.actions[editorState.editingIdx], detectType(editorState.actions[editorState.editingIdx]));
             }
-            viewerState.editingIdx = idx;
+            editorState.editingIdx = idx;
           }
           renderBlocks();
         },
         onDelete(idx) {
-          viewerState.actions.splice(idx, 1);
-          adjustEditingIdxAfterRemove(viewerState, idx);
-          notifyViewerChange(viewerState);
-          viewerState.rebuild();
+          editorState.actions.splice(idx, 1);
+          adjustEditingIdxAfterRemove(editorState, idx);
+          notifyEditorChange(editorState);
+          editorState.rebuild();
         },
         onFieldChange() {
-          notifyViewerChange(viewerState);
+          notifyEditorChange(editorState);
         },
       }));
     }
   }
 
   renderBlocks();
-  registerEditableList(container, viewerState);
+  registerEditableList(container, editorState);
   return container;
 }
 
 function buildEditableBlock(action, index, ctx) {
   const type = detectType(action);
   const meta = getActionMeta(type);
-  const isEditing = ctx.viewerState.editingIdx === index;
-  const isCollapsed = ctx.viewerState.collapsed && !isEditing;
+  const isEditing = ctx.editorState.editingIdx === index;
+  const isCollapsed = ctx.editorState.collapsed && !isEditing;
 
   const block = document.createElement('div');
   block.className = `av-block av-block-${type}${isEditing ? ' av-editing' : ''}`;
@@ -204,7 +204,7 @@ function buildEditableBlock(action, index, ctx) {
   const dragHandle = document.createElement('span');
   dragHandle.className = 'av-drag-handle material-symbols-outlined';
   dragHandle.textContent = 'drag_indicator';
-  dragHandle.addEventListener('mousedown', (event) => drag.beginActionDrag(event, block, ctx.viewerState));
+  dragHandle.addEventListener('mousedown', (event) => drag.beginActionDrag(event, block, ctx.editorState));
 
   const idx = document.createElement('span');
   idx.className = 'av-index';
@@ -224,7 +224,7 @@ function buildEditableBlock(action, index, ctx) {
   if (isCollapsed) {
     const summary = renderCollapsedSummary(action, type, shortenText, {
       ...ctx.opts,
-      openActionViewer,
+      openActionEditor,
     });
     header.appendChild(summary);
   }
