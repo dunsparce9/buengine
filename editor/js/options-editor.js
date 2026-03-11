@@ -23,6 +23,7 @@ export function openOptionsModal({
   target,
   scriptId,
   title,
+  subtitle = '',
   modalKey = title,
   ownerLabel = title,
   onChange = null,
@@ -37,7 +38,7 @@ export function openOptionsModal({
 
   const fw = createFloatingWindow({
     title: 'Options',
-    subtitle: getOptionsSubtitle(title),
+    subtitle: subtitle || getOptionsSubtitle(title),
     icon: 'tune',
     iconClass: 'material-symbols-outlined',
     width: 500,

@@ -48,6 +48,7 @@ function openObjectOptionsManager(obj) {
     target: obj,
     scriptId: sceneId,
     title: `${obj.id} — Options`,
+    subtitle: obj.label || obj.id,
     modalKey: `${sceneId}:${obj.id}:options`,
     ownerLabel: obj.label || obj.id,
     actionViewerContext: {

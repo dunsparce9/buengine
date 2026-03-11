@@ -448,7 +448,8 @@ export function summarizeAction(action, type, shortenText) {
     case 'say': return shortenText(action.say || '(empty dialogue)');
     case 'choice': {
       const count = action.choice?.options?.length || 0;
-      return `${shortenText(action.choice?.prompt || 'Choice')} | ${count} option(s)`;
+      const prompt = shortenText(action.choice?.prompt || '');
+      return prompt ? `${prompt} | ${count} option(s)` : `${count} option(s)`;
     }
     case 'goto': return action.goto || '(scene)';
     case 'set': {

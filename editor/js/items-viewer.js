@@ -110,6 +110,7 @@ export function openItemOptionsModal(item) {
     target: item,
     scriptId,
     title: `${item.id} — Options`,
+    subtitle: item.name || item.id,
     modalKey: `${scriptId}:${item.id}:options`,
     ownerLabel: item.name || item.id,
   });
