@@ -22,6 +22,7 @@ const inventory   = new Inventory(bus);
 const scene       = new SceneRenderer(document.getElementById('scene-layer'), bus);
 const runner      = new ActionRunner({ bus, state, inventory });
 const gridOverlay = document.getElementById('grid-overlay');
+const gameContainer = document.getElementById('game-container');
 
 // UI subsystems (they self-register on the bus)
 new DialogueUI(bus);
@@ -32,6 +33,10 @@ const hud = new HudUI(bus);
 const inventoryUI = new InventoryUI(bus, inventory, runner);
 new NotificationUI(bus);
 new ObjectOptionsUI(bus);
+
+gameContainer.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+});
 
 /** Currently loaded scene data keyed by id. */
 let currentSceneData = null;
