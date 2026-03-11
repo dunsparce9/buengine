@@ -42,8 +42,9 @@ function getActionMeta(type) {
 
 /* ── Open viewer registry (dedup by title) ─────── */
 
-/** @type {Map<string, {fw: ReturnType<typeof createFloatingWindow>, rebuild: Function}>} */
+/** @type {Map<string, {key: string, fw: ReturnType<typeof createFloatingWindow>, actions: object[], opts: object, collapsed: boolean, editingIdx: number|null, rebuild: Function}>} */
 const _openViewers = new Map();
+let _dragState = null;
 
 /* ── Public API ────────────────────────────────── */
 
@@ -72,10 +73,23 @@ export function openActionViewer(title, actions, opts = {}) {
     resizable: true,
   });
 
-  _openViewers.set(key, { fw });
+  const viewerState = {
+    key,
+    fw,
+    actions,
+    opts,
+    collapsed: false,
+    editingIdx: null,
+    rebuild() {
+      fw.body.innerHTML = '';
+      buildEditorContent(fw.body, viewerState);
+    },
+  };
+
+  _openViewers.set(key, viewerState);
   fw.onClose(() => _openViewers.delete(key));
 
-  buildEditorContent(fw.body, actions, fw, opts);
+  viewerState.rebuild();
   fw.open();
 }
 
@@ -498,42 +512,165 @@ function getBadges(action, type) {
   return badges;
 }
 
+function summarizeAction(action, type) {
+  switch (type) {
+    case 'say':
+      return shortenText(action.say || '(empty dialogue)');
+    case 'choice': {
+      const count = action.choice?.options?.length || 0;
+      return `${shortenText(action.choice?.prompt || 'Choice')} | ${count} option(s)`;
+    }
+    case 'goto':
+      return action.goto || '(scene)';
+    case 'set': {
+      const keys = Object.keys(action.set || {});
+      return keys.length ? keys.join(', ') : 'No flags';
+    }
+    case 'if':
+      return `${action.if || '(condition)'} | then ${action.then?.length || 0} | else ${action.else?.length || 0}`;
+    case 'loop': {
+      const loopActions = Array.isArray(action.do) ? action.do : (Array.isArray(action.then) ? action.then : []);
+      return `${action.loop || '(condition)'} | do ${loopActions.length}`;
+    }
+    case 'wait':
+      return `${action.wait ?? 0} ms`;
+    case 'emit':
+      return action.emit || '(event)';
+    case 'run':
+      return action.run || '(definition)';
+    case 'fork':
+      if (typeof action.fork === 'string') return action.fork;
+      if (typeof action.fork?.run === 'string') return action.fork.run;
+      if (Array.isArray(action.fork?.actions)) return `${action.fork.actions.length} background action(s)`;
+      return 'Background actions';
+    case 'exit':
+      return 'Stop here';
+    case 'show':
+      return action.show?.id || action.show?.texture || String(action.show || '(target)');
+    case 'hide':
+      return action.hide?.id || String(action.hide || '(target)');
+    case 'effect':
+      return `${action.effect?.type || 'effect'}${action.effect?.seconds != null ? ` ${action.effect.seconds}s` : ''}`;
+    case 'playsound':
+      return action.playsound?.id || action.playsound?.path || '(sound)';
+    case 'stopsound':
+      return action.stopsound?.id || '(sound)';
+    case 'item':
+      return `${action.item?.id || '(item)'} x ${action.item?.qty ?? 1}`;
+    default:
+      return shortenText(JSON.stringify(action));
+  }
+}
+
+function shortenText(text, max = 52) {
+  const normalized = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!normalized) return '';
+  if (normalized.length <= max) return normalized;
+  return `${normalized.slice(0, max - 1)}...`;
+}
+
+function notifyViewerChange(viewerState) {
+  viewerState.opts.onChange?.();
+}
+
+function adjustEditingIdxAfterRemove(viewerState, idx) {
+  if (viewerState.editingIdx === idx) viewerState.editingIdx = null;
+  else if (viewerState.editingIdx != null && viewerState.editingIdx > idx) viewerState.editingIdx--;
+}
+
+function adjustEditingIdxAfterInsert(viewerState, idx) {
+  if (viewerState.editingIdx != null && viewerState.editingIdx >= idx) viewerState.editingIdx++;
+}
+
+function moveActionBetweenViewers(sourceViewer, sourceIdx, targetViewer, targetIdx) {
+  if (!sourceViewer || !targetViewer) return;
+  if (sourceIdx == null || sourceIdx < 0 || sourceIdx >= sourceViewer.actions.length) return;
+
+  if (sourceViewer === targetViewer) {
+    const [item] = sourceViewer.actions.splice(sourceIdx, 1);
+    let insertIdx = targetIdx;
+    if (sourceIdx < insertIdx) insertIdx--;
+    sourceViewer.actions.splice(insertIdx, 0, item);
+    if (sourceViewer.editingIdx === sourceIdx) {
+      sourceViewer.editingIdx = insertIdx;
+    } else if (sourceViewer.editingIdx != null) {
+      if (sourceIdx < sourceViewer.editingIdx && insertIdx >= sourceViewer.editingIdx) sourceViewer.editingIdx--;
+      else if (sourceIdx > sourceViewer.editingIdx && insertIdx <= sourceViewer.editingIdx) sourceViewer.editingIdx++;
+    }
+    notifyViewerChange(sourceViewer);
+    sourceViewer.rebuild();
+    return;
+  }
+
+  const [item] = sourceViewer.actions.splice(sourceIdx, 1);
+  adjustEditingIdxAfterRemove(sourceViewer, sourceIdx);
+  targetViewer.actions.splice(targetIdx, 0, item);
+  adjustEditingIdxAfterInsert(targetViewer, targetIdx);
+  notifyViewerChange(sourceViewer);
+  notifyViewerChange(targetViewer);
+  sourceViewer.rebuild();
+  targetViewer.rebuild();
+}
+
 /* ── Editor content builder ────────────────────── */
 
-function buildEditorContent(container, actions, fw, opts) {
-  if (actions && actions.length > 0) {
-    const list = buildEditableList(actions, fw, opts);
+function buildEditorContent(container, viewerState) {
+  const toolbar = document.createElement('div');
+  toolbar.className = 'av-toolbar';
+
+  const collapseBtn = document.createElement('button');
+  collapseBtn.className = 'av-toolbar-btn av-toolbar-btn-collapse';
+  collapseBtn.type = 'button';
+  collapseBtn.title = viewerState.collapsed ? 'Expand actions' : 'Collapse actions';
+  collapseBtn.setAttribute('aria-label', viewerState.collapsed ? 'Expand actions' : 'Collapse actions');
+  collapseBtn.innerHTML = `<span class="material-symbols-outlined">${viewerState.collapsed ? 'unfold_more' : 'unfold_less'}</span>`;
+  collapseBtn.addEventListener('click', () => {
+    viewerState.collapsed = !viewerState.collapsed;
+    viewerState.rebuild();
+  });
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'av-toolbar-btn av-toolbar-btn-add';
+  addBtn.type = 'button';
+  addBtn.title = 'Add action';
+  addBtn.setAttribute('aria-label', 'Add action');
+  addBtn.innerHTML = '<span class="material-symbols-outlined">add_circle</span>';
+  addBtn.addEventListener('click', async () => {
+    const type = await pickActionType(viewerState.fw);
+    if (!type) return;
+    viewerState.actions.push(createDefaultAction(type));
+    notifyViewerChange(viewerState);
+    viewerState.rebuild();
+  });
+
+  const left = document.createElement('div');
+  left.className = 'av-toolbar-group av-toolbar-group-left';
+  left.appendChild(collapseBtn);
+
+  const right = document.createElement('div');
+  right.className = 'av-toolbar-group av-toolbar-group-right';
+  right.appendChild(addBtn);
+
+  toolbar.append(left, right);
+  container.appendChild(toolbar);
+
+  if (viewerState.actions && viewerState.actions.length > 0) {
+    const list = buildEditableList(viewerState);
     container.appendChild(list);
   } else {
     const empty = document.createElement('div');
-    empty.className = 'av-empty';
-    empty.textContent = 'No actions yet';
+    empty.className = 'av-empty av-drop-empty';
+    empty.textContent = _dragState ? 'Drop actions here' : 'No actions yet';
+    setupEmptyDropZone(empty, viewerState);
     container.appendChild(empty);
   }
-
-  const toolbar = document.createElement('div');
-  toolbar.className = 'av-toolbar';
-  const addBtn = document.createElement('button');
-  addBtn.className = 'av-add-btn';
-  addBtn.innerHTML = '<span class="material-symbols-outlined">add_circle</span> Add action';
-  addBtn.addEventListener('click', async () => {
-    const type = await pickActionType(fw);
-    if (!type) return;
-    actions.push(createDefaultAction(type));
-    if (opts.onChange) opts.onChange();
-    container.innerHTML = '';
-    buildEditorContent(container, actions, fw, opts);
-  });
-  toolbar.appendChild(addBtn);
-  container.appendChild(toolbar);
 }
 
 /* ── Editable list with drag-and-drop ──────────── */
 
-function buildEditableList(actions, fw, opts) {
+function buildEditableList(viewerState) {
   const container = document.createElement('div');
   container.className = 'av-list';
-  let editingIdx = null;
 
   function cloneAction(action) {
     if (typeof structuredClone === 'function') return structuredClone(action);
@@ -542,52 +679,43 @@ function buildEditableList(actions, fw, opts) {
 
   function renderBlocks() {
     container.innerHTML = '';
-    for (let i = 0; i < actions.length; i++) {
-      container.appendChild(buildEditableBlock(actions[i], i, {
-        actions, fw, opts, editingIdx,
+    for (let i = 0; i < viewerState.actions.length; i++) {
+      container.appendChild(buildEditableBlock(viewerState.actions[i], i, {
+        viewerState,
+        opts: viewerState.opts,
         onClone(idx) {
-          actions.splice(idx + 1, 0, cloneAction(actions[idx]));
-          if (editingIdx != null && editingIdx > idx) editingIdx++;
-          if (opts.onChange) opts.onChange();
+          viewerState.actions.splice(idx + 1, 0, cloneAction(viewerState.actions[idx]));
+          adjustEditingIdxAfterInsert(viewerState, idx + 1);
+          notifyViewerChange(viewerState);
           renderBlocks();
         },
         onEdit(idx) {
-          if (editingIdx === idx) {
-            cleanAction(actions[editingIdx], detectType(actions[editingIdx]));
-            editingIdx = null;
+          if (viewerState.editingIdx === idx) {
+            cleanAction(viewerState.actions[idx], detectType(viewerState.actions[idx]));
+            viewerState.editingIdx = null;
           } else {
-            if (editingIdx != null) cleanAction(actions[editingIdx], detectType(actions[editingIdx]));
-            editingIdx = idx;
+            if (viewerState.editingIdx != null) {
+              cleanAction(viewerState.actions[viewerState.editingIdx], detectType(viewerState.actions[viewerState.editingIdx]));
+            }
+            viewerState.editingIdx = idx;
           }
           renderBlocks();
         },
         onDelete(idx) {
-          actions.splice(idx, 1);
-          if (editingIdx === idx) editingIdx = null;
-          else if (editingIdx != null && editingIdx > idx) editingIdx--;
-          if (opts.onChange) opts.onChange();
-          fw.body.innerHTML = '';
-          buildEditorContent(fw.body, actions, fw, opts);
+          viewerState.actions.splice(idx, 1);
+          adjustEditingIdxAfterRemove(viewerState, idx);
+          notifyViewerChange(viewerState);
+          viewerState.rebuild();
         },
         onFieldChange() {
-          if (opts.onChange) opts.onChange();
+          notifyViewerChange(viewerState);
         },
       }));
     }
   }
 
   renderBlocks();
-  setupDragAndDrop(container, (from, to) => {
-    const [item] = actions.splice(from, 1);
-    actions.splice(to, 0, item);
-    if (editingIdx === from) editingIdx = to;
-    else if (editingIdx != null) {
-      if (from < editingIdx && to >= editingIdx) editingIdx--;
-      else if (from > editingIdx && to <= editingIdx) editingIdx++;
-    }
-    if (opts.onChange) opts.onChange();
-    renderBlocks();
-  });
+  setupDragAndDrop(container, viewerState);
 
   return container;
 }
@@ -597,7 +725,8 @@ function buildEditableList(actions, fw, opts) {
 function buildEditableBlock(action, index, ctx) {
   const type = detectType(action);
   const meta = getActionMeta(type);
-  const isEditing = ctx.editingIdx === index;
+  const isEditing = ctx.viewerState.editingIdx === index;
+  const isCollapsed = ctx.viewerState.collapsed && !isEditing;
 
   const block = document.createElement('div');
   block.className = `av-block av-block-${type}${isEditing ? ' av-editing' : ''}`;
@@ -626,6 +755,13 @@ function buildEditableBlock(action, index, ctx) {
   label.textContent = meta.label;
 
   header.append(dragHandle, idx, icon, label);
+
+  if (isCollapsed) {
+    const summary = document.createElement('span');
+    summary.className = 'av-summary';
+    summary.textContent = summarizeAction(action, type);
+    header.appendChild(summary);
+  }
 
   const badges = getBadges(action, type);
   for (const b of badges) {
@@ -658,7 +794,7 @@ function buildEditableBlock(action, index, ctx) {
 
   if (isEditing) {
     block.appendChild(buildEditForm(action, type, ctx));
-  } else {
+  } else if (!isCollapsed) {
     const body = renderActionBody(action, type, ctx.opts);
     if (body) block.appendChild(body);
   }
@@ -1135,35 +1271,38 @@ function pickActionType(parentFw) {
 
 /* ── Drag-and-drop reorder ─────────────────────── */
 
-function setupDragAndDrop(container, onReorder) {
-  let dragIdx = null;
+function setupDragAndDrop(container, viewerState) {
   let indicator = null;
 
   container.addEventListener('dragstart', (e) => {
     const block = e.target.closest('.av-block');
     if (!block) return;
-    dragIdx = parseInt(block.dataset.index);
+    const dragIdx = parseInt(block.dataset.index, 10);
+    if (!Number.isInteger(dragIdx)) return;
+    _dragState = { sourceViewer: viewerState, sourceIdx: dragIdx, sourceEl: block };
     block.classList.add('av-dragging');
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', '');
+    e.dataTransfer.setData('text/plain', `${viewerState.key}:${dragIdx}`);
   });
 
   container.addEventListener('dragend', (e) => {
     const block = e.target.closest('.av-block');
     if (block) block.classList.remove('av-dragging');
     removeIndicator();
-    dragIdx = null;
+    _dragState = null;
   });
 
   container.addEventListener('dragover', (e) => {
+    if (!_dragState) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    if (dragIdx == null) return;
     const target = e.target.closest('.av-block');
-    if (!target) return;
-    const rect = target.getBoundingClientRect();
-    const before = e.clientY < rect.top + rect.height / 2;
-    showIndicator(target, before);
+    if (!target) {
+      showIndicator(null, false);
+      return;
+    }
+    const { index, before } = getDropPosition(target, e.clientY);
+    showIndicator(target, before, index);
   });
 
   container.addEventListener('dragleave', (e) => {
@@ -1171,30 +1310,57 @@ function setupDragAndDrop(container, onReorder) {
   });
 
   container.addEventListener('drop', (e) => {
+    if (!_dragState) return;
     e.preventDefault();
     removeIndicator();
-    if (dragIdx == null) return;
     const target = e.target.closest('.av-block');
-    if (!target) return;
-    let to = parseInt(target.dataset.index);
-    const rect = target.getBoundingClientRect();
-    if (e.clientY >= rect.top + rect.height / 2) to++;
-    if (dragIdx < to) to--;
-    if (dragIdx !== to) onReorder(dragIdx, to);
-    dragIdx = null;
+    const to = target ? getDropPosition(target, e.clientY).index : viewerState.actions.length;
+    moveActionBetweenViewers(_dragState.sourceViewer, _dragState.sourceIdx, viewerState, to);
+    if (_dragState?.sourceEl) _dragState.sourceEl.classList.remove('av-dragging');
+    _dragState = null;
   });
+
+  function getDropPosition(target, clientY) {
+    const rect = target.getBoundingClientRect();
+    const before = clientY < rect.top + rect.height / 2;
+    const targetIdx = parseInt(target.dataset.index, 10);
+    return { before, index: before ? targetIdx : targetIdx + 1 };
+  }
 
   function showIndicator(target, before) {
     if (!indicator) {
       indicator = document.createElement('div');
       indicator.className = 'av-drop-indicator';
     }
-    container.insertBefore(indicator, before ? target : target.nextSibling);
+    container.insertBefore(indicator, target ? (before ? target : target.nextSibling) : null);
   }
 
   function removeIndicator() {
     if (indicator?.parentNode) indicator.remove();
   }
+}
+
+function setupEmptyDropZone(emptyEl, viewerState) {
+  emptyEl.addEventListener('dragover', (e) => {
+    if (!_dragState) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    emptyEl.classList.add('av-drop-ready');
+  });
+
+  emptyEl.addEventListener('dragleave', (e) => {
+    if (emptyEl.contains(e.relatedTarget)) return;
+    emptyEl.classList.remove('av-drop-ready');
+  });
+
+  emptyEl.addEventListener('drop', (e) => {
+    if (!_dragState) return;
+    e.preventDefault();
+    emptyEl.classList.remove('av-drop-ready');
+    moveActionBetweenViewers(_dragState.sourceViewer, _dragState.sourceIdx, viewerState, 0);
+    if (_dragState?.sourceEl) _dragState.sourceEl.classList.remove('av-dragging');
+    _dragState = null;
+  });
 }
 
 /* ── Read-only action list (nested views) ──────── */

@@ -116,96 +116,101 @@
         }
       },
       {
-        "show": {
-          "id": "dream1",
-          "texture": "images/scenes/dream1.png",
-          "layer": "overlay",
-          "scaling": "fill",
-          "effect": {
-            "seconds": 3,
-            "type": "fade-in",
-            "blocking": true
+        "loop": "true",
+        "do": [
+          {
+            "show": {
+              "id": "dream1",
+              "texture": "images/scenes/dream1.png",
+              "layer": "overlay",
+              "scaling": "fill",
+              "effect": {
+                "seconds": 3,
+                "type": "fade-in",
+                "blocking": true
+              }
+            }
+          },
+          {
+            "hide": {
+              "id": "dream1",
+              "effect": {
+                "type": "fade-out",
+                "seconds": 3,
+                "blocking": true
+              }
+            }
+          },
+          {
+            "show": {
+              "id": "dream2",
+              "texture": "images/scenes/dream2.png",
+              "layer": "overlay",
+              "scaling": "fill",
+              "effect": {
+                "type": "fade-in",
+                "seconds": 3,
+                "blocking": true
+              }
+            }
+          },
+          {
+            "hide": {
+              "id": "dream2",
+              "effect": {
+                "type": "fade-out",
+                "seconds": 3,
+                "blocking": true
+              }
+            }
+          },
+          {
+            "show": {
+              "id": "dream3",
+              "texture": "images/scenes/dream3.png",
+              "layer": "overlay",
+              "scaling": "fill",
+              "effect": {
+                "type": "fade-in",
+                "seconds": 3,
+                "blocking": true
+              }
+            }
+          },
+          {
+            "hide": {
+              "id": "dream3",
+              "effect": {
+                "type": "fade-out",
+                "seconds": 3,
+                "blocking": true
+              }
+            }
+          },
+          {
+            "show": {
+              "id": "dream4",
+              "texture": "images/scenes/dream4.png",
+              "layer": "overlay",
+              "scaling": "fill",
+              "effect": {
+                "type": "fade-in",
+                "seconds": 3,
+                "blocking": true
+              }
+            }
+          },
+          {
+            "hide": {
+              "id": "dream4",
+              "effect": {
+                "type": "fade-out",
+                "seconds": 3,
+                "blocking": true
+              }
+            }
           }
-        }
-      },
-      {
-        "hide": {
-          "id": "dream1",
-          "effect": {
-            "type": "fade-out",
-            "seconds": 3,
-            "blocking": true
-          }
-        }
-      },
-      {
-        "show": {
-          "id": "dream2",
-          "texture": "images/scenes/dream2.png",
-          "layer": "overlay",
-          "scaling": "fill",
-          "effect": {
-            "type": "fade-in",
-            "seconds": 3,
-            "blocking": true
-          }
-        }
-      },
-      {
-        "hide": {
-          "id": "dream2",
-          "effect": {
-            "type": "fade-out",
-            "seconds": 3,
-            "blocking": true
-          }
-        }
-      },
-      {
-        "show": {
-          "id": "dream3",
-          "texture": "images/scenes/dream3.png",
-          "layer": "overlay",
-          "scaling": "fill",
-          "effect": {
-            "type": "fade-in",
-            "seconds": 3,
-            "blocking": true
-          }
-        }
-      },
-      {
-        "hide": {
-          "id": "dream3",
-          "effect": {
-            "type": "fade-out",
-            "seconds": 3,
-            "blocking": true
-          }
-        }
-      },
-      {
-        "show": {
-          "id": "dream4",
-          "texture": "images/scenes/dream4.png",
-          "layer": "overlay",
-          "scaling": "fill",
-          "effect": {
-            "type": "fade-in",
-            "seconds": 3,
-            "blocking": true
-          }
-        }
-      },
-      {
-        "hide": {
-          "id": "dream4",
-          "effect": {
-            "type": "fade-out",
-            "seconds": 3,
-            "blocking": true
-          }
-        }
+        ]
       }
     ]
   },

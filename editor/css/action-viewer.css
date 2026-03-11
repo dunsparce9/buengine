@@ -64,6 +64,16 @@
   color: #a89984;
 }
 
+.av-summary {
+  min-width: 0;
+  flex: 1;
+  font-size: 11px;
+  color: #928374;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .av-badge {
   margin-left: auto;
   padding: 1px 6px;
@@ -282,30 +292,68 @@ button.av-chip:hover {
 /* ── Action viewer: toolbar & add button ───────── */
 
 .av-toolbar {
-  padding: 8px 0 4px;
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  position: sticky;
+  top: -16px;
+  z-index: 5;
+  margin: -16px -16px 10px;
+  padding: 8px 12px;
+  background: linear-gradient(180deg, rgba(40,40,40,0.98), rgba(40,40,40,0.92));
+  border-bottom: 1px solid #3c3836;
+  backdrop-filter: blur(6px);
 }
 
-.av-add-btn {
+.av-toolbar-group {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.av-toolbar-group-right {
+  margin-left: auto;
+}
+
+.av-toolbar-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 16px;
-  border: 1px dashed #504945;
-  border-radius: 4px;
-  background: transparent;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #504945;
+  border-radius: 5px;
+  background: rgba(29, 32, 33, 0.88);
   color: #a89984;
-  font-size: 12px;
-  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
 }
-.av-add-btn .material-symbols-outlined { font-size: 16px; }
-.av-add-btn:hover {
-  border-color: #fe8019;
-  color: #fe8019;
-  background: rgba(254, 128, 25, 0.06);
+
+.av-toolbar-btn .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.av-toolbar-btn:hover {
+  background: #32302f;
+}
+
+.av-toolbar-btn-collapse:hover {
+  border-color: #83a598;
+  color: #83a598;
+}
+
+.av-toolbar-btn-add {
+  color: #8ec07c;
+  border-color: rgba(142, 192, 124, 0.45);
+  background: rgba(142, 192, 124, 0.08);
+}
+
+.av-toolbar-btn-add:hover {
+  color: #b8d9a8;
+  border-color: #8ec07c;
+  background: rgba(142, 192, 124, 0.18);
 }
 
 /* ── Action viewer: drag handle & header buttons ── */
@@ -590,4 +638,16 @@ button.av-chip:hover {
   border-radius: 2px;
   margin: 2px 0;
   box-shadow: 0 0 6px rgba(254, 128, 25, 0.4);
+}
+
+.av-drop-empty {
+  border: 1px dashed #504945;
+  border-radius: 6px;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.av-drop-empty.av-drop-ready {
+  border-color: #fe8019;
+  background: rgba(254, 128, 25, 0.08);
+  color: #fe8019;
 }

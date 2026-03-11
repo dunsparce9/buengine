@@ -12,6 +12,7 @@
  *   { "if": "flag_name", "then": [...], "else": [...] }        // truthiness check
  *   { "if": "flag_name >= 3", "then": [...], "else": [...] }   // numeric comparison (==, !=, >, >=, <, <=)
  *   { "loop": "flag_name < 3", "do": [...] }                   // repeat while condition remains true
+ *   { "loop": true, "do": [...] }                              // unconditional loop
  *   { "wait": 500 }            // milliseconds
  *   { "emit": "custom:event" } // fire a bus event
  *   { "run": "definition_name" } // inline-expand a named definition (supports recursion)
@@ -316,40 +317,59 @@ export class ActionRunner {
   static _CMP_RE = /^(.+?)\s*(==|!=|>=|<=|>|<)\s*(.+)$/;
 
   /**
-   * Resolve a variable name that may refer to a flag or an inventory property.
-   * Supports:  items.<id>.qty  → inventory quantity
-   *            anything else   → game-state flag
+   * Resolve a token inside a condition expression.
+   * Supports booleans, numbers, inventory quantities, and game-state flags.
    */
-  _resolveValue(name) {
-    const itemMatch = /^items\.(.+?)\.qty$/.exec(name);
+  _resolveConditionOperand(token) {
+    if (typeof token === 'boolean' || typeof token === 'number') return token;
+
+    const text = String(token).trim();
+    if (text === 'true') return true;
+    if (text === 'false') return false;
+
+    const num = Number(text);
+    if (!Number.isNaN(num) && text !== '') return num;
+
+    const itemMatch = /^items\.(.+?)\.qty$/.exec(text);
     if (itemMatch) return this.inventory.getQty(itemMatch[1]);
-    return this.state.getFlag(name) ?? 0;
+
+    return this.state.getFlag(text) ?? 0;
   }
 
   /**
-   * Evaluate an `if` condition string.
+   * Evaluate an `if`/`loop` condition.
    * - Plain name → truthiness check (backward-compatible).
    * - "flag op value" → numeric comparison.
+   * - `true` / `false` → literal boolean.
+   * - "1 == 1" → literal comparison.
    * Supports `items.<id>.qty` for inventory checks.
    */
   _evalCondition(expr) {
+    if (typeof expr === 'boolean') return expr;
+
     const m = ActionRunner._CMP_RE.exec(expr);
     if (!m) {
+      if (typeof expr === 'number') return expr !== 0;
+      const text = String(expr).trim();
+      if (text === 'true') return true;
+      if (text === 'false') return false;
+      if (text !== '' && !Number.isNaN(Number(text))) return Number(text) !== 0;
+
       // Plain truthiness: check inventory shorthand or flag
-      const itemMatch = /^items\.(.+?)\.qty$/.exec(expr);
+      const itemMatch = /^items\.(.+?)\.qty$/.exec(text);
       if (itemMatch) return this.inventory.getQty(itemMatch[1]) > 0;
-      return this.state.hasFlag(expr);
+      return this.state.hasFlag(text);
     }
 
-    const flag = this._resolveValue(m[1].trim());
-    const val = Number(m[3].trim());
+    const left = this._resolveConditionOperand(m[1]);
+    const right = this._resolveConditionOperand(m[3]);
     switch (m[2]) {
-      case '==': return flag === val;
-      case '!=': return flag !== val;
-      case '>':  return flag > val;
-      case '>=': return flag >= val;
-      case '<':  return flag < val;
-      case '<=': return flag <= val;
+      case '==': return left === right;
+      case '!=': return left !== right;
+      case '>':  return left > right;
+      case '>=': return left >= right;
+      case '<':  return left < right;
+      case '<=': return left <= right;
       default:   return false;
     }
   }
