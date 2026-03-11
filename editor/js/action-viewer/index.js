@@ -15,7 +15,7 @@ import {
   adjustEditingIdxAfterInsert,
   adjustEditingIdxAfterRemove,
 } from './utils.js';
-import { createActionRenderers, getBadges, summarizeAction } from './renderers.js';
+import { createActionRenderers, getBadges, renderCollapsedSummary } from './renderers.js';
 import { createFormBuilders } from './forms.js';
 import { createDragController } from './drag.js';
 
@@ -45,7 +45,7 @@ export function openActionViewer(title, actions, opts = {}) {
     fw,
     actions,
     opts,
-    collapsed: false,
+    collapsed: true,
     editingIdx: null,
     rebuild() {
       fw.body.innerHTML = '';
@@ -222,9 +222,10 @@ function buildEditableBlock(action, index, ctx) {
   header.append(dragHandle, idx, icon, label);
 
   if (isCollapsed) {
-    const summary = document.createElement('span');
-    summary.className = 'av-summary';
-    summary.textContent = summarizeAction(action, type, shortenText);
+    const summary = renderCollapsedSummary(action, type, shortenText, {
+      ...ctx.opts,
+      openActionViewer,
+    });
     header.appendChild(summary);
   }
 

@@ -1,6 +1,24 @@
 import { escapeHtml } from '../state.js';
 
 export function createActionRenderers(openActionViewer, buildReadOnlyList) {
+  function getForkDefinitionName(forkDef) {
+    if (typeof forkDef === 'string') return forkDef;
+    if (typeof forkDef?.run === 'string') return forkDef.run;
+    return '';
+  }
+
+  function openDefinition(defName, viewCtx = {}) {
+    if (!(viewCtx.sceneData?.definitions && defName in viewCtx.sceneData.definitions)) return;
+    const actions = viewCtx.sceneData.definitions[defName];
+    openActionViewer(`${viewCtx.sceneId} — ${defName}`, actions, {
+      onChange: () => viewCtx.markDirty?.(viewCtx.sceneId),
+      sceneId: viewCtx.sceneId,
+      sceneData: viewCtx.sceneData,
+      markDirty: viewCtx.markDirty,
+      focusScene: viewCtx.focusScene,
+    });
+  }
+
   function renderActionBody(action, type, viewCtx = {}) {
     switch (type) {
       case 'say': return renderSay(action);
@@ -311,24 +329,15 @@ export function createActionRenderers(openActionViewer, buildReadOnlyList) {
     if (canOpenDefinition) {
       chip.type = 'button';
       chip.title = `Open definition: ${defName}`;
-      chip.addEventListener('click', () => {
-        const actions = viewCtx.sceneData.definitions[defName];
-        openActionViewer(`${viewCtx.sceneId} — ${defName}`, actions, {
-          onChange: () => viewCtx.markDirty?.(viewCtx.sceneId),
-          sceneId: viewCtx.sceneId,
-          sceneData: viewCtx.sceneData,
-          markDirty: viewCtx.markDirty,
-          focusScene: viewCtx.focusScene,
-        });
-      });
+      chip.addEventListener('click', () => openDefinition(defName, viewCtx));
     }
     body.appendChild(chip);
     return body;
   }
 
   function renderFork(forkDef, color, viewCtx = {}) {
-    if (typeof forkDef === 'string') return renderRunChip(forkDef, color, viewCtx);
-    if (typeof forkDef?.run === 'string') return renderRunChip(forkDef.run, color, viewCtx);
+    const defName = getForkDefinitionName(forkDef);
+    if (defName) return renderRunChip(defName, color, viewCtx);
     if (Array.isArray(forkDef?.actions)) {
       const body = document.createElement('div');
       body.className = 'av-body av-if-body';
@@ -365,6 +374,51 @@ export function createActionRenderers(openActionViewer, buildReadOnlyList) {
   }
 
   return { renderActionBody };
+}
+
+export function renderCollapsedSummary(action, type, shortenText, viewCtx = {}) {
+  const summaryText = summarizeAction(action, type, shortenText);
+  let onClick = null;
+  let title = '';
+
+  if (type === 'goto' && typeof viewCtx.focusScene === 'function' && action.goto) {
+    onClick = () => viewCtx.focusScene(action.goto);
+    title = `Focus scene: ${action.goto}`;
+  } else if (type === 'run' && viewCtx.sceneData?.definitions && action.run in viewCtx.sceneData.definitions) {
+    onClick = () => viewCtx.openActionViewer?.(`${viewCtx.sceneId} — ${action.run}`, viewCtx.sceneData.definitions[action.run], {
+      onChange: () => viewCtx.markDirty?.(viewCtx.sceneId),
+      sceneId: viewCtx.sceneId,
+      sceneData: viewCtx.sceneData,
+      markDirty: viewCtx.markDirty,
+      focusScene: viewCtx.focusScene,
+    });
+    title = `Open definition: ${action.run}`;
+  } else if (type === 'fork') {
+    const defName = typeof action.fork === 'string' ? action.fork : action.fork?.run;
+    if (defName && viewCtx.sceneData?.definitions && defName in viewCtx.sceneData.definitions) {
+      onClick = () => viewCtx.openActionViewer?.(`${viewCtx.sceneId} — ${defName}`, viewCtx.sceneData.definitions[defName], {
+        onChange: () => viewCtx.markDirty?.(viewCtx.sceneId),
+        sceneId: viewCtx.sceneId,
+        sceneData: viewCtx.sceneData,
+        markDirty: viewCtx.markDirty,
+        focusScene: viewCtx.focusScene,
+      });
+      title = `Open definition: ${defName}`;
+    }
+  }
+
+  const el = document.createElement(onClick ? 'button' : 'span');
+  el.className = `av-summary${onClick ? ' av-summary-link' : ''}`;
+  el.textContent = summaryText;
+  if (onClick) {
+    el.type = 'button';
+    el.title = title;
+    el.addEventListener('click', (event) => {
+      event.stopPropagation();
+      onClick();
+    });
+  }
+  return el;
 }
 
 export function getBadges(action, type) {
@@ -409,6 +463,11 @@ export function summarizeAction(action, type, shortenText) {
       return 'Background actions';
     case 'exit': return 'Stop here';
     case 'show': return action.show?.id || action.show?.texture || String(action.show || '(target)');
+    case 'text': {
+      const id = action.text?.id;
+      const text = shortenText(action.text?.text || '(empty text)');
+      return id ? `${id} | ${text}` : text;
+    }
     case 'hide': return action.hide?.id || String(action.hide || '(target)');
     case 'effect': return `${action.effect?.type || 'effect'}${action.effect?.seconds != null ? ` ${action.effect.seconds}s` : ''}`;
     case 'playsound': return action.playsound?.id || action.playsound?.path || '(sound)';
