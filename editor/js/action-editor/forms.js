@@ -4,7 +4,7 @@ import { setNestedValue, getNestedValue } from './utils.js';
 export function createFormBuilders(openActionEditor) {
   function buildEditForm(action, type, ctx) {
     const form = document.createElement('div');
-    form.className = 'av-edit-form';
+    form.className = 'ae-edit-form';
 
     const fields = ACTION_TYPES[type]?.fields;
     if (fields) {
@@ -23,14 +23,14 @@ export function createFormBuilders(openActionEditor) {
 
   function buildFieldRow(action, field, ctx) {
     const row = document.createElement('div');
-    row.className = 'av-field-row';
+    row.className = 'ae-field-row';
 
     const label = document.createElement('label');
-    label.className = 'av-field-label';
+    label.className = 'ae-field-label';
     label.textContent = field.label;
     if (field.required) {
       const required = document.createElement('span');
-      required.className = 'av-field-required';
+      required.className = 'ae-field-required';
       required.textContent = ' *';
       label.appendChild(required);
     }
@@ -42,7 +42,7 @@ export function createFormBuilders(openActionEditor) {
       case 'string': {
         const input = document.createElement('input');
         input.type = 'text';
-        input.className = 'av-field-input';
+        input.className = 'ae-field-input';
         input.value = value ?? '';
         if (field.fixed) input.readOnly = true;
         input.addEventListener('input', () => {
@@ -54,7 +54,7 @@ export function createFormBuilders(openActionEditor) {
       }
       case 'textarea': {
         const textarea = document.createElement('textarea');
-        textarea.className = 'av-field-input av-field-textarea';
+        textarea.className = 'ae-field-input ae-field-textarea';
         textarea.value = value ?? '';
         textarea.rows = 3;
         textarea.addEventListener('input', () => {
@@ -67,7 +67,7 @@ export function createFormBuilders(openActionEditor) {
       case 'number': {
         const input = document.createElement('input');
         input.type = 'number';
-        input.className = 'av-field-input av-field-number';
+        input.className = 'ae-field-input ae-field-number';
         input.value = value ?? '';
         if (field.step != null) input.step = field.step;
         if (field.min != null) input.min = field.min;
@@ -83,7 +83,7 @@ export function createFormBuilders(openActionEditor) {
       case 'boolean': {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
-        checkbox.className = 'av-field-checkbox';
+        checkbox.className = 'ae-field-checkbox';
         checkbox.checked = !!value;
         if (field.fixed) checkbox.disabled = true;
         checkbox.addEventListener('change', () => {
@@ -95,7 +95,7 @@ export function createFormBuilders(openActionEditor) {
       }
       case 'select': {
         const select = document.createElement('select');
-        select.className = 'av-field-input av-field-select';
+        select.className = 'ae-field-input ae-field-select';
         for (const option of (field.options || [])) {
           const opt = document.createElement('option');
           opt.value = option;
@@ -112,21 +112,21 @@ export function createFormBuilders(openActionEditor) {
       }
       case 'color': {
         const wrap = document.createElement('div');
-        wrap.className = 'av-color-picker';
+        wrap.className = 'ae-color-picker';
 
         const swatch = document.createElement('div');
-        swatch.className = 'av-color-swatch';
+        swatch.className = 'ae-color-swatch';
         const currentColor = value || field.defaultValue || '#ffffff';
         swatch.style.backgroundColor = currentColor;
 
         const colorInput = document.createElement('input');
         colorInput.type = 'color';
-        colorInput.className = 'av-color-native';
+        colorInput.className = 'ae-color-native';
         colorInput.value = currentColor;
 
         const hexInput = document.createElement('input');
         hexInput.type = 'text';
-        hexInput.className = 'av-field-input av-color-hex';
+        hexInput.className = 'ae-field-input ae-color-hex';
         hexInput.value = value || '';
         hexInput.placeholder = field.defaultValue || '#ffffff';
         hexInput.maxLength = 7;
@@ -172,29 +172,29 @@ export function createFormBuilders(openActionEditor) {
 
   function buildSetEditor(action, ctx) {
     const wrap = document.createElement('div');
-    wrap.className = 'av-set-editor';
+    wrap.className = 'ae-set-editor';
     if (!action.set || typeof action.set !== 'object') action.set = {};
 
     function render() {
       wrap.innerHTML = '';
       for (const [flag, value] of Object.entries(action.set)) {
         const row = document.createElement('div');
-        row.className = 'av-set-edit-row';
+        row.className = 'ae-set-edit-row';
 
         const nameInput = document.createElement('input');
         nameInput.type = 'text';
-        nameInput.className = 'av-field-input';
+        nameInput.className = 'ae-field-input';
         nameInput.value = flag;
         nameInput.placeholder = 'flag name';
 
         const valueInput = document.createElement('input');
         valueInput.type = 'text';
-        valueInput.className = 'av-field-input';
+        valueInput.className = 'ae-field-input';
         valueInput.value = typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
         valueInput.placeholder = 'value';
 
         const removeBtn = document.createElement('button');
-        removeBtn.className = 'av-mini-btn av-mini-btn-danger';
+        removeBtn.className = 'ae-mini-btn ae-mini-btn-danger';
         removeBtn.innerHTML = '<span class="material-symbols-outlined">close</span>';
         removeBtn.title = 'Remove';
 
@@ -224,7 +224,7 @@ export function createFormBuilders(openActionEditor) {
       }
 
       const addBtn = document.createElement('button');
-      addBtn.className = 'av-mini-btn';
+      addBtn.className = 'ae-mini-btn';
       addBtn.innerHTML = '<span class="material-symbols-outlined">add</span> Add flag';
       addBtn.addEventListener('click', () => {
         let name = 'new_flag';
@@ -243,7 +243,7 @@ export function createFormBuilders(openActionEditor) {
 
   function buildChoiceEditor(action, ctx) {
     const wrap = document.createElement('div');
-    wrap.className = 'av-choice-editor';
+    wrap.className = 'ae-choice-editor';
     if (!action.choice) action.choice = { prompt: '', options: [] };
     if (!action.choice.options) action.choice.options = [];
 
@@ -253,18 +253,18 @@ export function createFormBuilders(openActionEditor) {
       for (let i = 0; i < choiceOptions.length; i++) {
         const opt = choiceOptions[i];
         const row = document.createElement('div');
-        row.className = 'av-choice-edit-option';
+        row.className = 'ae-choice-edit-option';
 
         const header = document.createElement('div');
-        header.className = 'av-choice-edit-option-header';
+        header.className = 'ae-choice-edit-option-header';
 
         const badge = document.createElement('span');
-        badge.className = 'av-choice-option-idx';
+        badge.className = 'ae-choice-option-idx';
         badge.textContent = i + 1;
 
         const textInput = document.createElement('input');
         textInput.type = 'text';
-        textInput.className = 'av-field-input';
+        textInput.className = 'ae-field-input';
         textInput.value = opt.text || '';
         textInput.placeholder = 'Option text';
         textInput.addEventListener('input', () => {
@@ -273,7 +273,7 @@ export function createFormBuilders(openActionEditor) {
         });
 
         const actionsBtn = document.createElement('button');
-        actionsBtn.className = 'av-mini-btn';
+        actionsBtn.className = 'ae-mini-btn';
         actionsBtn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${opt.actions?.length || 0}`;
         actionsBtn.title = 'Edit option actions';
         actionsBtn.addEventListener('click', () => {
@@ -291,7 +291,7 @@ export function createFormBuilders(openActionEditor) {
         });
 
         const removeBtn = document.createElement('button');
-        removeBtn.className = 'av-mini-btn av-mini-btn-danger';
+        removeBtn.className = 'ae-mini-btn ae-mini-btn-danger';
         removeBtn.innerHTML = '<span class="material-symbols-outlined">close</span>';
         removeBtn.addEventListener('click', () => {
           choiceOptions.splice(i, 1);
@@ -305,7 +305,7 @@ export function createFormBuilders(openActionEditor) {
       }
 
       const addBtn = document.createElement('button');
-      addBtn.className = 'av-mini-btn';
+      addBtn.className = 'ae-mini-btn';
       addBtn.innerHTML = '<span class="material-symbols-outlined">add</span> Add option';
       addBtn.addEventListener('click', () => {
         choiceOptions.push({ text: '', actions: [] });
@@ -321,18 +321,18 @@ export function createFormBuilders(openActionEditor) {
 
   function buildIfBranchesEditor(action, ctx) {
     const wrap = document.createElement('div');
-    wrap.className = 'av-if-editor';
+    wrap.className = 'ae-if-editor';
 
     function branchRow(label, cssClass, key) {
       const row = document.createElement('div');
-      row.className = 'av-branch-edit-row';
+      row.className = 'ae-branch-edit-row';
 
       const labelEl = document.createElement('span');
-      labelEl.className = `av-branch-label ${cssClass}`;
+      labelEl.className = `ae-branch-label ${cssClass}`;
       labelEl.textContent = label;
 
       const btn = document.createElement('button');
-      btn.className = 'av-mini-btn';
+      btn.className = 'ae-mini-btn';
       btn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${action[key]?.length || 0} action(s)`;
       btn.addEventListener('click', () => {
         if (!action[key]) action[key] = [];
@@ -352,24 +352,24 @@ export function createFormBuilders(openActionEditor) {
       return row;
     }
 
-    wrap.appendChild(branchRow('then', 'av-branch-then', 'then'));
-    wrap.appendChild(branchRow('else', 'av-branch-else', 'else'));
+    wrap.appendChild(branchRow('then', 'ae-branch-then', 'then'));
+    wrap.appendChild(branchRow('else', 'ae-branch-else', 'else'));
     return wrap;
   }
 
   function buildLoopEditor(action, ctx) {
     const wrap = document.createElement('div');
-    wrap.className = 'av-if-editor';
+    wrap.className = 'ae-if-editor';
 
     const row = document.createElement('div');
-    row.className = 'av-branch-edit-row';
+    row.className = 'ae-branch-edit-row';
 
     const label = document.createElement('span');
-    label.className = 'av-branch-label av-branch-loop';
+    label.className = 'ae-branch-label ae-branch-loop';
     label.textContent = 'do';
 
     const btn = document.createElement('button');
-    btn.className = 'av-mini-btn';
+    btn.className = 'ae-mini-btn';
 
     const getLoopActions = () => {
       if (Array.isArray(action.do)) return action.do;

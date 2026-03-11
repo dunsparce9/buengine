@@ -91,10 +91,10 @@ function moveActionBetweenEditors(sourceEditor, sourceIdx, targetEditor, targetI
 
 function buildEditorContent(container, editorState) {
   const toolbar = document.createElement('div');
-  toolbar.className = 'av-toolbar';
+  toolbar.className = 'ae-toolbar';
 
   const collapseBtn = document.createElement('button');
-  collapseBtn.className = 'av-toolbar-btn av-toolbar-btn-collapse';
+  collapseBtn.className = 'ae-toolbar-btn ae-toolbar-btn-collapse';
   collapseBtn.type = 'button';
   collapseBtn.title = editorState.collapsed ? 'Expand actions' : 'Collapse actions';
   collapseBtn.setAttribute('aria-label', editorState.collapsed ? 'Expand actions' : 'Collapse actions');
@@ -105,7 +105,7 @@ function buildEditorContent(container, editorState) {
   });
 
   const addBtn = document.createElement('button');
-  addBtn.className = 'av-toolbar-btn av-toolbar-btn-add';
+  addBtn.className = 'ae-toolbar-btn ae-toolbar-btn-add';
   addBtn.type = 'button';
   addBtn.title = 'Add action';
   addBtn.setAttribute('aria-label', 'Add action');
@@ -119,11 +119,11 @@ function buildEditorContent(container, editorState) {
   });
 
   const left = document.createElement('div');
-  left.className = 'av-toolbar-group av-toolbar-group-left';
+  left.className = 'ae-toolbar-group ae-toolbar-group-left';
   left.appendChild(collapseBtn);
 
   const right = document.createElement('div');
-  right.className = 'av-toolbar-group av-toolbar-group-right';
+  right.className = 'ae-toolbar-group ae-toolbar-group-right';
   right.appendChild(addBtn);
 
   toolbar.append(left, right);
@@ -135,7 +135,7 @@ function buildEditorContent(container, editorState) {
   }
 
   const empty = document.createElement('div');
-  empty.className = 'av-empty av-drop-empty av-editable-empty';
+  empty.className = 'ae-empty ae-drop-empty ae-editable-empty';
   empty.textContent = 'No actions yet';
   registerEmptyDropZone(empty, editorState);
   container.appendChild(empty);
@@ -143,7 +143,7 @@ function buildEditorContent(container, editorState) {
 
 function buildEditableList(editorState) {
   const container = document.createElement('div');
-  container.className = 'av-list av-editable-list';
+  container.className = 'ae-list ae-editable-list';
 
   function renderBlocks() {
     container.innerHTML = '';
@@ -194,29 +194,29 @@ function buildEditableBlock(action, index, ctx) {
   const isCollapsed = ctx.editorState.collapsed && !isEditing;
 
   const block = document.createElement('div');
-  block.className = `av-block av-block-${type}${isEditing ? ' av-editing' : ''}`;
-  block.style.setProperty('--av-accent', meta.color);
+  block.className = `ae-block ae-block-${type}${isEditing ? ' ae-editing' : ''}`;
+  block.style.setProperty('--ae-accent', meta.color);
   block.dataset.index = index;
 
   const header = document.createElement('div');
-  header.className = 'av-block-header';
+  header.className = 'ae-block-header';
 
   const dragHandle = document.createElement('span');
-  dragHandle.className = 'av-drag-handle material-symbols-outlined';
+  dragHandle.className = 'ae-drag-handle material-symbols-outlined';
   dragHandle.textContent = 'drag_indicator';
   dragHandle.addEventListener('mousedown', (event) => drag.beginActionDrag(event, block, ctx.editorState));
 
   const idx = document.createElement('span');
-  idx.className = 'av-index';
+  idx.className = 'ae-index';
   idx.textContent = index + 1;
 
   const icon = document.createElement('span');
-  icon.className = 'av-icon material-symbols-outlined';
+  icon.className = 'ae-icon material-symbols-outlined';
   icon.style.color = meta.color;
   icon.textContent = meta.icon;
 
   const label = document.createElement('span');
-  label.className = 'av-label';
+  label.className = 'ae-label';
   label.textContent = meta.label;
 
   header.append(dragHandle, idx, icon, label);
@@ -231,13 +231,13 @@ function buildEditableBlock(action, index, ctx) {
 
   for (const badgeText of getBadges(action, type)) {
     const badge = document.createElement('span');
-    badge.className = 'av-badge';
+    badge.className = 'ae-badge';
     badge.textContent = badgeText;
     header.appendChild(badge);
   }
 
   const cloneBtn = document.createElement('button');
-  cloneBtn.className = 'av-header-btn av-clone-btn';
+  cloneBtn.className = 'ae-header-btn ae-clone-btn';
   cloneBtn.title = 'Clone';
   cloneBtn.innerHTML = '<span class="material-symbols-outlined">content_copy</span>';
   cloneBtn.addEventListener('click', (event) => {
@@ -246,7 +246,7 @@ function buildEditableBlock(action, index, ctx) {
   });
 
   const editBtn = document.createElement('button');
-  editBtn.className = 'av-header-btn av-edit-btn';
+  editBtn.className = 'ae-header-btn ae-edit-btn';
   editBtn.title = isEditing ? 'Done' : 'Edit';
   editBtn.innerHTML = `<span class="material-symbols-outlined">${isEditing ? 'check' : 'edit'}</span>`;
   editBtn.addEventListener('click', (event) => {
@@ -255,7 +255,7 @@ function buildEditableBlock(action, index, ctx) {
   });
 
   const delBtn = document.createElement('button');
-  delBtn.className = 'av-header-btn av-delete-btn';
+  delBtn.className = 'ae-header-btn ae-delete-btn';
   delBtn.title = 'Delete';
   delBtn.innerHTML = '<span class="material-symbols-outlined">delete</span>';
   delBtn.addEventListener('click', (event) => {
@@ -264,7 +264,7 @@ function buildEditableBlock(action, index, ctx) {
   });
 
   const actions = document.createElement('div');
-  actions.className = 'av-header-actions';
+  actions.className = 'ae-header-actions';
   actions.append(cloneBtn, editBtn, delBtn);
 
   header.appendChild(actions);
@@ -282,31 +282,31 @@ function buildEditableBlock(action, index, ctx) {
 
 function buildReadOnlyList(actions, viewCtx = {}) {
   const container = document.createElement('div');
-  container.className = 'av-list';
+  container.className = 'ae-list';
   for (let i = 0; i < actions.length; i++) {
     const type = detectType(actions[i]);
     const meta = getActionMeta(type);
     const block = document.createElement('div');
-    block.className = `av-block av-block-${type}`;
-    block.style.setProperty('--av-accent', meta.color);
+    block.className = `ae-block ae-block-${type}`;
+    block.style.setProperty('--ae-accent', meta.color);
 
     const header = document.createElement('div');
-    header.className = 'av-block-header';
+    header.className = 'ae-block-header';
     const idxEl = document.createElement('span');
-    idxEl.className = 'av-index';
+    idxEl.className = 'ae-index';
     idxEl.textContent = i + 1;
     const iconEl = document.createElement('span');
-    iconEl.className = 'av-icon material-symbols-outlined';
+    iconEl.className = 'ae-icon material-symbols-outlined';
     iconEl.style.color = meta.color;
     iconEl.textContent = meta.icon;
     const labelEl = document.createElement('span');
-    labelEl.className = 'av-label';
+    labelEl.className = 'ae-label';
     labelEl.textContent = meta.label;
     header.append(idxEl, iconEl, labelEl);
 
     for (const badgeText of getBadges(actions[i], type)) {
       const badge = document.createElement('span');
-      badge.className = 'av-badge';
+      badge.className = 'ae-badge';
       badge.textContent = badgeText;
       header.appendChild(badge);
     }
@@ -335,24 +335,24 @@ function pickActionType(parentFw) {
     });
 
     const list = document.createElement('div');
-    list.className = 'av-type-list';
+    list.className = 'ae-type-list';
 
     for (const [type, meta] of Object.entries(ACTION_TYPES)) {
       const row = document.createElement('button');
-      row.className = 'av-type-row';
-      row.style.setProperty('--av-accent', meta.color);
+      row.className = 'ae-type-row';
+      row.style.setProperty('--ae-accent', meta.color);
 
       const icon = document.createElement('span');
-      icon.className = 'av-type-row-icon material-symbols-outlined';
+      icon.className = 'ae-type-row-icon material-symbols-outlined';
       icon.style.color = meta.color;
       icon.textContent = meta.icon;
 
       const label = document.createElement('span');
-      label.className = 'av-type-row-label';
+      label.className = 'ae-type-row-label';
       label.textContent = meta.label;
 
       const quip = document.createElement('span');
-      quip.className = 'av-type-row-quip';
+      quip.className = 'ae-type-row-quip';
       quip.textContent = meta.quip;
 
       row.append(icon, label, quip);

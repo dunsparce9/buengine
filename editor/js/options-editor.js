@@ -193,7 +193,7 @@ function buildOptionsContent(container, ctx) {
   }) {
     const pill = document.createElement('button');
     pill.type = 'button';
-    pill.className = 'av-mini-btn items-actions-pill';
+    pill.className = 'ae-mini-btn items-actions-pill';
     pill.innerHTML = '<span class="material-symbols-outlined">list_alt</span> ' + actions.length;
     pill.title = `${actions.length} action(s)`;
     pill.addEventListener('click', () => {

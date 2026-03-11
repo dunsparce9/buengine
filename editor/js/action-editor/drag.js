@@ -15,7 +15,7 @@ export function createDragController({ moveActionBetweenEditors }) {
     if (event.button !== 0) return;
     const dragIdx = parseInt(block.dataset.index, 10);
     if (!Number.isInteger(dragIdx)) return;
-    const header = block.querySelector('.av-block-header');
+    const header = block.querySelector('.ae-block-header');
     if (!header) return;
 
     event.preventDefault();
@@ -39,7 +39,7 @@ export function createDragController({ moveActionBetweenEditors }) {
       scrollHost: block.closest('.fw-body'),
     });
 
-    block.classList.add('av-dragging', 'av-drag-source-hidden');
+    block.classList.add('ae-dragging', 'ae-drag-source-hidden');
     document.body.style.cursor = 'grabbing';
     document.body.style.userSelect = 'none';
     document.addEventListener('mousemove', onActionDragMove);
@@ -70,10 +70,10 @@ export function createDragController({ moveActionBetweenEditors }) {
   function cancelActionDrag() {
     const dragState = getDragState();
     if (!dragState) return;
-    if (dragState.sourceEl) dragState.sourceEl.classList.remove('av-dragging', 'av-drag-source-hidden');
+    if (dragState.sourceEl) dragState.sourceEl.classList.remove('ae-dragging', 'ae-drag-source-hidden');
     if (dragState.previewEl?.parentNode) dragState.previewEl.remove();
     if (dragState.indicator?.parentNode) dragState.indicator.remove();
-    if (dragState.emptyEl) dragState.emptyEl.classList.remove('av-drop-ready');
+    if (dragState.emptyEl) dragState.emptyEl.classList.remove('ae-drop-ready');
     dragState.emptyEl = null;
 
     document.removeEventListener('mousemove', onActionDragMove);
@@ -94,7 +94,7 @@ export function createDragController({ moveActionBetweenEditors }) {
     if (!dragState) return;
     updateActionDragPreviewPosition(clientX, clientY);
     const pointEl = document.elementFromPoint(clientX, clientY);
-    const emptyEl = pointEl?.closest('.av-drop-empty.av-editable-empty');
+    const emptyEl = pointEl?.closest('.ae-drop-empty.ae-editable-empty');
     if (emptyEl && hasEmptyDropZone(emptyEl)) {
       const editorState = getEmptyDropZoneEditor(emptyEl);
       dragState.currentEditor = editorState;
@@ -104,7 +104,7 @@ export function createDragController({ moveActionBetweenEditors }) {
       return;
     }
 
-    const container = pointEl?.closest('.av-editable-list');
+    const container = pointEl?.closest('.ae-editable-list');
     if (container && hasEditableList(container)) {
       const editorState = getEditableListEditor(container);
       const dropIdx = getActionDragDropIndex(container, clientY, editorState);
@@ -117,7 +117,7 @@ export function createDragController({ moveActionBetweenEditors }) {
 
   function getActionDragDropIndex(container, clientY, editorState) {
     const blocks = Array.from(container.children).filter((child) =>
-      child.classList?.contains('av-block') && child !== getDragState()?.sourceEl
+      child.classList?.contains('ae-block') && child !== getDragState()?.sourceEl
     );
 
     let targetIdx = editorState.actions.length;
@@ -135,15 +135,15 @@ export function createDragController({ moveActionBetweenEditors }) {
     const dragState = getDragState();
     if (!dragState) return;
     if (dragState.emptyEl) {
-      dragState.emptyEl.classList.remove('av-drop-ready');
+      dragState.emptyEl.classList.remove('ae-drop-ready');
       dragState.emptyEl = null;
     }
     if (!dragState.indicator) {
       dragState.indicator = document.createElement('div');
-      dragState.indicator.className = 'av-drop-indicator';
+      dragState.indicator.className = 'ae-drop-indicator';
     }
     const blocks = Array.from(container.children).filter((child) =>
-      child.classList?.contains('av-block') && child !== dragState.sourceEl
+      child.classList?.contains('ae-block') && child !== dragState.sourceEl
     );
     const beforeNode = blocks.find((block) => parseInt(block.dataset.index, 10) >= dropIdx) || null;
     container.insertBefore(dragState.indicator, beforeNode);
@@ -151,7 +151,7 @@ export function createDragController({ moveActionBetweenEditors }) {
 
   function createActionDragPreview(header, rect) {
     const preview = header.cloneNode(true);
-    preview.classList.add('av-drag-preview');
+    preview.classList.add('ae-drag-preview');
     preview.style.width = `${Math.ceil(rect.width)}px`;
     document.body.appendChild(preview);
     return preview;
@@ -168,9 +168,9 @@ export function createDragController({ moveActionBetweenEditors }) {
     const dragState = getDragState();
     if (!dragState) return;
     if (dragState.indicator?.parentNode) dragState.indicator.remove();
-    if (dragState.emptyEl && dragState.emptyEl !== emptyEl) dragState.emptyEl.classList.remove('av-drop-ready');
+    if (dragState.emptyEl && dragState.emptyEl !== emptyEl) dragState.emptyEl.classList.remove('ae-drop-ready');
     dragState.emptyEl = emptyEl;
-    emptyEl.classList.add('av-drop-ready');
+    emptyEl.classList.add('ae-drop-ready');
   }
 
   function scheduleActionDragAutoScroll() {

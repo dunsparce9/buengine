@@ -50,16 +50,16 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
 
   function renderSay(action) {
     const body = document.createElement('div');
-    body.className = 'av-body av-say-body';
+    body.className = 'ae-body ae-say-body';
     if (action.speaker) {
       const speaker = document.createElement('span');
-      speaker.className = 'av-speaker';
+      speaker.className = 'ae-speaker';
       if (action.accent) speaker.style.color = action.accent;
       speaker.textContent = action.speaker;
       body.appendChild(speaker);
     }
     const text = document.createElement('div');
-    text.className = 'av-say-text';
+    text.className = 'ae-say-text';
     text.textContent = action.say;
     body.appendChild(text);
     return body;
@@ -67,10 +67,10 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
 
   function renderChoice(choice, viewCtx = {}) {
     const body = document.createElement('div');
-    body.className = 'av-body av-choice-body';
+    body.className = 'ae-body ae-choice-body';
     if (choice.prompt) {
       const prompt = document.createElement('div');
-      prompt.className = 'av-choice-prompt';
+      prompt.className = 'ae-choice-prompt';
       prompt.textContent = choice.prompt;
       body.appendChild(prompt);
     }
@@ -78,16 +78,16 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
       for (let i = 0; i < choice.options.length; i++) {
         const opt = choice.options[i];
         const optBlock = document.createElement('div');
-        optBlock.className = 'av-choice-option';
+        optBlock.className = 'ae-choice-option';
         const optHeader = document.createElement('div');
-        optHeader.className = 'av-choice-option-header';
+        optHeader.className = 'ae-choice-option-header';
         optHeader.innerHTML =
-          `<span class="av-choice-option-idx">${escapeHtml(String(i + 1))}</span>` +
-          `<span class="av-choice-option-text">${escapeHtml(opt.text || '—')}</span>`;
+          `<span class="ae-choice-option-idx">${escapeHtml(String(i + 1))}</span>` +
+          `<span class="ae-choice-option-text">${escapeHtml(opt.text || '—')}</span>`;
         optBlock.appendChild(optHeader);
         if (Array.isArray(opt.actions) && opt.actions.length > 0) {
           const nested = buildReadOnlyList(opt.actions, viewCtx);
-          nested.className += ' av-nested';
+          nested.className += ' ae-nested';
           optBlock.appendChild(nested);
         }
         body.appendChild(optBlock);
@@ -98,18 +98,18 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
 
   function renderSet(setObj) {
     const body = document.createElement('div');
-    body.className = 'av-body';
+    body.className = 'ae-body';
     for (const [flag, value] of Object.entries(setObj)) {
       const row = document.createElement('div');
-      row.className = 'av-set-row';
+      row.className = 'ae-set-row';
       const name = document.createElement('span');
-      name.className = 'av-flag-name';
+      name.className = 'ae-flag-name';
       name.textContent = flag;
       const arrow = document.createElement('span');
-      arrow.className = 'av-set-arrow';
+      arrow.className = 'ae-set-arrow';
       arrow.textContent = '←';
       const val = document.createElement('span');
-      val.className = 'av-flag-value';
+      val.className = 'ae-flag-value';
       if (typeof value === 'object' && value !== null) {
         let desc = `add ${value.add ?? 0}`;
         if (value.min != null) desc += `, min ${value.min}`;
@@ -126,27 +126,27 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
 
   function renderIf(action, viewCtx = {}) {
     const body = document.createElement('div');
-    body.className = 'av-body av-if-body';
+    body.className = 'ae-body ae-if-body';
     const cond = document.createElement('div');
-    cond.className = 'av-if-condition';
-    cond.innerHTML = `<span class="av-if-keyword">if</span> <code>${escapeHtml(action.if)}</code>`;
+    cond.className = 'ae-if-condition';
+    cond.innerHTML = `<span class="ae-if-keyword">if</span> <code>${escapeHtml(action.if)}</code>`;
     body.appendChild(cond);
     if (Array.isArray(action.then) && action.then.length > 0) {
       const thenLabel = document.createElement('div');
-      thenLabel.className = 'av-branch-label av-branch-then';
+      thenLabel.className = 'ae-branch-label ae-branch-then';
       thenLabel.textContent = 'then';
       body.appendChild(thenLabel);
       const thenList = buildReadOnlyList(action.then, viewCtx);
-      thenList.className += ' av-nested';
+      thenList.className += ' ae-nested';
       body.appendChild(thenList);
     }
     if (Array.isArray(action.else) && action.else.length > 0) {
       const elseLabel = document.createElement('div');
-      elseLabel.className = 'av-branch-label av-branch-else';
+      elseLabel.className = 'ae-branch-label ae-branch-else';
       elseLabel.textContent = 'else';
       body.appendChild(elseLabel);
       const elseList = buildReadOnlyList(action.else, viewCtx);
-      elseList.className += ' av-nested';
+      elseList.className += ' ae-nested';
       body.appendChild(elseList);
     }
     return body;
@@ -154,19 +154,19 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
 
   function renderLoop(action, viewCtx = {}) {
     const body = document.createElement('div');
-    body.className = 'av-body av-if-body';
+    body.className = 'ae-body ae-if-body';
     const cond = document.createElement('div');
-    cond.className = 'av-if-condition';
-    cond.innerHTML = `<span class="av-if-keyword">loop</span> <code>${escapeHtml(action.loop)}</code>`;
+    cond.className = 'ae-if-condition';
+    cond.innerHTML = `<span class="ae-if-keyword">loop</span> <code>${escapeHtml(action.loop)}</code>`;
     body.appendChild(cond);
     const loopActions = Array.isArray(action.do) ? action.do : (Array.isArray(action.then) ? action.then : []);
     if (loopActions.length > 0) {
       const doLabel = document.createElement('div');
-      doLabel.className = 'av-branch-label av-branch-loop';
+      doLabel.className = 'ae-branch-label ae-branch-loop';
       doLabel.textContent = 'do';
       body.appendChild(doLabel);
       const doList = buildReadOnlyList(loopActions, viewCtx);
-      doList.className += ' av-nested';
+      doList.className += ' ae-nested';
       body.appendChild(doList);
     }
     return body;
@@ -174,7 +174,7 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
 
   function renderOverlay(data) {
     const body = document.createElement('div');
-    body.className = 'av-body';
+    body.className = 'ae-body';
     const props = [];
     if (data.id) props.push(['id', data.id]);
     if (data.texture) props.push(['texture', data.texture]);
@@ -182,15 +182,15 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
     if (data.scaling) props.push(['scaling', data.scaling]);
     for (const [k, v] of props) {
       const row = document.createElement('div');
-      row.className = 'av-prop-row';
-      row.innerHTML = `<span class="av-prop-key">${escapeHtml(k)}</span><span class="av-prop-val">${escapeHtml(String(v))}</span>`;
+      row.className = 'ae-prop-row';
+      row.innerHTML = `<span class="ae-prop-key">${escapeHtml(k)}</span><span class="ae-prop-val">${escapeHtml(String(v))}</span>`;
       body.appendChild(row);
     }
     if (data.effect) {
       const effectBlock = renderEffect(data.effect);
       if (effectBlock) {
         const effectLabel = document.createElement('div');
-        effectLabel.className = 'av-sub-label';
+        effectLabel.className = 'ae-sub-label';
         effectLabel.textContent = 'effect';
         body.append(effectLabel, effectBlock);
       }
@@ -200,10 +200,10 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
 
   function renderTextAction(data) {
     const body = document.createElement('div');
-    body.className = 'av-body';
+    body.className = 'ae-body';
     if (data.text) {
       const preview = document.createElement('div');
-      preview.className = 'av-say-text';
+      preview.className = 'ae-say-text';
       preview.textContent = data.text;
       body.appendChild(preview);
     }
@@ -218,15 +218,15 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
     if (data.backgroundColor) props.push(['backgroundColor', data.backgroundColor]);
     for (const [k, v] of props) {
       const row = document.createElement('div');
-      row.className = 'av-prop-row';
-      row.innerHTML = `<span class="av-prop-key">${escapeHtml(k)}</span><span class="av-prop-val">${escapeHtml(String(v))}</span>`;
+      row.className = 'ae-prop-row';
+      row.innerHTML = `<span class="ae-prop-key">${escapeHtml(k)}</span><span class="ae-prop-val">${escapeHtml(String(v))}</span>`;
       body.appendChild(row);
     }
     if (data.effect) {
       const effectBlock = renderEffect(data.effect);
       if (effectBlock) {
         const effectLabel = document.createElement('div');
-        effectLabel.className = 'av-sub-label';
+        effectLabel.className = 'ae-sub-label';
         effectLabel.textContent = 'effect';
         body.append(effectLabel, effectBlock);
       }
@@ -236,14 +236,14 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
 
   function renderEffect(data) {
     const body = document.createElement('div');
-    body.className = 'av-body';
+    body.className = 'ae-body';
     const props = [];
     if (data.type) props.push(['type', data.type]);
     if (data.seconds != null) props.push(['seconds', data.seconds]);
     for (const [k, v] of props) {
       const row = document.createElement('div');
-      row.className = 'av-prop-row';
-      row.innerHTML = `<span class="av-prop-key">${escapeHtml(k)}</span><span class="av-prop-val">${escapeHtml(String(v))}</span>`;
+      row.className = 'ae-prop-row';
+      row.innerHTML = `<span class="ae-prop-key">${escapeHtml(k)}</span><span class="ae-prop-val">${escapeHtml(String(v))}</span>`;
       body.appendChild(row);
     }
     return body;
@@ -251,7 +251,7 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
 
   function renderSound(data) {
     const body = document.createElement('div');
-    body.className = 'av-body';
+    body.className = 'ae-body';
     const props = [];
     if (data.id) props.push(['id', data.id]);
     if (data.path) props.push(['path', data.path]);
@@ -260,8 +260,8 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
     if (data.loop != null) props.push(['loop', data.loop]);
     for (const [k, v] of props) {
       const row = document.createElement('div');
-      row.className = 'av-prop-row';
-      row.innerHTML = `<span class="av-prop-key">${escapeHtml(k)}</span><span class="av-prop-val">${escapeHtml(String(v))}</span>`;
+      row.className = 'ae-prop-row';
+      row.innerHTML = `<span class="ae-prop-key">${escapeHtml(k)}</span><span class="ae-prop-val">${escapeHtml(String(v))}</span>`;
       body.appendChild(row);
     }
     return body;
@@ -269,18 +269,18 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
 
   function renderItem(data) {
     const body = document.createElement('div');
-    body.className = 'av-body';
+    body.className = 'ae-body';
     const row = document.createElement('div');
-    row.className = 'av-set-row';
+    row.className = 'ae-set-row';
     const name = document.createElement('span');
-    name.className = 'av-flag-name';
+    name.className = 'ae-flag-name';
     name.textContent = data.id || '(no id)';
     const arrow = document.createElement('span');
-    arrow.className = 'av-set-arrow';
+    arrow.className = 'ae-set-arrow';
     const qty = data.qty ?? 1;
     arrow.textContent = qty >= 0 ? '←' : '→';
     const val = document.createElement('span');
-    val.className = 'av-flag-value';
+    val.className = 'ae-flag-value';
     if (qty >= 0) {
       val.textContent = `+${qty}`;
       val.style.color = '#b8bb26';
@@ -295,9 +295,9 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
 
   function renderChip(value, color) {
     const body = document.createElement('div');
-    body.className = 'av-body';
+    body.className = 'ae-body';
     const chip = document.createElement('span');
-    chip.className = 'av-chip';
+    chip.className = 'ae-chip';
     chip.style.setProperty('--chip-color', color);
     chip.textContent = value;
     body.appendChild(chip);
@@ -306,11 +306,11 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
 
   function renderGotoChip(sceneId, color, viewCtx = {}) {
     const body = document.createElement('div');
-    body.className = 'av-body';
+    body.className = 'ae-body';
     const canFocusScene = typeof viewCtx.focusScene === 'function' && !!sceneId;
     const chipTag = canFocusScene ? 'button' : 'span';
     const chip = document.createElement(chipTag);
-    chip.className = 'av-chip';
+    chip.className = 'ae-chip';
     chip.style.setProperty('--chip-color', color);
     chip.textContent = sceneId;
     if (canFocusScene) {
@@ -324,12 +324,12 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
 
   function renderRunChip(sequenceName, color, viewCtx = {}) {
     const body = document.createElement('div');
-    body.className = 'av-body';
+    body.className = 'ae-body';
     const sequences = getSceneSequences(viewCtx);
     const canOpenSequence = !!(sequences && sequenceName in sequences);
     const chipTag = canOpenSequence ? 'button' : 'span';
     const chip = document.createElement(chipTag);
-    chip.className = 'av-chip';
+    chip.className = 'ae-chip';
     chip.style.setProperty('--chip-color', color);
     chip.textContent = sequenceName;
     if (canOpenSequence) {
@@ -346,13 +346,13 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
     if (sequenceName) return renderRunChip(sequenceName, color, viewCtx);
     if (Array.isArray(forkDef?.actions)) {
       const body = document.createElement('div');
-      body.className = 'av-body av-if-body';
+      body.className = 'ae-body ae-if-body';
       const label = document.createElement('div');
-      label.className = 'av-branch-label av-branch-then';
+      label.className = 'ae-branch-label ae-branch-then';
       label.textContent = 'background';
       body.appendChild(label);
       const list = buildReadOnlyList(forkDef.actions, viewCtx);
-      list.className += ' av-nested';
+      list.className += ' ae-nested';
       body.appendChild(list);
       return body;
     }
@@ -361,9 +361,9 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
 
   function renderSimpleValue(text) {
     const body = document.createElement('div');
-    body.className = 'av-body';
+    body.className = 'ae-body';
     const val = document.createElement('span');
-    val.className = 'av-simple-val';
+    val.className = 'ae-simple-val';
     val.textContent = text;
     body.appendChild(val);
     return body;
@@ -371,9 +371,9 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
 
   function renderRawJson(action) {
     const body = document.createElement('div');
-    body.className = 'av-body';
+    body.className = 'ae-body';
     const pre = document.createElement('pre');
-    pre.className = 'av-raw';
+    pre.className = 'ae-raw';
     pre.textContent = JSON.stringify(action, null, 2);
     body.appendChild(pre);
     return body;
@@ -415,7 +415,7 @@ export function renderCollapsedSummary(action, type, shortenText, viewCtx = {}) 
   }
 
   const el = document.createElement(onClick ? 'button' : 'span');
-  el.className = `av-summary${onClick ? ' av-summary-link' : ''}`;
+  el.className = `ae-summary${onClick ? ' ae-summary-link' : ''}`;
   el.textContent = summaryText;
   if (onClick) {
     el.type = 'button';
