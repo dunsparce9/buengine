@@ -46,6 +46,204 @@ function getActionMeta(type) {
 /** @type {Map<string, {key: string, fw: ReturnType<typeof createFloatingWindow>, actions: object[], opts: object, collapsed: boolean, editingIdx: number|null, rebuild: Function}>} */
 const _openViewers = new Map();
 let _dragState = null;
+const _editableLists = new WeakMap();
+const _emptyDropZones = new WeakMap();
+let _dragAutoScrollRaf = 0;
+
+function registerEditableList(container, viewerState) {
+  _editableLists.set(container, viewerState);
+}
+
+function registerEmptyDropZone(emptyEl, viewerState) {
+  _emptyDropZones.set(emptyEl, viewerState);
+}
+
+function beginActionDrag(e, block, viewerState) {
+  if (e.button !== 0) return;
+  const dragIdx = parseInt(block.dataset.index, 10);
+  if (!Number.isInteger(dragIdx)) return;
+  const header = block.querySelector('.av-block-header');
+  if (!header) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  cancelActionDrag();
+
+  const headerRect = header.getBoundingClientRect();
+
+  _dragState = {
+    sourceViewer: viewerState,
+    sourceIdx: dragIdx,
+    sourceEl: block,
+    previewEl: createActionDragPreview(header, headerRect),
+    currentViewer: viewerState,
+    dropIdx: dragIdx,
+    indicator: null,
+    emptyEl: null,
+    clientX: e.clientX,
+    clientY: e.clientY,
+    previewOffsetX: e.clientX - headerRect.left,
+    previewOffsetY: e.clientY - headerRect.top,
+    scrollHost: block.closest('.fw-body'),
+  };
+
+  block.classList.add('av-dragging', 'av-drag-source-hidden');
+  document.body.style.cursor = 'grabbing';
+  document.body.style.userSelect = 'none';
+  document.addEventListener('mousemove', onActionDragMove);
+  document.addEventListener('mouseup', onActionDragEnd);
+  updateActionDragPreviewPosition(e.clientX, e.clientY);
+  updateActionDragTarget(e.clientX, e.clientY);
+  scheduleActionDragAutoScroll();
+}
+
+function onActionDragMove(e) {
+  if (!_dragState) return;
+  _dragState.clientX = e.clientX;
+  _dragState.clientY = e.clientY;
+  updateActionDragTarget(e.clientX, e.clientY);
+}
+
+function onActionDragEnd() {
+  if (!_dragState) return;
+  const { sourceViewer, sourceIdx, currentViewer, dropIdx } = _dragState;
+  cancelActionDrag();
+  if (currentViewer && Number.isInteger(dropIdx)) {
+    moveActionBetweenViewers(sourceViewer, sourceIdx, currentViewer, dropIdx);
+  }
+}
+
+function cancelActionDrag() {
+  if (!_dragState) return;
+  if (_dragState.sourceEl) _dragState.sourceEl.classList.remove('av-dragging', 'av-drag-source-hidden');
+  if (_dragState.previewEl?.parentNode) _dragState.previewEl.remove();
+  if (_dragState.indicator?.parentNode) _dragState.indicator.remove();
+  if (_dragState.emptyEl) _dragState.emptyEl.classList.remove('av-drop-ready');
+  _dragState.emptyEl = null;
+  document.removeEventListener('mousemove', onActionDragMove);
+  document.removeEventListener('mouseup', onActionDragEnd);
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+  if (_dragAutoScrollRaf) {
+    cancelAnimationFrame(_dragAutoScrollRaf);
+    _dragAutoScrollRaf = 0;
+  }
+  _dragState = null;
+}
+
+function updateActionDragTarget(clientX, clientY) {
+  if (!_dragState) return;
+  updateActionDragPreviewPosition(clientX, clientY);
+  const pointEl = document.elementFromPoint(clientX, clientY);
+  const emptyEl = pointEl?.closest('.av-drop-empty.av-editable-empty');
+  if (emptyEl && _emptyDropZones.has(emptyEl)) {
+    const viewerState = _emptyDropZones.get(emptyEl);
+    _dragState.currentViewer = viewerState;
+    _dragState.dropIdx = 0;
+    _dragState.scrollHost = emptyEl.closest('.fw-body');
+    showActionDragEmptyState(emptyEl);
+    return;
+  }
+
+  const container = pointEl?.closest('.av-editable-list');
+  if (container && _editableLists.has(container)) {
+    const viewerState = _editableLists.get(container);
+    const dropIdx = getActionDragDropIndex(container, clientY, viewerState);
+    _dragState.currentViewer = viewerState;
+    _dragState.dropIdx = dropIdx;
+    _dragState.scrollHost = container.closest('.fw-body');
+    showActionDragIndicator(container, dropIdx);
+  }
+}
+
+function getActionDragDropIndex(container, clientY, viewerState) {
+  const blocks = Array.from(container.children).filter((child) =>
+    child.classList?.contains('av-block') && child !== _dragState?.sourceEl
+  );
+
+  let targetIdx = viewerState.actions.length;
+  for (const block of blocks) {
+    const rect = block.getBoundingClientRect();
+    const blockIdx = parseInt(block.dataset.index, 10);
+    if (!Number.isInteger(blockIdx)) continue;
+    if (clientY < rect.top + rect.height / 2) return blockIdx;
+    targetIdx = blockIdx + 1;
+  }
+  return targetIdx;
+}
+
+function showActionDragIndicator(container, dropIdx) {
+  if (!_dragState) return;
+  if (_dragState.emptyEl) {
+    _dragState.emptyEl.classList.remove('av-drop-ready');
+    _dragState.emptyEl = null;
+  }
+  if (!_dragState.indicator) {
+    _dragState.indicator = document.createElement('div');
+    _dragState.indicator.className = 'av-drop-indicator';
+  }
+
+  const blocks = Array.from(container.children).filter((child) =>
+    child.classList?.contains('av-block') && child !== _dragState?.sourceEl
+  );
+  const beforeNode = blocks.find((block) => parseInt(block.dataset.index, 10) >= dropIdx) || null;
+  container.insertBefore(_dragState.indicator, beforeNode);
+}
+
+function createActionDragPreview(header, rect) {
+  const preview = header.cloneNode(true);
+  preview.classList.add('av-drag-preview');
+  preview.style.width = `${Math.ceil(rect.width)}px`;
+  document.body.appendChild(preview);
+  return preview;
+}
+
+function updateActionDragPreviewPosition(clientX, clientY) {
+  if (!_dragState?.previewEl) return;
+  _dragState.previewEl.style.left = `${Math.round(clientX - _dragState.previewOffsetX)}px`;
+  _dragState.previewEl.style.top = `${Math.round(clientY - _dragState.previewOffsetY)}px`;
+}
+
+function showActionDragEmptyState(emptyEl) {
+  if (!_dragState) return;
+  if (_dragState.indicator?.parentNode) _dragState.indicator.remove();
+  if (_dragState.emptyEl && _dragState.emptyEl !== emptyEl) {
+    _dragState.emptyEl.classList.remove('av-drop-ready');
+  }
+  _dragState.emptyEl = emptyEl;
+  emptyEl.classList.add('av-drop-ready');
+}
+
+function scheduleActionDragAutoScroll() {
+  if (_dragAutoScrollRaf) return;
+
+  const step = () => {
+    _dragAutoScrollRaf = 0;
+    if (!_dragState) return;
+
+    const host = _dragState.scrollHost;
+    if (host) {
+      const rect = host.getBoundingClientRect();
+      const zone = Math.max(36, Math.min(72, rect.height * 0.18));
+      let delta = 0;
+      if (_dragState.clientY < rect.top + zone) {
+        delta = -Math.ceil((rect.top + zone - _dragState.clientY) / 8);
+      } else if (_dragState.clientY > rect.bottom - zone) {
+        delta = Math.ceil((_dragState.clientY - (rect.bottom - zone)) / 8);
+      }
+
+      if (delta !== 0) {
+        host.scrollTop += delta;
+        updateActionDragTarget(_dragState.clientX, _dragState.clientY);
+      }
+    }
+
+    if (_dragState) scheduleActionDragAutoScroll();
+  };
+
+  _dragAutoScrollRaf = requestAnimationFrame(step);
+}
 
 /* ── Public API ────────────────────────────────── */
 
@@ -702,7 +900,7 @@ function buildEditorContent(container, viewerState) {
     container.appendChild(list);
   } else {
     const empty = document.createElement('div');
-    empty.className = 'av-empty av-drop-empty';
+    empty.className = 'av-empty av-drop-empty av-editable-empty';
     empty.textContent = _dragState ? 'Drop actions here' : 'No actions yet';
     setupEmptyDropZone(empty, viewerState);
     container.appendChild(empty);
@@ -713,7 +911,7 @@ function buildEditorContent(container, viewerState) {
 
 function buildEditableList(viewerState) {
   const container = document.createElement('div');
-  container.className = 'av-list';
+  container.className = 'av-list av-editable-list';
 
   function cloneAction(action) {
     if (typeof structuredClone === 'function') return structuredClone(action);
@@ -778,11 +976,11 @@ function buildEditableBlock(action, index, ctx) {
 
   const header = document.createElement('div');
   header.className = 'av-block-header';
-  header.setAttribute('draggable', 'true');
 
   const dragHandle = document.createElement('span');
   dragHandle.className = 'av-drag-handle material-symbols-outlined';
   dragHandle.textContent = 'drag_indicator';
+  dragHandle.addEventListener('mousedown', (e) => beginActionDrag(e, block, ctx.viewerState));
 
   const idx = document.createElement('span');
   idx.className = 'av-index';
@@ -1315,95 +1513,11 @@ function pickActionType(parentFw) {
 /* ── Drag-and-drop reorder ─────────────────────── */
 
 function setupDragAndDrop(container, viewerState) {
-  let indicator = null;
-
-  container.addEventListener('dragstart', (e) => {
-    const block = e.target.closest('.av-block');
-    if (!block) return;
-    const dragIdx = parseInt(block.dataset.index, 10);
-    if (!Number.isInteger(dragIdx)) return;
-    _dragState = { sourceViewer: viewerState, sourceIdx: dragIdx, sourceEl: block };
-    block.classList.add('av-dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', `${viewerState.key}:${dragIdx}`);
-  });
-
-  container.addEventListener('dragend', (e) => {
-    const block = e.target.closest('.av-block');
-    if (block) block.classList.remove('av-dragging');
-    removeIndicator();
-    _dragState = null;
-  });
-
-  container.addEventListener('dragover', (e) => {
-    if (!_dragState) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    const target = e.target.closest('.av-block');
-    if (!target) {
-      showIndicator(null, false);
-      return;
-    }
-    const { index, before } = getDropPosition(target, e.clientY);
-    showIndicator(target, before, index);
-  });
-
-  container.addEventListener('dragleave', (e) => {
-    if (!container.contains(e.relatedTarget)) removeIndicator();
-  });
-
-  container.addEventListener('drop', (e) => {
-    if (!_dragState) return;
-    e.preventDefault();
-    removeIndicator();
-    const target = e.target.closest('.av-block');
-    const to = target ? getDropPosition(target, e.clientY).index : viewerState.actions.length;
-    moveActionBetweenViewers(_dragState.sourceViewer, _dragState.sourceIdx, viewerState, to);
-    if (_dragState?.sourceEl) _dragState.sourceEl.classList.remove('av-dragging');
-    _dragState = null;
-  });
-
-  function getDropPosition(target, clientY) {
-    const rect = target.getBoundingClientRect();
-    const before = clientY < rect.top + rect.height / 2;
-    const targetIdx = parseInt(target.dataset.index, 10);
-    return { before, index: before ? targetIdx : targetIdx + 1 };
-  }
-
-  function showIndicator(target, before) {
-    if (!indicator) {
-      indicator = document.createElement('div');
-      indicator.className = 'av-drop-indicator';
-    }
-    container.insertBefore(indicator, target ? (before ? target : target.nextSibling) : null);
-  }
-
-  function removeIndicator() {
-    if (indicator?.parentNode) indicator.remove();
-  }
+  registerEditableList(container, viewerState);
 }
 
 function setupEmptyDropZone(emptyEl, viewerState) {
-  emptyEl.addEventListener('dragover', (e) => {
-    if (!_dragState) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    emptyEl.classList.add('av-drop-ready');
-  });
-
-  emptyEl.addEventListener('dragleave', (e) => {
-    if (emptyEl.contains(e.relatedTarget)) return;
-    emptyEl.classList.remove('av-drop-ready');
-  });
-
-  emptyEl.addEventListener('drop', (e) => {
-    if (!_dragState) return;
-    e.preventDefault();
-    emptyEl.classList.remove('av-drop-ready');
-    moveActionBetweenViewers(_dragState.sourceViewer, _dragState.sourceIdx, viewerState, 0);
-    if (_dragState?.sourceEl) _dragState.sourceEl.classList.remove('av-dragging');
-    _dragState = null;
-  });
+  registerEmptyDropZone(emptyEl, viewerState);
 }
 
 /* ── Read-only action list (nested views) ──────── */

@@ -363,6 +363,7 @@ button.av-chip:hover {
   color: #504945;
   cursor: grab;
   flex-shrink: 0;
+  user-select: none;
   transition: color 0.15s;
 }
 .av-drag-handle:hover { color: #a89984; }
@@ -632,11 +633,30 @@ button.av-chip:hover {
   opacity: 0.35;
 }
 
+.av-block.av-drag-source-hidden {
+  display: none;
+}
+
+.av-drag-preview {
+  position: fixed;
+  z-index: 5000;
+  margin: 0;
+  opacity: 0.72;
+  pointer-events: none;
+  box-sizing: border-box;
+  border: 1px solid #504945;
+  border-left: 3px solid #fe8019;
+  border-radius: 4px;
+  background: rgba(29, 32, 33, 0.92);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+}
+
 .av-drop-indicator {
-  height: 3px;
+  height: 4px;
   background: #fe8019;
   border-radius: 2px;
-  margin: 2px 0;
+  margin: 4px 0;
+  pointer-events: none;
   box-shadow: 0 0 6px rgba(254, 128, 25, 0.4);
 }
 
