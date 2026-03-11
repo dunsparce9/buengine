@@ -1,8 +1,8 @@
 /**
- * Inventory UI — floating window with Grid / List display modes.
+ * Inventory UI — floating window with a Grid / List display mode toggle.
  *
- * Grid mode: shows item icons with qty badge.
- * List mode: shows icon, name, ID, qty in rows.
+ * Grid mode shows item icons with qty badges.
+ * List mode shows icon, name, ID, and qty in rows.
  *
  * Right-click on an item opens a context menu with item-defined
  * options plus "Drop" (if droppable).
@@ -106,29 +106,27 @@ export class InventoryUI {
 
     const titleEl = document.createElement('span');
     titleEl.className = 'inv-title';
-    titleEl.textContent = '⚱️ Inventory';
+    titleEl.innerHTML = '<span class="material-symbols-outlined inv-title-icon" aria-hidden="true">inventory_2</span><span>Inventory</span>';
 
     const controls = document.createElement('span');
     controls.className = 'inv-controls';
 
-    const gridBtn = document.createElement('button');
-    gridBtn.className = 'inv-mode-btn';
-    gridBtn.textContent = '▦';
-    gridBtn.title = 'Grid view';
-    gridBtn.addEventListener('click', () => { this._mode = 'grid'; this._render(); });
-
-    const listBtn = document.createElement('button');
-    listBtn.className = 'inv-mode-btn';
-    listBtn.textContent = '☰';
-    listBtn.title = 'List view';
-    listBtn.addEventListener('click', () => { this._mode = 'list'; this._render(); });
+    const modeBtn = document.createElement('button');
+    modeBtn.className = 'inv-control-btn inv-mode-btn';
+    this._applyModeButtonState(modeBtn);
+    modeBtn.addEventListener('click', () => {
+      this._mode = this._mode === 'grid' ? 'list' : 'grid';
+      this._render();
+    });
 
     const closeBtn = document.createElement('button');
-    closeBtn.className = 'inv-close-btn';
-    closeBtn.textContent = '\u00d7';
+    closeBtn.className = 'inv-control-btn inv-close-btn';
+    closeBtn.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">close</span>';
+    closeBtn.title = 'Close inventory';
+    closeBtn.setAttribute('aria-label', 'Close inventory');
     closeBtn.addEventListener('click', () => this.close());
 
-    controls.append(gridBtn, listBtn, closeBtn);
+    controls.append(modeBtn, closeBtn);
     header.append(titleEl, controls);
 
     // Body
@@ -155,7 +153,7 @@ export class InventoryUI {
       el.classList.remove('inv-window-opening');
     }, { once: true });
 
-    this._win = { el, body };
+    this._win = { el, body, modeBtn };
   }
 
   _initDrag(el, header, closeBtn) {
@@ -172,7 +170,7 @@ export class InventoryUI {
       document.removeEventListener('mouseup', onDragUp);
     };
     header.addEventListener('mousedown', (e) => {
-      if (e.target === closeBtn || e.target.classList.contains('inv-mode-btn')) return;
+      if (e.target.closest('.inv-control-btn')) return;
       e.preventDefault();
       dragStartX = e.clientX;
       dragStartY = e.clientY;
@@ -192,6 +190,7 @@ export class InventoryUI {
     if (!this._win) return;
     const body = this._win.body;
     body.innerHTML = '';
+    this._applyModeButtonState(this._win.modeBtn);
 
     const items = this.inventory.getAll();
 
@@ -200,6 +199,16 @@ export class InventoryUI {
     } else {
       this._renderList(body, items);
     }
+  }
+
+  _applyModeButtonState(button) {
+    if (!button) return;
+    const nextMode = this._mode === 'grid' ? 'list' : 'grid';
+    const icon = nextMode === 'grid' ? 'grid_view' : 'view_list';
+    const label = nextMode === 'grid' ? 'Switch to grid view' : 'Switch to list view';
+    button.innerHTML = `<span class="material-symbols-outlined" aria-hidden="true">${icon}</span>`;
+    button.title = label;
+    button.setAttribute('aria-label', label);
   }
 
   _renderGrid(body, items) {

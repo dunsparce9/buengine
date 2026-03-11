@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>büegame</title>
+  <link rel="stylesheet" href="css/material-symbols.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -51,11 +52,11 @@
       </div>
 
       <div id="hud-bar" class="hidden">
-        <button class="hud-btn" data-hud="charsheet">♥️</button>
-        <button class="hud-btn" data-hud="inventory">⚱️</button>
+        <button class="hud-btn" data-hud="charsheet" title="Character sheet" aria-label="Character sheet"><span class="material-symbols-outlined">badge</span></button>
+        <button class="hud-btn" data-hud="inventory" title="Inventory" aria-label="Inventory"><span class="material-symbols-outlined">inventory_2</span></button>
         <span class="hud-separator"></span>
-        <button class="hud-btn" data-hud="settings">⚙️</button>
-        <button class="hud-btn" data-hud="quit">❌️</button>
+        <button class="hud-btn" data-hud="settings" title="Settings" aria-label="Settings"><span class="material-symbols-outlined">settings</span></button>
+        <button class="hud-btn" data-hud="quit" title="Quit" aria-label="Quit"><span class="material-symbols-outlined">close</span></button>
       </div>
 
       <div id="notification-container"></div>

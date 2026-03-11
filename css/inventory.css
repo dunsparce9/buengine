@@ -39,10 +39,18 @@
 .inv-header:active { cursor: grabbing; }
 
 .inv-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 0.75rem;
   font-weight: 600;
   color: #eee;
   white-space: nowrap;
+}
+
+.inv-title-icon {
+  font-size: 16px;
+  line-height: 1;
 }
 
 .inv-controls {
@@ -51,31 +59,32 @@
   gap: 2px;
 }
 
-.inv-mode-btn {
+.inv-control-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   color: #aaa;
+  width: 24px;
+  height: 24px;
   font-size: 0.8rem;
   cursor: pointer;
-  padding: 2px 4px;
+  padding: 0;
   border-radius: 3px;
   transition: background 0.12s, color 0.12s;
 }
-.inv-mode-btn:hover {
+.inv-control-btn .material-symbols-outlined {
+  font-size: 16px;
+  line-height: 1;
+}
+.inv-control-btn:hover {
   background: rgba(255, 255, 255, 0.15);
   color: #eee;
 }
 
 .inv-close-btn {
-  background: none;
-  border: none;
-  color: #aaa;
   font-size: 0.95rem;
-  cursor: pointer;
-  padding: 0 4px;
-  border-radius: 3px;
-  line-height: 1;
-  transition: background 0.12s, color 0.12s;
 }
 .inv-close-btn:hover {
   background: rgba(255, 80, 80, 0.3);

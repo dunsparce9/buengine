@@ -13,15 +13,24 @@
   z-index: 200;
 }
 .hud-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   color: #eee;
   border: none;
-  padding: 4px 4px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 4px;
   font-size: 0.78rem;
   font-family: inherit;
   cursor: pointer;
   border-radius: 4px;
   transition: background 0.12s;
+}
+.hud-btn .material-symbols-outlined {
+  font-size: 18px;
+  line-height: 1;
 }
 .hud-btn:hover {
   background: rgba(255, 255, 255, 0.15);
