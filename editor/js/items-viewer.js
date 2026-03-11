@@ -16,6 +16,33 @@ import { showContextMenu } from './context-menu.js';
 import { openOptionsModal } from './options-editor.js';
 import { openActionViewer } from './action-viewer.js';
 
+const ITEM_SECTION_ICONS = {
+  'Items': 'inventory_2',
+  'Item': 'category',
+  'Flags': 'flag',
+  'Options': 'tune',
+};
+
+function createGroupTitle(title) {
+  const heading = document.createElement('div');
+  heading.className = 'prop-group-title';
+
+  const label = String(title);
+  const match = Object.entries(ITEM_SECTION_ICONS).find(([prefix]) => label === prefix || label.startsWith(`${prefix} (`));
+  if (match) {
+    const icon = document.createElement('span');
+    icon.className = 'material-symbols-outlined prop-group-title-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = match[1];
+    heading.appendChild(icon);
+  }
+
+  const text = document.createElement('span');
+  text.textContent = label;
+  heading.appendChild(text);
+  return heading;
+}
+
 export function renderItemsViewport(items, viewport) {
   syncSelectedItem(items);
 
@@ -198,9 +225,7 @@ function renderItemsSummary(items, container) {
   const group = document.createElement('div');
   group.className = 'prop-group';
 
-  const heading = document.createElement('div');
-  heading.className = 'prop-group-title';
-  heading.textContent = 'Items';
+  const heading = createGroupTitle('Items');
   group.appendChild(heading);
 
   const rows = [
@@ -310,9 +335,7 @@ function renderReadonlyOptions(item, container, scriptId) {
   const group = document.createElement('div');
   group.className = 'prop-group';
 
-  const heading = document.createElement('div');
-  heading.className = 'prop-group-title';
-  heading.textContent = `Options (${(item.options || []).length})`;
+  const heading = createGroupTitle(`Options (${(item.options || []).length})`);
   group.appendChild(heading);
 
   const openBtn = document.createElement('button');
@@ -382,9 +405,7 @@ function addEditablePropGroup(title, fields, container) {
   const group = document.createElement('div');
   group.className = 'prop-group';
 
-  const heading = document.createElement('div');
-  heading.className = 'prop-group-title';
-  heading.textContent = title;
+  const heading = createGroupTitle(title);
   group.appendChild(heading);
 
   for (const field of fields) {

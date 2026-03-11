@@ -32,6 +32,9 @@
   margin-bottom: 12px;
 }
 .prop-group-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -40,6 +43,12 @@
   margin-bottom: 6px;
   padding-bottom: 4px;
   border-bottom: 1px solid #3c3836;
+}
+
+.prop-group-title-icon {
+  font-size: 14px;
+  color: #d79921;
+  opacity: 0.92;
 }
 
 .prop-row {

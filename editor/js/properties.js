@@ -12,12 +12,48 @@ import { selectScript } from './file-panel.js';
 
 let _assetInfoRequestId = 0;
 
+const SECTION_ICONS = {
+  'Game manifest': 'sports_esports',
+  'Scenes': 'movie',
+  'Scene': 'landscape',
+  'Objects': 'apps',
+  'Object': 'category',
+  'Position': 'open_with',
+  'Texture': 'image',
+  'Cursor': 'mouse',
+  'File': 'draft',
+  'Info': 'info',
+  'Definitions': 'code',
+  'onEnter': 'login',
+  'Options': 'tune',
+};
+
 
 function focusSceneInEditor(sceneId) {
   if (!sceneId) return;
   const target = state.scripts[sceneId];
   if (!target || Array.isArray(target) || sceneId === '_game') return;
   selectScript(sceneId);
+}
+
+function createGroupTitle(title) {
+  const heading = document.createElement('div');
+  heading.className = 'prop-group-title';
+
+  const label = String(title);
+  const match = Object.entries(SECTION_ICONS).find(([prefix]) => label === prefix || label.startsWith(`${prefix} (`));
+  if (match) {
+    const icon = document.createElement('span');
+    icon.className = 'material-symbols-outlined prop-group-title-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = match[1];
+    heading.appendChild(icon);
+  }
+
+  const text = document.createElement('span');
+  text.textContent = label;
+  heading.appendChild(text);
+  return heading;
 }
 
 
@@ -127,9 +163,7 @@ function renderObjectProps(obj) {
   {
     const group = document.createElement('div');
     group.className = 'prop-group';
-    const heading = document.createElement('div');
-    heading.className = 'prop-group-title';
-    heading.textContent = 'Object';
+    const heading = createGroupTitle('Object');
     group.appendChild(heading);
 
     // id — editable with uniqueness validation
@@ -197,9 +231,7 @@ function renderObjectProps(obj) {
   {
     const group = document.createElement('div');
     group.className = 'prop-group';
-    const heading = document.createElement('div');
-    heading.className = 'prop-group-title';
-    heading.textContent = 'Texture';
+    const heading = createGroupTitle('Texture');
     group.appendChild(heading);
 
     const row = document.createElement('div');
@@ -446,9 +478,7 @@ function createAsyncPropGroup(title, message) {
   const group = document.createElement('div');
   group.className = 'prop-group';
 
-  const heading = document.createElement('div');
-  heading.className = 'prop-group-title';
-  heading.textContent = title;
+  const heading = createGroupTitle(title);
 
   const body = document.createElement('div');
   body.className = 'prop-async-body';
@@ -529,9 +559,7 @@ function addPropGroup(title, rows) {
   const group = document.createElement('div');
   group.className = 'prop-group';
 
-  const heading = document.createElement('div');
-  heading.className = 'prop-group-title';
-  heading.textContent = title;
+  const heading = createGroupTitle(title);
   group.appendChild(heading);
 
   for (const [key, val] of rows) {
@@ -550,9 +578,7 @@ function addActionLinkGroup(title, rows, onClick) {
   const group = document.createElement('div');
   group.className = 'prop-group';
 
-  const heading = document.createElement('div');
-  heading.className = 'prop-group-title';
-  heading.textContent = title;
+  const heading = createGroupTitle(title);
   group.appendChild(heading);
 
   for (const [key, count] of rows) {
@@ -579,9 +605,7 @@ function addOptionsLinkGroup(title, options, onManage, onOpenOptionActions) {
   const group = document.createElement('div');
   group.className = 'prop-group';
 
-  const heading = document.createElement('div');
-  heading.className = 'prop-group-title';
-  heading.textContent = `${title} (${options.length})`;
+  const heading = createGroupTitle(`${title} (${options.length})`);
   group.appendChild(heading);
 
   const manageBtn = document.createElement('button');
@@ -665,9 +689,7 @@ function addDefinitionsGroup(data, names) {
   const group = document.createElement('div');
   group.className = 'prop-group';
 
-  const heading = document.createElement('div');
-  heading.className = 'prop-group-title';
-  heading.textContent = `Definitions (${names.length})`;
+  const heading = createGroupTitle(`Definitions (${names.length})`);
   group.appendChild(heading);
 
   for (const name of names) {
@@ -703,9 +725,7 @@ function addEditablePropGroup(title, fields) {
   const group = document.createElement('div');
   group.className = 'prop-group';
 
-  const heading = document.createElement('div');
-  heading.className = 'prop-group-title';
-  heading.textContent = title;
+  const heading = createGroupTitle(title);
   group.appendChild(heading);
 
   for (const { key, value, type, step, min, max, onChange } of fields) {
