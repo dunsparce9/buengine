@@ -8,7 +8,7 @@ import { showContextMenu } from './context-menu.js';
 import { resolveAssetURL, resolveAssetURLSync } from './fs-provider.js';
 import { getFileKind, isPreviewableMedia } from './file-types.js';
 import { renderItemsViewport } from './items-viewer.js';
-import { createDefaultObjectOption } from './options-editor.js';
+import { openOptionsModal, createDefaultObjectOption } from './options-editor.js';
 
 /* ── Drag state (module-scoped, survives re-renders) ── */
 let _selectionBox = null; // { x, y, w, h } in grid units (for drag-to-create)
@@ -37,6 +37,26 @@ function snapToGrid(v) {
 
 function clampGrid(v, max) {
   return Math.max(0, Math.min(v, max));
+}
+
+function openObjectOptionsManager(obj) {
+  const sceneId = state.selectedId;
+  if (!sceneId) return;
+  const sceneData = state.scripts[sceneId];
+  if (!sceneData || Array.isArray(sceneData)) return;
+  openOptionsModal({
+    target: obj,
+    scriptId: sceneId,
+    title: `${obj.id} — Options`,
+    modalKey: `${sceneId}:${obj.id}:options`,
+    ownerLabel: obj.label || obj.id,
+    actionViewerContext: {
+      sceneId,
+      sceneData,
+      markDirty,
+    },
+    createDefaultOption: createDefaultObjectOption,
+  });
 }
 
 /* ── Main render ───────────────────────────────── */
@@ -161,6 +181,8 @@ export function renderViewport() {
         renderViewport();
         hooks.renderProperties();
         showContextMenu(e.clientX, e.clientY, [
+          { icon: 'tune', label: 'Manage options', onClick: () => openObjectOptionsManager(obj) },
+          { separator: true },
           { icon: 'delete', label: 'Delete object', danger: true, onClick: () => deleteObject(obj.id) },
         ]);
       });

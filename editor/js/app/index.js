@@ -3,7 +3,7 @@ import { renderViewport, initViewportInteractions } from '../viewport.js';
 import { renderProperties } from '../properties.js';
 import { initMenu } from '../menu.js';
 import { initResizeHandles } from '../resize.js';
-import { hooks } from '../state.js';
+import { hooks, state, deleteObject } from '../state.js';
 import '../action-viewer.js';
 
 import { updateMenuVisibility, updateWindowTitle, openAboutWindow, hasUnsavedChanges } from './ui.js';
@@ -37,6 +37,13 @@ initMenu({
 document.getElementById('run-btn').addEventListener('click', runInNewTab);
 setupPWAInstall();
 
+function isEditableTarget(target) {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+}
+
 document.addEventListener('keydown', (event) => {
   if (event.ctrlKey && event.key === 's') {
     event.preventDefault();
@@ -49,6 +56,10 @@ document.addEventListener('keydown', (event) => {
   if (event.ctrlKey && event.key === 'o') {
     event.preventDefault();
     handleOpenFolder();
+  }
+  if (event.key === 'Delete' && !isEditableTarget(event.target) && state.selectedObjectId) {
+    event.preventDefault();
+    deleteObject(state.selectedObjectId);
   }
 });
 

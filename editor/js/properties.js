@@ -2,7 +2,7 @@
  * Right-side property inspector panel.
  */
 
-import { state, dom, hooks, escapeHtml, markDirty, collectImagePaths, deleteObject } from './state.js';
+import { state, dom, hooks, escapeHtml, markDirty, collectImagePaths } from './state.js';
 import { openActionViewer } from './action-viewer.js';
 import { findNode } from './fs-provider.js';
 import { getFileExtension, getFileKind, isPreviewableMedia } from './file-types.js';
@@ -311,7 +311,6 @@ function renderObjectProps(obj) {
   {
     const options = getObjectOptionsPreview(obj);
     const openOptionsManager = () => {
-      ensureObjectOptions(obj, sceneId);
       openOptionsModal({
         target: obj,
         scriptId: sceneId,
@@ -324,6 +323,7 @@ function renderObjectProps(obj) {
           markDirty,
           focusScene: focusSceneInEditor,
         },
+        createDefaultOption: createDefaultObjectOption,
       });
     };
     addOptionsLinkGroup('Options', options, openOptionsManager, (optionIndex) => {
@@ -343,18 +343,6 @@ function renderObjectProps(obj) {
         }
       );
     });
-  }
-
-  // ── Delete object button ──
-  {
-    const group = document.createElement('div');
-    group.className = 'prop-group';
-    const btn = document.createElement('button');
-    btn.className = 'prop-danger-btn';
-    btn.innerHTML = '<span class="material-symbols-outlined">delete</span> Delete object';
-    btn.addEventListener('click', () => deleteObject(obj.id));
-    group.appendChild(btn);
-    dom.propsContent.appendChild(group);
   }
 }
 
