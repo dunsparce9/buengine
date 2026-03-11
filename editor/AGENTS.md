@@ -11,7 +11,7 @@ The editor is a **browser-only visual level editor** for büegame JSON scripts. 
 Current status: **v0.1 — Full file management with File System Access API**.
 
 ## Testing and verification
-No testing, browser automation or CI steps (syntax checks are fine). The user handles in-browser verification.
+No testing, no browser automation or CI steps (syntax checks are fine). The user handles in-browser verification.
 
 ## Architecture
 

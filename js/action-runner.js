@@ -1,36 +1,10 @@
 /**
- * Walks through an action sequence (array of command objects) and
- * dispatches behaviour to the appropriate UI / state subsystem.
+ * Walks through an action sequence and dispatches each command to the
+ * appropriate UI/state subsystem.
  *
- * Supported commands:
- *   { "say": "Hello!", "speaker": "Ada" }
- *   { "choice": { "prompt": "What now?", "options": [ { "text": "Go left", "actions": [...] }, ... ] } }
- *   { "goto": "scene_id" }
- *   { "set": { "flag_name": value } }                          // boolean / any value
- *   { "set": { "flag_name": "+1" } }                           // increment by N (string "+N" / "-N")
- *   { "set": { "flag_name": { "add": 1, "max": 5 } } }        // increment with optional min/max clamp
- *   { "if": "flag_name", "then": [...], "else": [...] }        // truthiness check
- *   { "if": "flag_name >= 3", "then": [...], "else": [...] }   // numeric comparison (==, !=, >, >=, <, <=)
- *   { "loop": "flag_name < 3", "do": [...] }                   // repeat while condition remains true
- *   { "loop": true, "do": [...] }                              // unconditional loop
- *   { "wait": 500 }            // milliseconds
- *   { "emit": "custom:event" } // fire a bus event
- *   { "run": "definition_name" } // inline-expand a named definition (supports recursion)
- *   { "fork": "definition_name" } // start a detached action chain in the background
- *   { "fork": { "run": "definition_name" } }
- *   { "fork": { "actions": [ ... ] } }
- *   { "exit": true }           // stop the entire action chain
- *   { "show": "object_id" }    // show a scene object by id (string shorthand)
- *   { "show": "this" }         // show the object whose actions are running
- *   { "show": { "id": "...", "texture": "...", "scaling": "fill", "z": 10, "effect": { "type": "fade-in", "seconds": 2, "blocking": false } } }
- *   { "text": { "id": "...", "text": "...", "position": { "anchor": "middle-center", "x": "0%", "y": "0%" }, "effect": { "type": "fade-in", "seconds": 1, "blocking": false } } }
- *   { "hide": "object_id" }    // hide a scene object by id (string shorthand)
- *   { "hide": "this" }         // hide the object whose actions are running
- *   { "hide": { "id": "...", "effect": { "type": "fade-out", "seconds": 1, "blocking": true } } }
- *   { "effect": { "type": "fade-in", "seconds": 1, "blocking": false } }  // scene-level transition
- *   { "playsound": { "id": "...", "path": "...", "volume": 0.7, "fade": 1, "loop": true, "blocking": false } }
- *   { "stopsound": { "id": "...", "fade": 1, "blocking": true } }
- *   { "item": { "id": "key", "qty": 1 } }   // add item (negative qty = remove)
+ * The canonical action-command reference lives in `AGENTS.md`
+ * ("Action commands"). Keep that documentation in sync with the runner and
+ * avoid maintaining a second full command list here.
  */
 import { detectType, getActionMeta } from './action-schema.js';
 
