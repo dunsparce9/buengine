@@ -1,4 +1,4 @@
-const CACHE_NAME = 'buegame-editor-v2';
+const CACHE_NAME = 'buegame-editor-v3';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -17,6 +17,12 @@ const CORE_ASSETS = [
   './css/toast.css',
   './assets/icon.svg',
   './js/editor.js',
+  './js/app/index.js',
+  './js/app/ui.js',
+  './js/app/workspace.js',
+  './js/app/archive.js',
+  './js/app/preview.js',
+  './js/app/pwa.js',
   './js/state.js',
   './js/menu.js',
   './js/resize.js',
@@ -24,6 +30,12 @@ const CORE_ASSETS = [
   './js/floating-window.js',
   './js/items-viewer.js',
   './js/action-viewer.js',
+  './js/action-viewer/index.js',
+  './js/action-viewer/state.js',
+  './js/action-viewer/utils.js',
+  './js/action-viewer/renderers.js',
+  './js/action-viewer/forms.js',
+  './js/action-viewer/drag.js',
   './js/file-panel.js',
   './js/properties.js',
   './js/viewport.js',

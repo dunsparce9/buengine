@@ -32,7 +32,14 @@ editor/
     menu.css              ← menu bar/dropdowns
     toast.css             ← toast notifications
   js/
-    editor.js             ← orchestrator — wires modules, boots app
+    editor.js             ← thin entry module; imports app bootstrap
+    app/
+      index.js            ← editor bootstrap/wiring
+      ui.js               ← title/menu visibility/about/toasts
+      workspace.js        ← open folder + save flows
+      archive.js          ← export/import JSON/ZIP flows
+      preview.js          ← preview launch and asset URL staging
+      pwa.js              ← install prompt + service worker update handling
     state.js              ← shared state, DOM refs, render hooks, utilities
     fs-provider.js        ← file system access via File System Access API
     zip-utils.js          ← minimal ZIP creation/extraction (no dependencies)
@@ -42,7 +49,14 @@ editor/
     viewport.js           ← centre scene preview + hotspot overlays
     properties.js         ← right property inspector panel
     context-menu.js       ← shared context menu component
-    action-viewer.js      ← Action Viewer (AV): action array viewer/editor floating window
+    action-viewer.js      ← stable public entry for AV
+    action-viewer/
+      index.js            ← AV public implementation
+      state.js            ← viewer registry + drag state
+      utils.js            ← nested value helpers + cleanup
+      renderers.js        ← read-only action card renderers/summaries
+      forms.js            ← schema-driven field editors + nested action editors
+      drag.js             ← cross-window drag/reorder controller
     items-viewer.js       ← items/items.json editor UI
     confirm-dialog.js     ← modal confirmation dialog
     file-types.js         ← extension/kind/media helpers
@@ -117,7 +131,7 @@ Do not bypass that flow unless there is a clear reason.
 
 ## Action Viewer (AV)
 
-AV is the editor's action array UI in `editor/js/action-viewer.js`. It is a central subsystem, not a minor helper.
+AV is the editor's action array UI rooted at `editor/js/action-viewer.js` and implemented under `editor/js/action-viewer/`. It is a central subsystem, not a minor helper.
 
 - Opens floating windows for action arrays such as scene `onEnter`, object `actions`, choice branches, loop bodies, and named `definitions`
 - Deduplicates windows by title via an internal open-viewer registry
@@ -144,9 +158,9 @@ When editing AV-related code:
 | Feature | Module | Entry point |
 |---------|--------|-------------|
 | Open local folder | `fs-provider.js` | `openFolder()` — `showDirectoryPicker()`, scans tree |
-| Save / Save All | `editor.js` | `saveCurrentFile()` / `saveAllFiles()` — writes JSON to disk |
-| Export ZIP | `editor.js` + `zip-utils.js` | `exportZip()` — packages all files into a downloadable ZIP |
-| Import ZIP | `editor.js` + `zip-utils.js` | `importZip()` — extracts ZIP into the open folder |
+| Save / Save All | `app/workspace.js` | `saveCurrentFile()` / `saveAllFiles()` — writes JSON to disk |
+| Export ZIP | `app/archive.js` + `zip-utils.js` | `exportZip()` — packages all files into a downloadable ZIP |
+| Import ZIP | `app/archive.js` + `zip-utils.js` | `importZip()` — extracts ZIP into the open folder |
 | File tree | `file-panel.js` | `renderFileList()` — folder tree with expand/collapse, type icons |
 | Drag-and-drop files | `file-panel.js` | Drop from OS to add files, drag within tree to move between folders |
 | File context menu | `file-panel.js` | Right-click → Rename, Delete, Copy Path, Download, New File/Folder |
@@ -154,13 +168,13 @@ When editing AV-related code:
 | Scene preview | `viewport.js` | `renderViewport()` — background + dashed hotspot outlines |
 | Property inspector | `properties.js` | `renderProperties()` → delegates to game / scene / object / asset / items renderers |
 | Editable fields | `properties.js` | `addEditablePropGroup()` — direct-bind `<input>` to in-memory data |
-| Action Viewer | `action-viewer.js` | `openActionViewer()` — floating action list editor for arrays |
+| Action Viewer | `action-viewer/` | `openActionViewer()` — floating action list editor for arrays |
 | Items editor | `items-viewer.js` | `renderItemsProperties()` — inventory item editing |
-| Export JSON | `editor.js` | `exportCurrentJson()` — Blob download of current script |
-| Run preview | `editor.js` | Stores all edited scripts into `localStorage` key `buegame_editor_preview`, opens game in new tab with `?preview` |
+| Export JSON | `app/archive.js` | `exportCurrentJson()` — Blob download of current script |
+| Run preview | `app/preview.js` | Stores all edited scripts into `localStorage` key `buegame_editor_preview`, opens game in new tab with `?preview` |
 | Floating windows | `floating-window.js` | `createFloatingWindow()` — draggable, optionally resizable panels (`.fw`) |
-| Toast notifications | `editor.js` | `showToast(msg, type)` — bottom-center transient messages |
-| Keyboard shortcuts | `editor.js` | Ctrl+S (save), Ctrl+Shift+S (save all), Ctrl+O (open folder) |
+| Toast notifications | `app/ui.js` | `showToast(msg, type)` — bottom-center transient messages |
+| Keyboard shortcuts | `app/index.js` | Ctrl+S (save), Ctrl+Shift+S (save all), Ctrl+O (open folder) |
 
 ## Coding Rules
 
