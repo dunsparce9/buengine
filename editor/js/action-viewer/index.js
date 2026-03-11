@@ -262,7 +262,11 @@ function buildEditableBlock(action, index, ctx) {
     ctx.onDelete(index);
   });
 
-  header.append(cloneBtn, editBtn, delBtn);
+  const actions = document.createElement('div');
+  actions.className = 'av-header-actions';
+  actions.append(cloneBtn, editBtn, delBtn);
+
+  header.appendChild(actions);
   block.appendChild(header);
 
   if (isEditing) {

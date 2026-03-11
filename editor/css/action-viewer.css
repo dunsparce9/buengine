@@ -75,7 +75,6 @@
 }
 
 .av-badge {
-  margin-left: auto;
   padding: 1px 6px;
   border-radius: 3px;
   background: rgba(254, 128, 25, 0.15);
@@ -88,6 +87,14 @@
 }
 .av-badge + .av-badge {
   margin-left: 4px;
+}
+
+.av-header-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
 }
 
 /* ── Action body ───────────────────────────────── */
