@@ -67,7 +67,7 @@ Scene scripts are JSON files in each game's folder (e.g. `games/playground/`). E
 - `background` / `backgroundColor` — visual backdrop
 - `grid` — `{ "cols": N, "rows": N }` tile grid dimensions (default 16×9)
 - `objects[]` — scene objects (clickable regions, decorative images, etc.) with `{ id, x, y, w, h, label?, texture?, visible?, highlight?, z?, options? }`. `id` is unique within the scene; `x`, `y` are tile coordinates; `w`, `h` are tile counts. Optional `label` shows a tooltip on hover. Optional `texture` renders an image snapped to the grid. Optional `visible: false` starts the object hidden (can be revealed via `show` action or in `onEnter`). Optional `highlight: false` disables the hover highlight (dashed border for plain objects, glow for textured objects). Optional `z` sets the CSS z-index for stacking control. `options[]` uses the same shape as inventory item options: `{ text, icon?, actions[] }`. Left-click runs the first option; right-click opens the object options menu. Each executed object interaction auto-increments the flag `{sceneId}.{id}.clicks`, so scripts can check repeat interactions via conditions (e.g. `"if": "intro.beer.clicks >= 3"`). Legacy object-level `actions[]` are still accepted for backward compatibility.
-- `definitions` — `{ "name": [...actions] }` named action sequences callable via `{ "run": "name" }`. `run` expands them inline at that point in the action list, so blocking behavior still comes from the individual actions inside the definition. Supports recursion.
+- `sequences` — `{ "name": [...actions] }` named action sequences callable via `{ "run": "name" }`. `run` expands them inline at that point in the action list, so blocking behavior still comes from the individual actions inside the sequence. Supports recursion.
 - `onEnter[]` — action array run when the scene is entered
 
 ### Runtime vs editor
@@ -91,8 +91,8 @@ Actions are objects in an array. Supported commands:
 | Loop | `{ "loop": "flag_name < 3", "do": [...] }` — repeats the nested actions while the condition stays true |
 | Wait | `{ "wait": 500 }` |
 | Custom event | `{ "emit": "event_name" }` |
-| Run definition | `{ "run": "definition_name" }` — expands the definition inline; it is not its own blocking layer |
-| Fork definition | `{ "fork": "definition_name" }` or `{ "fork": { "run": "definition_name" } }` — starts a detached background action chain. Use this for passive timed sequences (flashcards, fades, sound cues) that should continue while the main chain waits on dialogue/choice |
+| Run sequence | `{ "run": "sequence_name" }` — expands the sequence inline; it is not its own blocking layer |
+| Fork sequence | `{ "fork": "sequence_name" }` or `{ "fork": { "run": "sequence_name" } }` — starts a detached background action chain. Use this for passive timed sequences (flashcards, fades, sound cues) that should continue while the main chain waits on dialogue/choice |
 | Exit actions | `{ "exit": true }` |
 | Show object | `{ "show": "object_id" }` — string shorthand to make a scene object visible. Use `"this"` to reference the object whose actions are running. Full form: `{ "show": { "id": "...", "texture": "...", "layer": "overlay", "scaling": "fill", "z": 10, "effect": { "type": "fade-in", "seconds": 2, "blocking": false } } }` — if `id` matches a scene object, makes it visible; otherwise creates a runtime image/text entity. `layer: "background"` places it behind objects; `layer: "overlay"` places it above objects while still allowing clicks to pass through to scene objects underneath |
 | Text block | `{ "text": { "id": "hud", "text": "**Hello**", "color": "#ffffff", "fontFamily": "Georgia, serif", "fontSize": "24px", "backgroundColor": "#101010", "position": { "anchor": "bottom-center", "x": "0%", "y": "5%" }, "effect": { "type": "fade-in", "seconds": 1, "blocking": false } } }` — creates a runtime text entity. Supports rudimentary markdown: `**bold**`, `*italics*`, `__underline__`, `~~strikethrough~~`. `position.x` / `position.y` accept percentages of the scene viewport; values without `%` are treated as grid coordinates and snapped to the current scene grid. Leaving `backgroundColor` empty keeps the text background transparent. `anchor` can be any of `top-left`, `top-center`, `top-right`, `middle-left`, `middle-center`, `middle-right`, `bottom-left`, `bottom-center`, `bottom-right` |
@@ -104,9 +104,9 @@ Actions are objects in an array. Supported commands:
 
 ### Action Viewer (AV)
 - AV means the editor's Action Viewer in `editor/js/action-viewer.js`.
-- It is not just a viewer: it is the main visual editor for action arrays such as object option actions, scene `onEnter`, choice branches, loop bodies, and named `definitions`.
+- It is not just a viewer: it is the main visual editor for action arrays such as object option actions, scene `onEnter`, choice branches, loop bodies, and named `sequences`.
 - AV opens in floating windows, deduplicates windows by title, mutates the underlying action array in place, and calls `onChange` hooks so the editor can mark files dirty and re-render.
-- AV behavior is schema-driven. Icons, colors, labels, default payloads, field editors, and action summaries should come from `js/action-schema.js`, not hardcoded duplicate definitions elsewhere.
+- AV behavior is schema-driven. Icons, colors, labels, default payloads, field editors, and action summaries should come from `js/action-schema.js`, not hardcoded duplicate metadata elsewhere.
 - AV supports nested action editing, drag-to-reorder, cross-window drag/move between action lists, inline field editing, and add/delete flows.
 - When adding or changing an action type, verify three layers stay aligned:
   1. Runtime dispatch in `js/action-runner.js`

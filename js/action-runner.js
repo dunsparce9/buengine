@@ -29,7 +29,7 @@ export class ActionRunner {
     /** @type {string|null} ID of the object whose actions are currently running (for "this" resolution). */
     this.currentObjectId = null;
     /** @type {Record<string, object[]>} Named action sequences from the current scene. */
-    this.definitions = {};
+    this.sequences = {};
     /** @type {Set<ActionRunner>} Child runners spawned via `fork`. */
     this._children = new Set();
   }
@@ -131,9 +131,9 @@ export class ActionRunner {
       case 'emit':
         this.bus.emit(action[engine.event], action[engine.payload]);
         return false;
-      case 'run-definition': {
-        const def = this.definitions[action[engine.arg]];
-        if (def?.length) frames.push({ actions: def, index: 0 });
+      case 'run-sequence': {
+        const sequence = this.sequences[action[engine.arg]];
+        if (sequence?.length) frames.push({ actions: sequence, index: 0 });
         return false;
       }
       case 'fork': {
@@ -190,10 +190,10 @@ export class ActionRunner {
   }
 
   _resolveForkActions(forkDef) {
-    if (typeof forkDef === 'string') return this.definitions[forkDef] ?? null;
+    if (typeof forkDef === 'string') return this.sequences[forkDef] ?? null;
     if (Array.isArray(forkDef)) return forkDef;
     if (Array.isArray(forkDef?.actions)) return forkDef.actions;
-    if (typeof forkDef?.run === 'string') return this.definitions[forkDef.run] ?? null;
+    if (typeof forkDef?.run === 'string') return this.sequences[forkDef.run] ?? null;
     return null;
   }
 
@@ -209,7 +209,7 @@ export class ActionRunner {
       state: this.state,
       inventory: this.inventory,
     });
-    child.definitions = this.definitions;
+    child.sequences = this.sequences;
     child.currentObjectId = this.currentObjectId;
     this._children.add(child);
     child.run(actions).finally(() => {

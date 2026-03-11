@@ -5,7 +5,7 @@
     "cols": 20,
     "rows": 10
   },
-  "definitions": {
+  "sequences": {
     "intro_sequence": [
       {
         "fork": {

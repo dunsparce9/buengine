@@ -133,7 +133,7 @@ Do not bypass that flow unless there is a clear reason.
 
 AV is the editor's action array UI rooted at `editor/js/action-viewer.js` and implemented under `editor/js/action-viewer/`. It is a central subsystem, not a minor helper.
 
-- Opens floating windows for action arrays such as scene `onEnter`, object option actions, choice branches, loop bodies, and named `definitions`
+- Opens floating windows for action arrays such as scene `onEnter`, object option actions, choice branches, loop bodies, and named `sequences`
 - Deduplicates windows by title via an internal open-viewer registry
 - Mutates the provided action array in place and reports changes through `opts.onChange`
 - Supports nested editors, inline field editing, add/delete, collapse, and drag-to-reorder
@@ -143,7 +143,7 @@ AV is the editor's action array UI rooted at `editor/js/action-viewer.js` and im
 When editing AV-related code:
 - Keep summaries, badges, and editor forms aligned with the shared schema
 - Preserve in-place mutation semantics so calling modules keep live references
-- Be careful with nested action arrays (`then`, `else`, `do`, choice option `actions`, definitions)
+- Be careful with nested action arrays (`then`, `else`, `do`, choice option `actions`, sequences)
 - Do not introduce a second source of truth for action defaults or labels
 
 ## Selection semantics

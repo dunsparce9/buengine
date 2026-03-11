@@ -9,7 +9,7 @@
 - [x] Standardize editor naming, state helpers, viewport code, properties, and file semantics on `objects`.
 - [ ] Redesign preview mode so projects larger than a few MB do not fail on `localStorage` limits. This includes both edited JSON handoff and asset URL handoff strategy.
 - [ ] Expose currently missing scene fields in the inspector, especially `id`, `background`, and `grid`.
-- [ ] Add definition management to the editor. Definitions cannot currently be created at all, and zero-action definitions are too easy to lose from the UI.
+- [ ] Add sequence management to the editor. Sequences cannot currently be created at all, and zero-action sequences are too easy to lose from the UI.
 - [ ] Replace the current layer model with something coherent in the editor as well. If runtime moves to numbered / z-index-based layers, AV and inspectors need first-class support for that model.
 
 ## Smaller Gotchas / Structural Cleanup

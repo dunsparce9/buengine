@@ -23,7 +23,7 @@ const SECTION_ICONS = {
   'Cursor': 'mouse',
   'File': 'draft',
   'Info': 'info',
-  'Definitions': 'code',
+  'Sequences': 'code',
   'onEnter': 'login',
   'Options': 'tune',
 };
@@ -134,9 +134,10 @@ function renderSceneProps(data) {
     );
   }
 
-  if (data.definitions) {
-    const names = Object.keys(data.definitions);
-    addDefinitionsGroup(data, names);
+  const sequences = data.sequences || data.definitions;
+  if (sequences) {
+    const names = Object.keys(sequences);
+    addSequencesGroup(data, names);
   }
 }
 
@@ -712,15 +713,15 @@ function ensureObjectOptions(obj, sceneId) {
   return obj.options;
 }
 
-function addDefinitionsGroup(data, names) {
+function addSequencesGroup(data, names) {
   const group = document.createElement('div');
   group.className = 'prop-group';
 
-  const heading = createGroupTitle(`Definitions (${names.length})`);
+  const heading = createGroupTitle(`Sequences (${names.length})`);
   group.appendChild(heading);
 
   for (const name of names) {
-    const actions = data.definitions[name];
+    const actions = (data.sequences || data.definitions)[name];
     const row = document.createElement('div');
     row.className = 'prop-row';
 

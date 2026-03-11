@@ -9,7 +9,7 @@
   "elements": [
     "hud"
   ],
-  "definitions": {
+  "sequences": {
     "ladder_choice": [
       {
         "choice": {

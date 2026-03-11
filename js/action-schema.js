@@ -128,10 +128,10 @@ export const ACTION_TYPES = {
     icon: 'play_circle',
     color: '#83a598',
     label: 'Run',
-    quip: 'run a definition',
-    engine: { kind: 'run-definition', arg: 'run' },
+    quip: 'run a sequence',
+    engine: { kind: 'run-sequence', arg: 'run' },
     fields: [
-      { key: 'run', label: 'Definition', type: 'string', required: true },
+      { key: 'run', label: 'Sequence', type: 'string', required: true },
     ],
     defaults: { run: '' },
   },
@@ -143,7 +143,7 @@ export const ACTION_TYPES = {
     quip: 'start a background sequence',
     engine: { kind: 'fork', arg: 'fork' },
     fields: [
-      { key: 'fork.run', label: 'Definition', type: 'string', required: true },
+      { key: 'fork.run', label: 'Sequence', type: 'string', required: true },
     ],
     defaults: { fork: { run: '' } },
   },

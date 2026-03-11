@@ -1,16 +1,21 @@
 import { escapeHtml } from '../state.js';
 
+function getSceneSequences(viewCtx = {}) {
+  return viewCtx.sceneData?.sequences || viewCtx.sceneData?.definitions || null;
+}
+
 export function createActionRenderers(openActionViewer, buildReadOnlyList) {
-  function getForkDefinitionName(forkDef) {
+  function getForkSequenceName(forkDef) {
     if (typeof forkDef === 'string') return forkDef;
     if (typeof forkDef?.run === 'string') return forkDef.run;
     return '';
   }
 
-  function openDefinition(defName, viewCtx = {}) {
-    if (!(viewCtx.sceneData?.definitions && defName in viewCtx.sceneData.definitions)) return;
-    const actions = viewCtx.sceneData.definitions[defName];
-    openActionViewer(`${viewCtx.sceneId} — ${defName}`, actions, {
+  function openSequence(sequenceName, viewCtx = {}) {
+    const sequences = getSceneSequences(viewCtx);
+    if (!(sequences && sequenceName in sequences)) return;
+    const actions = sequences[sequenceName];
+    openActionViewer(`${viewCtx.sceneId} — ${sequenceName}`, actions, {
       onChange: () => viewCtx.markDirty?.(viewCtx.sceneId),
       sceneId: viewCtx.sceneId,
       sceneData: viewCtx.sceneData,
@@ -317,27 +322,28 @@ export function createActionRenderers(openActionViewer, buildReadOnlyList) {
     return body;
   }
 
-  function renderRunChip(defName, color, viewCtx = {}) {
+  function renderRunChip(sequenceName, color, viewCtx = {}) {
     const body = document.createElement('div');
     body.className = 'av-body';
-    const canOpenDefinition = !!(viewCtx.sceneData?.definitions && defName in viewCtx.sceneData.definitions);
-    const chipTag = canOpenDefinition ? 'button' : 'span';
+    const sequences = getSceneSequences(viewCtx);
+    const canOpenSequence = !!(sequences && sequenceName in sequences);
+    const chipTag = canOpenSequence ? 'button' : 'span';
     const chip = document.createElement(chipTag);
     chip.className = 'av-chip';
     chip.style.setProperty('--chip-color', color);
-    chip.textContent = defName;
-    if (canOpenDefinition) {
+    chip.textContent = sequenceName;
+    if (canOpenSequence) {
       chip.type = 'button';
-      chip.title = `Open definition: ${defName}`;
-      chip.addEventListener('click', () => openDefinition(defName, viewCtx));
+      chip.title = `Open sequence: ${sequenceName}`;
+      chip.addEventListener('click', () => openSequence(sequenceName, viewCtx));
     }
     body.appendChild(chip);
     return body;
   }
 
   function renderFork(forkDef, color, viewCtx = {}) {
-    const defName = getForkDefinitionName(forkDef);
-    if (defName) return renderRunChip(defName, color, viewCtx);
+    const sequenceName = getForkSequenceName(forkDef);
+    if (sequenceName) return renderRunChip(sequenceName, color, viewCtx);
     if (Array.isArray(forkDef?.actions)) {
       const body = document.createElement('div');
       body.className = 'av-body av-if-body';
@@ -384,26 +390,27 @@ export function renderCollapsedSummary(action, type, shortenText, viewCtx = {}) 
   if (type === 'goto' && typeof viewCtx.focusScene === 'function' && action.goto) {
     onClick = () => viewCtx.focusScene(action.goto);
     title = `Focus scene: ${action.goto}`;
-  } else if (type === 'run' && viewCtx.sceneData?.definitions && action.run in viewCtx.sceneData.definitions) {
-    onClick = () => viewCtx.openActionViewer?.(`${viewCtx.sceneId} — ${action.run}`, viewCtx.sceneData.definitions[action.run], {
+  } else if (type === 'run' && getSceneSequences(viewCtx) && action.run in getSceneSequences(viewCtx)) {
+    onClick = () => viewCtx.openActionViewer?.(`${viewCtx.sceneId} — ${action.run}`, getSceneSequences(viewCtx)[action.run], {
       onChange: () => viewCtx.markDirty?.(viewCtx.sceneId),
       sceneId: viewCtx.sceneId,
       sceneData: viewCtx.sceneData,
       markDirty: viewCtx.markDirty,
       focusScene: viewCtx.focusScene,
     });
-    title = `Open definition: ${action.run}`;
+    title = `Open sequence: ${action.run}`;
   } else if (type === 'fork') {
-    const defName = typeof action.fork === 'string' ? action.fork : action.fork?.run;
-    if (defName && viewCtx.sceneData?.definitions && defName in viewCtx.sceneData.definitions) {
-      onClick = () => viewCtx.openActionViewer?.(`${viewCtx.sceneId} — ${defName}`, viewCtx.sceneData.definitions[defName], {
+    const sequenceName = typeof action.fork === 'string' ? action.fork : action.fork?.run;
+    const sequences = getSceneSequences(viewCtx);
+    if (sequenceName && sequences && sequenceName in sequences) {
+      onClick = () => viewCtx.openActionViewer?.(`${viewCtx.sceneId} — ${sequenceName}`, sequences[sequenceName], {
         onChange: () => viewCtx.markDirty?.(viewCtx.sceneId),
         sceneId: viewCtx.sceneId,
         sceneData: viewCtx.sceneData,
         markDirty: viewCtx.markDirty,
         focusScene: viewCtx.focusScene,
       });
-      title = `Open definition: ${defName}`;
+      title = `Open sequence: ${sequenceName}`;
     }
   }
 
@@ -455,7 +462,7 @@ export function summarizeAction(action, type, shortenText) {
     }
     case 'wait': return `${action.wait ?? 0} ms`;
     case 'emit': return action.emit || '(event)';
-    case 'run': return action.run || '(definition)';
+    case 'run': return action.run || '(sequence)';
     case 'fork':
       if (typeof action.fork === 'string') return action.fork;
       if (typeof action.fork?.run === 'string') return action.fork.run;

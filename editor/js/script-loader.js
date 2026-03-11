@@ -6,6 +6,14 @@
 import { state } from './state.js';
 import { readFileText, collectAllPaths } from './fs-provider.js';
 
+function normalizeSceneSequences(data) {
+  if (!data || Array.isArray(data) || typeof data !== 'object') return data;
+  if (data.sequences || !data.definitions) return data;
+  data.sequences = data.definitions;
+  delete data.definitions;
+  return data;
+}
+
 /**
  * Load a single script by id (without .json extension).
  */
@@ -14,7 +22,7 @@ export async function loadScript(id) {
 
   const path = `${id}.json`;
   const text = await readFileText(path);
-  const data = JSON.parse(text);
+  const data = normalizeSceneSequences(JSON.parse(text));
   state.scripts[id] = data;
   return data;
 }
@@ -45,8 +53,7 @@ async function loadNestedJson(id) {
   if (state.scripts[id]) return state.scripts[id];
   const path = `${id}.json`;
   const text = await readFileText(path);
-  const data = JSON.parse(text);
+  const data = normalizeSceneSequences(JSON.parse(text));
   state.scripts[id] = data;
   return data;
 }
-

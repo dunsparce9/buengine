@@ -75,6 +75,10 @@ function collectObjectGotos(obj, out) {
   }
 }
 
+function getSceneSequences(data) {
+  return data?.sequences || data?.definitions || {};
+}
+
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp)$/i;
 const FILE_EXT  = /\.(png|jpe?g|gif|webp|svg|bmp|opus|mp3|ogg|wav|webm|m4a|aac|flac)$/i;
 
@@ -117,8 +121,9 @@ function preloadNeighbors(data) {
   if (Array.isArray(objects)) {
     for (const obj of objects) collectObjectGotos(obj, ids);
   }
-  if (data.definitions) {
-    for (const actions of Object.values(data.definitions)) collectGotos(actions, ids);
+  const sequences = getSceneSequences(data);
+  for (const actions of Object.values(sequences)) {
+    collectGotos(actions, ids);
   }
   for (const id of ids) {
     loader.load(id).then(d => preloadAssets(d)).catch(() => {});
@@ -129,7 +134,7 @@ async function gotoScene(id) {
   runner.abort();
   const data = await loader.load(id);
   currentSceneData = data;
-  runner.definitions = data.definitions || {};
+  runner.sequences = getSceneSequences(data);
   state.pushScene(id);
   bus.emit('overlay:clear');
   await preloadAssets(data);
