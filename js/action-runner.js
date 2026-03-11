@@ -13,7 +13,10 @@
  *   { "if": "flag_name >= 3", "then": [...], "else": [...] }   // numeric comparison (==, !=, >, >=, <, <=)
  *   { "wait": 500 }            // milliseconds
  *   { "emit": "custom:event" } // fire a bus event
- *   { "run": "definition_name" } // call a named definition (supports recursion)
+ *   { "run": "definition_name" } // inline-expand a named definition (supports recursion)
+ *   { "fork": "definition_name" } // start a detached action chain in the background
+ *   { "fork": { "run": "definition_name" } }
+ *   { "fork": { "actions": [ ... ] } }
  *   { "exit": true }           // stop the entire action chain
  *   { "show": "object_id" }    // show a scene object by id (string shorthand)
  *   { "show": "this" }         // show the object whose actions are running
@@ -50,12 +53,16 @@ export class ActionRunner {
     this.currentObjectId = null;
     /** @type {Record<string, object[]>} Named action sequences from the current scene. */
     this.definitions = {};
+    /** @type {Set<ActionRunner>} Child runners spawned via `fork`. */
+    this._children = new Set();
   }
 
   /** Cancel any running sequence (external). */
   abort() {
     this._aborted = true;
     this.running = false;
+    for (const child of this._children) child.abort();
+    this._children.clear();
     // Resolve any pending blocking promise so the run() loop can unwind cleanly.
     const pending = this._pendingResolve;
     this._pendingResolve = null;
@@ -77,8 +84,18 @@ export class ActionRunner {
     }
 
     try {
-      for (const action of actions) {
+      const frames = [{ actions, index: 0 }];
+
+      while (frames.length) {
         if (this._aborted || this._exited || this._gotoFired) return;
+
+        const frame = frames[frames.length - 1];
+        if (frame.index >= frame.actions.length) {
+          frames.pop();
+          continue;
+        }
+
+        const action = frame.actions[frame.index++];
 
         switch (detectType(action)) {
           case 'say':       await this._say(action); break;
@@ -91,14 +108,19 @@ export class ActionRunner {
           case 'if': {
             const result = this._evalCondition(action.if);
             const branch = result ? action.then : action.else;
-            if (branch) await this.run(branch, true);
+            if (branch?.length) frames.push({ actions: branch, index: 0 });
             break;
           }
           case 'wait':      await this._delay(action.wait); break;
           case 'emit':      this.bus.emit(action.emit, action.payload); break;
           case 'run': {
             const def = this.definitions[action.run];
-            if (def) await this.run(def, true);
+            if (def?.length) frames.push({ actions: def, index: 0 });
+            break;
+          }
+          case 'fork': {
+            const forkActions = this._resolveForkActions(action.fork);
+            if (forkActions?.length) this._spawnChild(forkActions);
             break;
           }
           case 'show':      await this._show(action.show); break;
@@ -160,6 +182,28 @@ export class ActionRunner {
     return new Promise(resolve => {
       this._pendingResolve = resolve;
       setTimeout(resolve, ms);
+    });
+  }
+
+  _resolveForkActions(forkDef) {
+    if (typeof forkDef === 'string') return this.definitions[forkDef] ?? null;
+    if (Array.isArray(forkDef)) return forkDef;
+    if (Array.isArray(forkDef?.actions)) return forkDef.actions;
+    if (typeof forkDef?.run === 'string') return this.definitions[forkDef.run] ?? null;
+    return null;
+  }
+
+  _spawnChild(actions) {
+    const child = new ActionRunner({
+      bus: this.bus,
+      state: this.state,
+      inventory: this.inventory,
+    });
+    child.definitions = this.definitions;
+    child.currentObjectId = this.currentObjectId;
+    this._children.add(child);
+    child.run(actions).finally(() => {
+      this._children.delete(child);
     });
   }
 

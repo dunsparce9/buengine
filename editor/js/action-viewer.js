@@ -22,6 +22,7 @@ const ACTION_TYPE_QUIPS = {
   wait: 'pause for a moment',
   emit: 'broadcast an event',
   run: 'run a definition',
+  fork: 'start a background sequence',
   exit: 'stop this action chain',
   show: 'reveal something on screen',
   hide: 'make something disappear',
@@ -89,6 +90,7 @@ function renderActionBody(action, type, viewCtx = {}) {
     case 'wait':      return renderSimpleValue(`${action.wait} ms`);
     case 'emit':      return renderChip(action.emit, '#b8bb26');
     case 'run':       return renderRunChip(action.run, '#83a598', viewCtx);
+    case 'fork':      return renderFork(action.fork, '#8ec07c', viewCtx);
     case 'exit':      return null;
     case 'show':      return renderOverlay(action.show);
     case 'hide':      return renderOverlay(action.hide);
@@ -394,6 +396,33 @@ function renderRunChip(defName, color, viewCtx = {}) {
   return body;
 }
 
+function renderFork(forkDef, color, viewCtx = {}) {
+  if (typeof forkDef === 'string') {
+    return renderRunChip(forkDef, color, viewCtx);
+  }
+
+  if (typeof forkDef?.run === 'string') {
+    return renderRunChip(forkDef.run, color, viewCtx);
+  }
+
+  if (Array.isArray(forkDef?.actions)) {
+    const body = document.createElement('div');
+    body.className = 'av-body av-if-body';
+
+    const label = document.createElement('div');
+    label.className = 'av-branch-label av-branch-then';
+    label.textContent = 'background';
+    body.appendChild(label);
+
+    const list = buildReadOnlyList(forkDef.actions, viewCtx);
+    list.className += ' av-nested';
+    body.appendChild(list);
+    return body;
+  }
+
+  return renderSimpleValue('background');
+}
+
 function renderSimpleValue(text) {
   const body = document.createElement('div');
   body.className = 'av-body';
@@ -480,11 +509,22 @@ function buildEditableList(actions, fw, opts) {
   container.className = 'av-list';
   let editingIdx = null;
 
+  function cloneAction(action) {
+    if (typeof structuredClone === 'function') return structuredClone(action);
+    return JSON.parse(JSON.stringify(action));
+  }
+
   function renderBlocks() {
     container.innerHTML = '';
     for (let i = 0; i < actions.length; i++) {
       container.appendChild(buildEditableBlock(actions[i], i, {
         actions, fw, opts, editingIdx,
+        onClone(idx) {
+          actions.splice(idx + 1, 0, cloneAction(actions[idx]));
+          if (editingIdx != null && editingIdx > idx) editingIdx++;
+          if (opts.onChange) opts.onChange();
+          renderBlocks();
+        },
         onEdit(idx) {
           if (editingIdx === idx) {
             cleanAction(actions[editingIdx], detectType(actions[editingIdx]));
@@ -569,6 +609,12 @@ function buildEditableBlock(action, index, ctx) {
     header.appendChild(el);
   }
 
+  const cloneBtn = document.createElement('button');
+  cloneBtn.className = 'av-header-btn av-clone-btn';
+  cloneBtn.title = 'Clone';
+  cloneBtn.innerHTML = '<span class="material-symbols-outlined">content_copy</span>';
+  cloneBtn.addEventListener('click', (e) => { e.stopPropagation(); ctx.onClone(index); });
+
   const editBtn = document.createElement('button');
   editBtn.className = 'av-header-btn av-edit-btn';
   editBtn.title = isEditing ? 'Done' : 'Edit';
@@ -581,7 +627,7 @@ function buildEditableBlock(action, index, ctx) {
   delBtn.innerHTML = '<span class="material-symbols-outlined">delete</span>';
   delBtn.addEventListener('click', (e) => { e.stopPropagation(); ctx.onDelete(index); });
 
-  header.append(editBtn, delBtn);
+  header.append(cloneBtn, editBtn, delBtn);
   block.appendChild(header);
 
   if (isEditing) {

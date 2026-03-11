@@ -97,6 +97,16 @@ export const ACTION_TYPES = {
     defaults: { run: '' },
   },
 
+  fork: {
+    icon: 'fork_right',
+    color: '#8ec07c',
+    label: 'Fork',
+    fields: [
+      { key: 'fork.run', label: 'Definition', type: 'string', required: true },
+    ],
+    defaults: { fork: { run: '' } },
+  },
+
   exit: {
     icon: 'block',
     color: '#fb4934',

@@ -54,7 +54,7 @@ Scene scripts are JSON files in each game's folder (e.g. `games/playground/`). E
 - `background` / `backgroundColor` — visual backdrop
 - `grid` — `{ "cols": N, "rows": N }` tile grid dimensions (default 16×9)
 - `objects[]` — scene objects (clickable regions, decorative images, etc.) with `{ id, x, y, w, h, label?, texture?, visible?, z?, actions[] }`. `id` is unique within the scene; `x`, `y` are tile coordinates; `w`, `h` are tile counts. Optional `label` shows a tooltip on hover. Optional `texture` renders an image snapped to the grid. Optional `visible: false` starts the object hidden (can be revealed via `show` action or in `onEnter`). Optional `z` sets the CSS z-index for stacking control. Each click auto-increments the flag `{sceneId}.{id}.clicks`, so scripts can check click counts via conditions (e.g. `"if": "intro.beer.clicks >= 3"`) without manual `set` actions. (Legacy key `hotspots[]` is still accepted for backward compatibility.)
-- `definitions` — `{ "name": [...actions] }` named action sequences callable via `{ "run": "name" }`. Supports recursion.
+- `definitions` — `{ "name": [...actions] }` named action sequences callable via `{ "run": "name" }`. `run` expands them inline at that point in the action list, so blocking behavior still comes from the individual actions inside the definition. Supports recursion.
 - `onEnter[]` — action array run when the scene is entered
 
 ### Action commands
@@ -71,7 +71,8 @@ Actions are objects in an array. Supported commands:
 | Conditional (cmp) | `{ "if": "flag_name >= 3", "then": [...], "else": [...] }` — numeric comparison (`==`, `!=`, `>`, `>=`, `<`, `<=`) |
 | Wait | `{ "wait": 500 }` |
 | Custom event | `{ "emit": "event_name" }` |
-| Run definition | `{ "run": "definition_name" }` |
+| Run definition | `{ "run": "definition_name" }` — expands the definition inline; it is not its own blocking layer |
+| Fork definition | `{ "fork": "definition_name" }` or `{ "fork": { "run": "definition_name" } }` — starts a detached background action chain. Use this for passive timed sequences (flashcards, fades, sound cues) that should continue while the main chain waits on dialogue/choice |
 | Exit actions | `{ "exit": true }` |
 | Show object | `{ "show": "object_id" }` — string shorthand to make a scene object visible. Use `"this"` to reference the object whose actions are running. Full form: `{ "show": { "id": "...", "texture": "...", "scaling": "fill", "z": 10, "effect": { "type": "fade-in", "seconds": 2, "blocking": false } } }` — if `id` matches a scene object, makes it visible; otherwise creates a fullscreen runtime overlay (requires `texture`) |
 | Hide object | `{ "hide": "object_id" }` — string shorthand to hide a scene object. Use `"this"` for self-reference. Full form: `{ "hide": { "id": "...", "effect": { "type": "fade-out", "seconds": 1, "blocking": true } } }` — scene objects stay in DOM (can be re-shown); runtime overlays are removed |
@@ -118,4 +119,3 @@ All game UI lives inside `#game-container`. The `#scene-layer` holds backgrounds
 5. When adding new action commands, add them to `ActionRunner.run()` and document them in this file's action table.
 6. CSS lives in `css/style.css` — don't use inline styles in JS except for dynamic positioning (objects, images).
 7. New UI components should follow the pattern: constructor takes `bus`, queries its own DOM elements, subscribes to relevant events.
-

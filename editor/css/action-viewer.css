@@ -337,6 +337,7 @@ button.av-chip:hover {
 .av-header-btn .material-symbols-outlined { font-size: 14px; }
 .av-header-btn:hover { background: #3c3836; color: #ebdbb2; }
 
+.av-clone-btn:hover { color: #fabd2f; }
 .av-edit-btn:hover { color: #83a598; }
 .av-delete-btn:hover { color: #fb4934; }
 

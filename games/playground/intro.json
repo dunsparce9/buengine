@@ -8,16 +8,8 @@
   "definitions": {
     "intro_sequence": [
       {
-        "show": {
-          "id": "dream-overlay",
-          "texture": "images/scenes/dream.png",
-          "layer": "overlay",
-          "scaling": "fill",
-          "effect": {
-            "type": "fade-in",
-            "seconds": 6,
-            "blocking": false
-          }
+        "fork": {
+          "run": "titlecards"
         }
       },
       {
@@ -26,8 +18,7 @@
           "path": "sounds/introbg.opus",
           "volume": 0.09,
           "fade": 1,
-          "loop": true,
-          "blocking": false
+          "loop": true
         }
       },
       {
@@ -108,13 +99,31 @@
             }
           ]
         }
+      }
+    ],
+    "titlecards": [
+      {
+        "show": {
+          "id": "dream-inter",
+          "texture": "images/scenes/dream-inter.png",
+          "layer": "overlay",
+          "scaling": "fill",
+          "effect": {
+            "type": "fade-in",
+            "seconds": 3,
+            "blocking": true
+          }
+        }
       },
       {
-        "hide": {
-          "id": "dream-overlay",
+        "show": {
+          "id": "dream1",
+          "texture": "images/scenes/dream1.png",
+          "layer": "overlay",
+          "scaling": "fill",
           "effect": {
-            "type": "fade-out",
-            "seconds": 2,
+            "seconds": 3,
+            "type": "fade-in",
             "blocking": true
           }
         }
