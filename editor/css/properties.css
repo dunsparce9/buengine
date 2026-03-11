@@ -84,6 +84,34 @@
   border-color: #fe8019;
 }
 
+.prop-compact-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.prop-compact-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.prop-compact-key {
+  color: #a89984;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.prop-compact-input {
+  text-align: center;
+  padding: 4px 2px;
+  font-variant-numeric: tabular-nums;
+}
+
 .prop-checkbox {
   width: 16px;
   height: 16px;

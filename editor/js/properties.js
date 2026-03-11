@@ -221,7 +221,7 @@ function renderObjectProps(obj) {
   }
 
   // ── Position ──
-  addEditablePropGroup('Position', [
+  addCompactEditablePropGroup('Position', [
     { key: 'x', value: obj.x, type: 'number', step: 1, min: 0, onChange: v => setObjectProp('x', v) },
     { key: 'y', value: obj.y, type: 'number', step: 1, min: 0, onChange: v => setObjectProp('y', v) },
     { key: 'w', value: obj.w, type: 'number', step: 1, min: 1, onChange: v => setObjectProp('w', v) },
@@ -778,5 +778,40 @@ function addEditablePropGroup(title, fields) {
     group.appendChild(row);
   }
 
+  dom.propsContent.appendChild(group);
+}
+
+function addCompactEditablePropGroup(title, fields) {
+  const group = document.createElement('div');
+  group.className = 'prop-group';
+
+  const heading = createGroupTitle(title);
+  group.appendChild(heading);
+
+  const row = document.createElement('div');
+  row.className = 'prop-compact-grid';
+
+  for (const { key, value, type, step, min, max, onChange } of fields) {
+    const cell = document.createElement('label');
+    cell.className = 'prop-compact-cell';
+
+    const label = document.createElement('span');
+    label.className = 'prop-compact-key';
+    label.textContent = key;
+
+    const input = document.createElement('input');
+    input.type = type || 'text';
+    input.className = 'prop-input prop-compact-input';
+    input.value = value;
+    if (step != null) input.step = step;
+    if (min  != null) input.min  = min;
+    if (max  != null) input.max  = max;
+    input.addEventListener('input', () => onChange(input.value));
+
+    cell.append(label, input);
+    row.appendChild(cell);
+  }
+
+  group.appendChild(row);
   dom.propsContent.appendChild(group);
 }
