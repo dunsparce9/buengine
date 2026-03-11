@@ -1,4 +1,4 @@
-const CACHE_NAME = 'buegame-editor-v3';
+const CACHE_NAME = 'buegame-editor-v4';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -29,6 +29,7 @@ const CORE_ASSETS = [
   './js/context-menu.js',
   './js/floating-window.js',
   './js/items-viewer.js',
+  './js/options-editor.js',
   './js/action-viewer.js',
   './js/action-viewer/index.js',
   './js/action-viewer/state.js',

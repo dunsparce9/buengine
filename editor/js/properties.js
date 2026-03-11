@@ -7,6 +7,7 @@ import { openActionViewer } from './action-viewer.js';
 import { findNode } from './fs-provider.js';
 import { getFileExtension, getFileKind, isPreviewableMedia } from './file-types.js';
 import { renderItemsProperties } from './items-viewer.js';
+import { openOptionsModal, createDefaultObjectOption } from './options-editor.js';
 import { selectScript } from './file-panel.js';
 
 let _assetInfoRequestId = 0;
@@ -309,16 +310,40 @@ function renderHotspotProps(hs) {
 
   // ── Actions ──
   {
-    if (!hs.actions) hs.actions = [];
-    addActionLinkGroup('Actions', [['count', hs.actions.length]],
-      () => openActionViewer(`${hs.id} — actions`, hs.actions, {
-        onChange: () => { markDirty(sceneId); hooks.renderProperties(); },
-        sceneId,
-        sceneData: data,
-        markDirty,
-        focusScene: focusSceneInEditor,
-      })
-    );
+    const options = getHotspotOptionsPreview(hs);
+    const openOptionsManager = () => {
+      ensureHotspotOptions(hs, sceneId);
+      openOptionsModal({
+        target: hs,
+        scriptId: sceneId,
+        title: `${hs.id} — Options`,
+        modalKey: `${sceneId}:${hs.id}:options`,
+        ownerLabel: hs.label || hs.id,
+        actionViewerContext: {
+          sceneId,
+          sceneData: data,
+          markDirty,
+          focusScene: focusSceneInEditor,
+        },
+      });
+    };
+    addOptionsLinkGroup('Options', options, openOptionsManager, (optionIndex) => {
+      const liveOptions = ensureHotspotOptions(hs, sceneId);
+      const option = liveOptions[optionIndex];
+      if (!option) return;
+      if (!Array.isArray(option.actions)) option.actions = [];
+      openActionViewer(
+        `${hs.label || hs.id} — ${option.text || `Option ${optionIndex + 1}`}`,
+        option.actions,
+        {
+          onChange: () => { markDirty(sceneId); hooks.renderProperties(); },
+          sceneId,
+          sceneData: data,
+          markDirty,
+          focusScene: focusSceneInEditor,
+        }
+      );
+    });
   }
 
   // ── Delete object button ──
@@ -561,6 +586,92 @@ function addActionLinkGroup(title, rows, onClick) {
   }
 
   dom.propsContent.appendChild(group);
+}
+
+function addOptionsLinkGroup(title, options, onManage, onOpenOptionActions) {
+  const group = document.createElement('div');
+  group.className = 'prop-group';
+
+  const heading = document.createElement('div');
+  heading.className = 'prop-group-title';
+  heading.textContent = `${title} (${options.length})`;
+  group.appendChild(heading);
+
+  const manageBtn = document.createElement('button');
+  manageBtn.type = 'button';
+  manageBtn.className = 'prop-action-btn';
+  manageBtn.innerHTML = '<span class="material-symbols-outlined">tune</span> Manage options';
+  manageBtn.addEventListener('click', onManage);
+  group.appendChild(manageBtn);
+
+  if (!options.length) {
+    const empty = document.createElement('div');
+    empty.className = 'props-empty';
+    empty.textContent = 'No options defined';
+    group.appendChild(empty);
+    dom.propsContent.appendChild(group);
+    return;
+  }
+
+  for (let i = 0; i < options.length; i++) {
+    const opt = options[i];
+    const row = document.createElement('div');
+    row.className = 'prop-row';
+    const key = document.createElement('span');
+    key.className = 'prop-key';
+    key.textContent = opt.text || `Option ${i + 1}`;
+
+    const meta = document.createElement('span');
+    meta.className = 'prop-val prop-option-meta';
+
+    const icon = document.createElement('span');
+    icon.textContent = opt.icon || '—';
+
+    const separator = document.createElement('span');
+    separator.textContent = '·';
+
+    const link = document.createElement('span');
+    link.className = 'prop-action-link';
+    link.textContent = `${Array.isArray(opt.actions) ? opt.actions.length : 0} action(s)`;
+    link.addEventListener('click', () => onOpenOptionActions(i));
+
+    meta.append(icon, separator, link);
+    row.append(key, meta);
+    group.appendChild(row);
+  }
+
+  dom.propsContent.appendChild(group);
+}
+
+function getHotspotOptionsPreview(hs) {
+  if (Array.isArray(hs.options)) return hs.options;
+  if (Array.isArray(hs.actions)) {
+    return [{
+      ...createDefaultObjectOption(),
+      actions: hs.actions,
+    }];
+  }
+  return [];
+}
+
+function ensureHotspotOptions(hs, sceneId) {
+  if (Array.isArray(hs.options)) return hs.options;
+  if (Array.isArray(hs.actions)) {
+    hs.options = [{
+      ...createDefaultObjectOption(),
+      actions: hs.actions,
+    }];
+    delete hs.actions;
+    markDirty(sceneId);
+    hooks.renderViewport();
+    hooks.renderProperties();
+    return hs.options;
+  }
+  hs.options = [createDefaultObjectOption()];
+  markDirty(sceneId);
+  hooks.renderViewport();
+  hooks.renderProperties();
+  return hs.options;
 }
 
 function addDefinitionsGroup(data, names) {

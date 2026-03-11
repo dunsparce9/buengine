@@ -96,27 +96,57 @@
   color: #bdae93;
 }
 
-/* ── Delete hotspot button (properties panel) ──── */
+/* ── Property action buttons ───────────────────── */
 
+.prop-action-btn,
 .prop-danger-btn {
   display: flex;
   align-items: center;
   gap: 6px;
   width: 100%;
   padding: 6px 12px;
-  border: 1px solid rgba(251, 73, 52, 0.3);
   border-radius: 4px;
-  background: rgba(251, 73, 52, 0.08);
-  color: #fb4934;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
 }
-.prop-danger-btn .material-symbols-outlined { font-size: 16px; }
+
+.prop-action-btn {
+  margin-bottom: 8px;
+  border: 1px solid rgba(131, 165, 152, 0.35);
+  background: rgba(131, 165, 152, 0.12);
+  color: #83a598;
+}
+
+.prop-action-btn:hover {
+  background: rgba(131, 165, 152, 0.2);
+  border-color: #83a598;
+}
+
+.prop-action-btn .material-symbols-outlined,
+.prop-danger-btn .material-symbols-outlined {
+  font-size: 16px;
+}
+
+/* ── Delete hotspot button (properties panel) ──── */
+
+.prop-danger-btn {
+  border: 1px solid rgba(251, 73, 52, 0.3);
+  background: rgba(251, 73, 52, 0.08);
+  color: #fb4934;
+}
 .prop-danger-btn:hover {
   background: rgba(251, 73, 52, 0.18);
   border-color: #fb4934;
+}
+
+.prop-option-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 /* ── Property input error state ────────────────── */

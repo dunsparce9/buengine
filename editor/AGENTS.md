@@ -94,7 +94,7 @@ Modules avoid circular imports by using a `hooks` object (in `state.js`) for cro
 
 - **Left panel** (`#file-panel` / `#file-list`) — folder tree with expand/collapse, drag-to-move, drag-from-OS, right-click context menu.
 - **Viewport** (`#viewport-scene`) — sized dynamically to preserve the scene grid aspect ratio; shows background image and hotspot outlines.
-- **Right panel** (`#props-panel` / `#props-content`) — property inspector. It edits `_game.json`, scene/object fields, inventory items, and opens AV for action arrays.
+- **Right panel** (`#props-panel` / `#props-content`) — property inspector. It edits `_game.json`, scene/object fields, inventory items, and opens AV for action arrays plus option-management modals for items/objects.
 - **Resize handles** — two draggable column dividers between panels (CSS vars `--left-w`, `--right-w`).
 - **Floating windows** (`.fw`) — reusable window system for AV, confirmation dialogs, about panel, and other transient tools.
 
@@ -133,7 +133,7 @@ Do not bypass that flow unless there is a clear reason.
 
 AV is the editor's action array UI rooted at `editor/js/action-viewer.js` and implemented under `editor/js/action-viewer/`. It is a central subsystem, not a minor helper.
 
-- Opens floating windows for action arrays such as scene `onEnter`, object `actions`, choice branches, loop bodies, and named `definitions`
+- Opens floating windows for action arrays such as scene `onEnter`, object option actions, choice branches, loop bodies, and named `definitions`
 - Deduplicates windows by title via an internal open-viewer registry
 - Mutates the provided action array in place and reports changes through `opts.onChange`
 - Supports nested editors, inline field editing, add/delete, collapse, and drag-to-reorder

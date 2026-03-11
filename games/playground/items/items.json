@@ -33,12 +33,12 @@
         "icon": "👇️",
         "actions": [
           {
-            "say": "PUT DOWN? What the hell?\nWhat did the seal do to you? To deserve to die?",
+            "say": "PUT DOWN? What the hell?",
             "speaker": "Annoyed Narrator",
             "accent": "#ff6171"
           },
           {
-            "say": "Oh wait I get whatchu mean",
+            "say": "Oh nvm I get whatchu mean",
             "speaker": "Narrator"
           },
           {

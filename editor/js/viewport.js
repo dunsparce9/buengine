@@ -8,6 +8,7 @@ import { showContextMenu } from './context-menu.js';
 import { resolveAssetURL, resolveAssetURLSync } from './fs-provider.js';
 import { getFileKind, isPreviewableMedia } from './file-types.js';
 import { renderItemsViewport } from './items-viewer.js';
+import { createDefaultObjectOption } from './options-editor.js';
 
 /* ── Drag state (module-scoped, survives re-renders) ── */
 let _selectionBox = null; // { x, y, w, h } in grid units (for drag-to-create)
@@ -390,7 +391,7 @@ function renderSelectionBoxEl() {
         label: 'Create hotspot',
         onClick: () => {
           const id = uniqueHotspotId('hotspot');
-          addHotspot({ id, x: sel.x, y: sel.y, w: sel.w, h: sel.h, actions: [] });
+          addHotspot({ id, x: sel.x, y: sel.y, w: sel.w, h: sel.h, options: [createDefaultObjectOption()] });
           clearSelectionBox();
         },
       },

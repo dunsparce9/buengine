@@ -19,6 +19,11 @@ export class SceneRenderer {
 
     this._tooltip = document.createElement('div');
     this._tooltip.className = 'hotspot-tooltip hidden';
+    this._tooltipAction = document.createElement('div');
+    this._tooltipAction.className = 'hotspot-tooltip-action hidden';
+    this._tooltipLabel = document.createElement('div');
+    this._tooltipLabel.className = 'hotspot-tooltip-label';
+    this._tooltip.append(this._tooltipAction, this._tooltipLabel);
     this.el.appendChild(this._tooltip);
 
     /**
@@ -129,7 +134,10 @@ export class SceneRenderer {
 
         if (obj.label) {
           div.addEventListener('mouseenter', () => {
-            this._tooltip.textContent = obj.label;
+            const defaultOptionText = obj.options?.[0]?.text || '';
+            this._tooltipAction.textContent = defaultOptionText;
+            this._tooltipAction.classList.toggle('hidden', !defaultOptionText);
+            this._tooltipLabel.textContent = obj.label;
             this._tooltip.style.left = `${obj.x * tilePctW + (obj.w * tilePctW) / 2}%`;
             this._tooltip.style.top  = `${obj.y * tilePctH}%`;
             this._tooltip.classList.remove('hidden');
@@ -141,6 +149,15 @@ export class SceneRenderer {
 
         div.addEventListener('click', () => {
           this.bus.emit('hotspot:click', obj);
+        });
+        div.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.bus.emit('hotspot:contextmenu', {
+            obj,
+            clientX: e.clientX,
+            clientY: e.clientY,
+          });
         });
 
         this.el.appendChild(div);

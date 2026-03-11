@@ -75,6 +75,13 @@ function ensureObjectsArray(data) {
  */
 export function collectImagePaths() {
   const paths = new Set();
+  const walkObjectActions = (obj, walkActions) => {
+    if (!obj || typeof obj !== 'object') return;
+    if (Array.isArray(obj.actions)) walkActions(obj.actions);
+    if (Array.isArray(obj.options)) {
+      for (const option of obj.options) walkActions(option?.actions);
+    }
+  };
   for (const data of Object.values(state.scripts)) {
     if (data.background) paths.add(data.background);
     const objects = getObjectsArray(data);
@@ -101,7 +108,7 @@ export function collectImagePaths() {
       for (const acts of Object.values(data.definitions)) walkActions(acts);
     }
     if (Array.isArray(objects)) {
-      for (const obj of objects) walkActions(obj.actions);
+      for (const obj of objects) walkObjectActions(obj, walkActions);
     }
   }
   return [...paths].sort();

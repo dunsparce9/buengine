@@ -73,40 +73,46 @@
       "y": 5,
       "w": 5,
       "h": 4,
-      "actions": [
+      "options": [
         {
-          "if": "items.seal.qty > 0",
-          "then": [
+          "text": "Go down",
+          "icon": "⬇️",
+          "actions": [
             {
-              "speaker": "Narrator",
-              "say": "The seal is too heavy, you can't even walk to the ladder. Put down the seal first."
+              "if": "items.seal.qty > 0",
+              "then": [
+                {
+                  "speaker": "Narrator",
+                  "say": "The seal is too heavy, you can't even walk to the ladder. Put down the seal first."
+                },
+                {
+                  "exit": true
+                }
+              ],
+              "else": []
             },
             {
-              "exit": true
-            }
-          ],
-          "else": []
-        },
-        {
-          "if": "abode.ladder.clicks >= 2",
-          "then": [
+              "if": "abode.ladder.clicks >= 2",
+              "then": [
+                {
+                  "say": "Yep, ladder still there. What do?",
+                  "speaker": "Ominous voice"
+                }
+              ]
+            },
             {
-              "say": "Yep, ladder still there. What do?",
-              "speaker": "Ominous voice"
+              "if": "abode.ladder.clicks == 1",
+              "then": [
+                {
+                  "say": "You find a huge mysterious ladder that probably leads somewhere.",
+                  "speaker": "Ominous voice"
+                }
+              ]
+            },
+            {
+              "run": "ladder_choice"
             }
           ]
-        },
-        {
-          "if": "abode.ladder.clicks == 1",
-          "then": [
-            {
-              "say": "You find a huge mysterious ladder that probably leads somewhere.",
-              "speaker": "Ominous voice"
-            }
-          ]
-        },
-        {
-          "run": "ladder_choice"
         }
       ]
     },
@@ -117,15 +123,21 @@
       "y": 5,
       "w": 2,
       "h": 1,
-      "actions": [
+      "options": [
         {
-          "say": "A disgusting(LY GOOD) plate of spaghetti and meatballs.",
-          "speaker": "Narrator"
-        },
-        {
-          "set": {
-            "found_spaghetti": true
-          }
+          "text": "Examine",
+          "icon": "👁️",
+          "actions": [
+            {
+              "say": "A disgusting(LY GOOD) plate of spaghetti and meatballs.",
+              "speaker": "Narrator"
+            },
+            {
+              "set": {
+                "found_spaghetti": true
+              }
+            }
+          ]
         }
       ]
     },
@@ -136,58 +148,64 @@
       "y": 4,
       "w": 1,
       "h": 1,
-      "actions": [
+      "options": [
         {
-          "playsound": {
-            "id": "beer",
-            "path": "sounds/objects/clink.opus",
-            "volume": 0.1,
-            "loop": false,
-            "blocking": false
-          }
-        },
-        {
-          "if": "abode.beer.clicks >= 5",
-          "then": [
+          "text": "Examine",
+          "icon": "👁️",
+          "actions": [
             {
-              "say": "Beer.",
-              "speaker": "Narrator"
-            }
-          ]
-        },
-        {
-          "if": "abode.beer.clicks == 4",
-          "then": [
+              "playsound": {
+                "id": "beer",
+                "path": "sounds/objects/clink.opus",
+                "volume": 0.1,
+                "loop": false,
+                "blocking": false
+              }
+            },
             {
-              "say": "Genuinely unbelieveable. It just KEEPS being beer!",
-              "speaker": "Narrator"
-            }
-          ]
-        },
-        {
-          "if": "abode.beer.clicks == 3",
-          "then": [
+              "if": "abode.beer.clicks >= 5",
+              "then": [
+                {
+                  "say": "Beer.",
+                  "speaker": "Narrator"
+                }
+              ]
+            },
             {
-              "say": "Yep, beer!",
-              "speaker": "Narrator"
-            }
-          ]
-        },
-        {
-          "if": "abode.beer.clicks == 2",
-          "then": [
+              "if": "abode.beer.clicks == 4",
+              "then": [
+                {
+                  "say": "Genuinely unbelieveable. It just KEEPS being beer!",
+                  "speaker": "Narrator"
+                }
+              ]
+            },
             {
-              "say": "It's still beer.",
-              "speaker": "Narrator"
-            }
-          ]
-        },
-        {
-          "if": "abode.beer.clicks == 1",
-          "then": [
+              "if": "abode.beer.clicks == 3",
+              "then": [
+                {
+                  "say": "Yep, beer!",
+                  "speaker": "Narrator"
+                }
+              ]
+            },
             {
-              "say": "It's beer.",
-              "speaker": "Narrator"
+              "if": "abode.beer.clicks == 2",
+              "then": [
+                {
+                  "say": "It's still beer.",
+                  "speaker": "Narrator"
+                }
+              ]
+            },
+            {
+              "if": "abode.beer.clicks == 1",
+              "then": [
+                {
+                  "say": "It's beer.",
+                  "speaker": "Narrator"
+                }
+              ]
             }
           ]
         }
@@ -201,83 +219,89 @@
       "y": 4,
       "w": 2,
       "h": 1,
-      "actions": [
+      "options": [
         {
-          "playsound": {
-            "id": "büe",
-            "path": "sounds/objects/büe.opus",
-            "volume": 0.1,
-            "loop": false,
-            "blocking": false
-          }
-        },
-        {
-          "say": "Büe...",
-          "speaker": "Seal",
-          "accent": "#9edfff"
-        },
-        {
-          "if": "abode.ladder.clicks >= 1",
-          "then": [
+          "text": "Observe",
+          "icon": "👁️",
+          "actions": [
             {
-              "say": "The seal noticed your humble attempt at going down the ominous ladder.",
-              "speaker": "Narrator"
+              "playsound": {
+                "id": "büe",
+                "path": "sounds/objects/büe.opus",
+                "volume": 0.1,
+                "loop": false,
+                "blocking": false
+              }
             },
             {
-              "say": "It lets out a curious and suggestive büe. You start feeling like you should check other parts of the room before going down.",
-              "speaker": "Narrator"
-            }
-          ]
-        },
-        {
-          "if": "abode.ladder.clicks == 0",
-          "then": [
+              "say": "Büe...",
+              "speaker": "Seal",
+              "accent": "#9edfff"
+            },
             {
-              "say": "The cute seal pup bües at you, respectfully.",
-              "speaker": "Narrator"
-            }
-          ]
-        },
-        {
-          "choice": {
-            "options": [
-              {
-                "text": "Büe back at ya!",
-                "actions": []
-              },
-              {
-                "text": "Pick up the seal.",
-                "actions": [
+              "if": "abode.ladder.clicks >= 1",
+              "then": [
+                {
+                  "say": "The seal noticed your humble attempt at going down the ominous ladder.",
+                  "speaker": "Narrator"
+                },
+                {
+                  "say": "It lets out a curious and suggestive büe. You start feeling like you should check other parts of the room before going down.",
+                  "speaker": "Narrator"
+                }
+              ]
+            },
+            {
+              "if": "abode.ladder.clicks == 0",
+              "then": [
+                {
+                  "say": "The cute seal pup bües at you, respectfully.",
+                  "speaker": "Narrator"
+                }
+              ]
+            },
+            {
+              "choice": {
+                "options": [
                   {
-                    "if": "seal_picked_up == 0",
-                    "then": [
+                    "text": "Büe back at ya!",
+                    "actions": []
+                  },
+                  {
+                    "text": "Pick up the seal.",
+                    "actions": [
                       {
-                        "say": "what",
-                        "speaker": "Narrator"
+                        "if": "seal_picked_up == 0",
+                        "then": [
+                          {
+                            "say": "what",
+                            "speaker": "Narrator"
+                          },
+                          {
+                            "set": {
+                              "seal_picked_up": 1
+                            }
+                          }
+                        ],
+                        "else": []
                       },
                       {
-                        "set": {
-                          "seal_picked_up": 1
+                        "item": {
+                          "id": "seal",
+                          "qty": 1
+                        }
+                      },
+                      {
+                        "hide": {
+                          "id": "this"
                         }
                       }
-                    ],
-                    "else": []
-                  },
-                  {
-                    "item": {
-                      "id": "seal",
-                      "qty": 1
-                    }
-                  },
-                  {
-                    "hide": {
-                      "id": "this"
-                    }
+                    ]
                   }
                 ]
               }
-            ]
-          }
+            }
+          ]
         }
       ]
     }

@@ -11,6 +11,7 @@ import { HudUI }         from './hud-ui.js';
 import { Inventory }       from './inventory.js';
 import { InventoryUI }     from './inventory-ui.js';
 import { NotificationUI }  from './notification-ui.js';
+import { ObjectOptionsUI } from './object-options-ui.js';
 
 /* ── Bootstrap ──────────────────────────────────── */
 
@@ -30,6 +31,7 @@ new SoundManager(bus);
 const hud = new HudUI(bus);
 const inventoryUI = new InventoryUI(bus, inventory, runner);
 new NotificationUI(bus);
+new ObjectOptionsUI(bus);
 
 /** Currently loaded scene data keyed by id. */
 let currentSceneData = null;
@@ -57,6 +59,14 @@ function collectGotos(actions, out) {
     if (a.choice?.options) {
       for (const opt of a.choice.options) collectGotos(opt.actions, out);
     }
+  }
+}
+
+function collectObjectGotos(obj, out) {
+  if (!obj || typeof obj !== 'object') return;
+  if (Array.isArray(obj.actions)) collectGotos(obj.actions, out);
+  if (Array.isArray(obj.options)) {
+    for (const option of obj.options) collectGotos(option?.actions, out);
   }
 }
 
@@ -100,7 +110,7 @@ function preloadNeighbors(data) {
   if (Array.isArray(data.onEnter)) collectGotos(data.onEnter, ids);
   const objects = data.objects ?? data.hotspots;
   if (Array.isArray(objects)) {
-    for (const obj of objects) collectGotos(obj.actions, ids);
+    for (const obj of objects) collectObjectGotos(obj, ids);
   }
   if (data.definitions) {
     for (const actions of Object.values(data.definitions)) collectGotos(actions, ids);
@@ -140,19 +150,58 @@ async function gotoScene(id) {
   }
 }
 
-/* ── Object clicks → run attached actions ────────── */
-bus.on('hotspot:click', async (obj) => {
+function getObjectOptions(obj) {
+  return Array.isArray(obj?.options) ? obj.options : [];
+}
+
+function trackObjectClick(obj) {
+  if (!obj?.id) return;
+  const key = `${state.currentScene}.${obj.id}.clicks`;
+  state.setFlag(key, (state.getFlag(key) ?? 0) + 1);
+}
+
+async function runObjectInteraction(obj, optionIndex = 0) {
   if (runner.running) return;
-  // Auto-track clicks per object ID: {scene}.{object}.clicks
-  if (obj.id) {
-    const key = `${state.currentScene}.${obj.id}.clicks`;
-    state.setFlag(key, (state.getFlag(key) ?? 0) + 1);
-  }
-  if (Array.isArray(obj.actions)) {
+  const options = getObjectOptions(obj);
+
+  if (options.length > 0) {
+    const option = options[optionIndex];
+    if (!option) return;
+    trackObjectClick(obj);
     runner.currentObjectId = obj.id || null;
-    await runner.run(obj.actions);
-    runner.currentObjectId = null;
+    try {
+      await runner.run(Array.isArray(option.actions) ? option.actions : []);
+    } finally {
+      runner.currentObjectId = null;
+    }
+    return;
   }
+
+  trackObjectClick(obj);
+  if (Array.isArray(obj?.actions)) {
+    runner.currentObjectId = obj.id || null;
+    try {
+      await runner.run(obj.actions);
+    } finally {
+      runner.currentObjectId = null;
+    }
+  }
+}
+
+/* ── Object clicks → run attached actions/options ───── */
+bus.on('hotspot:click', async (obj) => {
+  await runObjectInteraction(obj, 0);
+});
+
+bus.on('hotspot:option', async ({ obj, index }) => {
+  await runObjectInteraction(obj, index);
+});
+
+bus.on('hotspot:contextmenu', ({ obj, clientX, clientY }) => {
+  if (runner.running) return;
+  const options = getObjectOptions(obj);
+  if (!options.length) return;
+  bus.emit('object-options:show', { obj, options, clientX, clientY });
 });
 
 /* ── Scene goto (from action runner) ────────────── */

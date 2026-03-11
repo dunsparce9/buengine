@@ -12,9 +12,8 @@ import {
   uniqueItemId,
 } from './state.js';
 import { resolveAssetURLSync } from './fs-provider.js';
-import { createFloatingWindow } from './floating-window.js';
-import { openActionViewer } from './action-viewer.js';
 import { showContextMenu } from './context-menu.js';
+import { openOptionsModal } from './options-editor.js';
 
 export function renderItemsViewport(items, viewport) {
   syncSelectedItem(items);
@@ -90,7 +89,14 @@ export function renderItemsProperties(items, container) {
 }
 
 export function openItemOptionsModal(item) {
-  openOptionsModal(item, state.selectedId || 'items/items');
+  const scriptId = state.selectedId || 'items/items';
+  openOptionsModal({
+    target: item,
+    scriptId,
+    title: `${item.id} — Options`,
+    modalKey: `${scriptId}:${item.id}:options`,
+    ownerLabel: item.name || item.id,
+  });
 }
 
 function syncSelectedItem(items) {
@@ -174,7 +180,7 @@ function createItemRow(item) {
     `<span class="items-options-pill-count">${opts.length}</span>`;
   pill.addEventListener('click', (e) => {
     e.stopPropagation();
-    openOptionsModal(item, state.selectedId || 'items/items');
+    openItemOptionsModal(item);
   });
   tdOptions.appendChild(pill);
   row.appendChild(tdOptions);
@@ -313,7 +319,7 @@ function renderReadonlyOptions(item, container, scriptId) {
   openBtn.innerHTML =
     '<span class="material-symbols-outlined">tune</span>' +
     '<span>Inspect options</span>';
-  openBtn.addEventListener('click', () => openOptionsModal(item, scriptId));
+  openBtn.addEventListener('click', () => openItemOptionsModal(item));
   group.appendChild(openBtn);
 
   const options = item.options || [];
@@ -404,173 +410,5 @@ function showItemContextMenu(x, y, item) {
     { icon: 'add_box', label: 'New item', onClick: createNewItem },
     { separator: true },
     { icon: 'delete', label: 'Delete', danger: true, onClick: () => deleteItemDefinition(item.id) },
-  ]);
-}
-
-/* ── Options modal ─────────────────────────────── */
-
-/** @type {Map<string, ReturnType<typeof createFloatingWindow>>} */
-const _openModals = new Map();
-
-function openOptionsModal(item, scriptId) {
-  const key = `${item.id} — Options`;
-
-  const existing = _openModals.get(key);
-  if (existing && !existing.el.classList.contains('hidden')) {
-    existing.open();
-    return;
-  }
-
-  const fw = createFloatingWindow({
-    title: key,
-    icon: 'tune',
-    iconClass: 'material-symbols-outlined',
-    width: 500,
-    height: 400,
-    resizable: true,
-  });
-
-  _openModals.set(key, fw);
-  fw.onClose(() => _openModals.delete(key));
-
-  buildOptionsContent(fw.body, item, scriptId);
-  fw.open();
-}
-
-function buildOptionsContent(container, item, scriptId) {
-  container.innerHTML = '';
-  const opts = item.options || [];
-
-  container.oncontextmenu = (e) => {
-    const row = e.target.closest('.items-options-row');
-    if (row) return;
-    e.preventDefault();
-    showOptionsEmptyContextMenu(e.clientX, e.clientY, item, scriptId, container);
-  };
-
-  const table = document.createElement('table');
-  table.className = 'items-options-table';
-
-  const thead = document.createElement('thead');
-  thead.innerHTML =
-    '<tr>' +
-    '<th class="items-opt-th-icon">Icon</th>' +
-    '<th>Text</th>' +
-    '<th>Actions</th>' +
-    '</tr>';
-  table.appendChild(thead);
-
-  const tbody = document.createElement('tbody');
-  for (let i = 0; i < opts.length; i++) {
-    const opt = opts[i];
-    const tr = document.createElement('tr');
-    tr.className = 'items-options-row';
-    tr.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      showOptionRowContextMenu(e.clientX, e.clientY, item, i, scriptId, container);
-    });
-
-    const tdIcon = document.createElement('td');
-    tdIcon.className = 'items-opt-td-icon';
-    const iconInput = document.createElement('input');
-    iconInput.type = 'text';
-    iconInput.className = 'items-options-input';
-    iconInput.value = opt.icon || '';
-    iconInput.placeholder = 'Icon';
-    iconInput.addEventListener('input', () => {
-      opt.icon = iconInput.value || undefined;
-      markDirty(scriptId);
-      hooks.renderViewport();
-      hooks.renderProperties();
-    });
-    tdIcon.appendChild(iconInput);
-    tr.appendChild(tdIcon);
-
-    const tdText = document.createElement('td');
-    tdText.className = 'items-opt-td-text';
-    const textInput = document.createElement('input');
-    textInput.type = 'text';
-    textInput.className = 'items-options-input';
-    textInput.value = opt.text || '';
-    textInput.placeholder = 'Option text';
-    textInput.addEventListener('input', () => {
-      opt.text = textInput.value || undefined;
-      markDirty(scriptId);
-      hooks.renderViewport();
-      hooks.renderProperties();
-    });
-    tdText.appendChild(textInput);
-    tr.appendChild(tdText);
-
-    const tdActions = document.createElement('td');
-    tdActions.className = 'items-opt-td-actions';
-    const actions = opt.actions || [];
-    if (actions.length > 0) {
-      const pill = document.createElement('button');
-      pill.className = 'av-mini-btn items-actions-pill';
-      pill.innerHTML = '<span class="material-symbols-outlined">list_alt</span> ' + actions.length;
-      pill.title = `${actions.length} action(s)`;
-      pill.addEventListener('click', () => {
-        openActionViewer(
-          `${item.name || item.id} — ${opt.text || 'Option ' + (i + 1)}`,
-          actions,
-          { onChange: () => markDirty(scriptId) }
-        );
-      });
-      tdActions.appendChild(pill);
-    } else {
-      tdActions.textContent = '—';
-    }
-    tr.appendChild(tdActions);
-
-    tbody.appendChild(tr);
-  }
-
-  table.appendChild(tbody);
-  container.appendChild(table);
-
-  if (!opts.length) {
-    const empty = document.createElement('div');
-    empty.className = 'items-viewer-empty';
-    empty.textContent = 'No options defined. Right-click to create one.';
-    container.appendChild(empty);
-  }
-}
-
-function createNewOption(item, scriptId, container) {
-  if (!Array.isArray(item.options)) item.options = [];
-  item.options.push({
-    text: 'New option',
-    icon: '',
-    actions: [],
-  });
-  markDirty(scriptId);
-  hooks.renderViewport();
-  hooks.renderProperties();
-  buildOptionsContent(container, item, scriptId);
-}
-
-function deleteOption(item, index, scriptId, container) {
-  if (!Array.isArray(item.options)) return;
-  if (index < 0 || index >= item.options.length) return;
-  item.options.splice(index, 1);
-  markDirty(scriptId);
-  hooks.renderViewport();
-  hooks.renderProperties();
-  buildOptionsContent(container, item, scriptId);
-}
-
-function showOptionsEmptyContextMenu(x, y, item, scriptId, container) {
-  showContextMenu(x, y, [
-    { icon: 'add_box', label: 'New option', onClick: () => createNewOption(item, scriptId, container) },
-  ]);
-}
-
-function showOptionRowContextMenu(x, y, item, index, scriptId, container) {
-  showContextMenu(x, y, [
-    { icon: 'add_box', label: 'New option', onClick: () => createNewOption(item, scriptId, container) },
-    { separator: true },
-    { icon: 'delete', label: 'Delete', danger: true, onClick: () => deleteOption(item, index, scriptId, container) },
   ]);
 }

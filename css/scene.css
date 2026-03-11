@@ -56,16 +56,33 @@
 /* ── Hotspot tooltip ───────────────────────────── */
 .hotspot-tooltip {
   position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
   background: rgba(0, 0, 0, 0.78);
   color: #fff;
   padding: 5px 11px;
   border-radius: 7px;
   font-size: 0.82rem;
   white-space: nowrap;
+  text-align: center;
   pointer-events: none;
   z-index: 200;
   transform: translate(-50%, calc(-100% - 10px));
 }
+
+.hotspot-tooltip-action {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.68rem;
+  line-height: 1.1;
+}
+
+.hotspot-tooltip-label {
+  color: #fff;
+  line-height: 1.15;
+}
+
 .hotspot-tooltip::after {
   content: '';
   position: absolute;

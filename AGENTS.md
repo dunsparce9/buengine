@@ -66,7 +66,7 @@ Scene scripts are JSON files in each game's folder (e.g. `games/playground/`). E
 - `id` — unique scene identifier (matches filename)
 - `background` / `backgroundColor` — visual backdrop
 - `grid` — `{ "cols": N, "rows": N }` tile grid dimensions (default 16×9)
-- `objects[]` — scene objects (clickable regions, decorative images, etc.) with `{ id, x, y, w, h, label?, texture?, visible?, z?, actions[] }`. `id` is unique within the scene; `x`, `y` are tile coordinates; `w`, `h` are tile counts. Optional `label` shows a tooltip on hover. Optional `texture` renders an image snapped to the grid. Optional `visible: false` starts the object hidden (can be revealed via `show` action or in `onEnter`). Optional `z` sets the CSS z-index for stacking control. Each click auto-increments the flag `{sceneId}.{id}.clicks`, so scripts can check click counts via conditions (e.g. `"if": "intro.beer.clicks >= 3"`) without manual `set` actions. (Legacy key `hotspots[]` is still accepted for backward compatibility.)
+- `objects[]` — scene objects (clickable regions, decorative images, etc.) with `{ id, x, y, w, h, label?, texture?, visible?, z?, options? }`. `id` is unique within the scene; `x`, `y` are tile coordinates; `w`, `h` are tile counts. Optional `label` shows a tooltip on hover. Optional `texture` renders an image snapped to the grid. Optional `visible: false` starts the object hidden (can be revealed via `show` action or in `onEnter`). Optional `z` sets the CSS z-index for stacking control. `options[]` uses the same shape as inventory item options: `{ text, icon?, actions[] }`. Left-click runs the first option; right-click opens the object options menu. Each executed object interaction auto-increments the flag `{sceneId}.{id}.clicks`, so scripts can check repeat interactions via conditions (e.g. `"if": "intro.beer.clicks >= 3"`). Legacy object-level `actions[]` and legacy key `hotspots[]` are still accepted for backward compatibility.
 - `definitions` — `{ "name": [...actions] }` named action sequences callable via `{ "run": "name" }`. `run` expands them inline at that point in the action list, so blocking behavior still comes from the individual actions inside the definition. Supports recursion.
 - `onEnter[]` — action array run when the scene is entered
 
@@ -104,7 +104,7 @@ Actions are objects in an array. Supported commands:
 
 ### Action Viewer (AV)
 - AV means the editor's Action Viewer in `editor/js/action-viewer.js`.
-- It is not just a viewer: it is the main visual editor for action arrays such as object `actions`, scene `onEnter`, choice branches, loop bodies, and named `definitions`.
+- It is not just a viewer: it is the main visual editor for action arrays such as object option actions, scene `onEnter`, choice branches, loop bodies, and named `definitions`.
 - AV opens in floating windows, deduplicates windows by title, mutates the underlying action array in place, and calls `onChange` hooks so the editor can mark files dirty and re-render.
 - AV behavior is schema-driven. Icons, colors, labels, default payloads, field editors, and action summaries should come from `js/action-schema.js`, not hardcoded duplicate definitions elsewhere.
 - AV supports nested action editing, drag-to-reorder, cross-window drag/move between action lists, inline field editing, and add/delete flows.
