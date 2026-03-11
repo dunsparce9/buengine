@@ -6,10 +6,10 @@ import { initResizeHandles } from '../resize.js';
 import { hooks, state, deleteObject } from '../state.js';
 import '../action-viewer.js';
 
-import { updateMenuVisibility, updateWindowTitle, openAboutWindow, hasUnsavedChanges } from './ui.js';
+import { updateMenuVisibility, updateWindowTitle, openAboutWindow, hasUnsavedChanges, showToast } from './ui.js';
 import { handleOpenFolder, saveCurrentFile, saveAllFiles, confirmDiscardUnsavedChanges } from './workspace.js';
 import { exportCurrentJson, exportZip, importZip } from './archive.js';
-import { runInNewTab } from './preview.js';
+import { runInNewTab, runCurrentScene } from './preview.js';
 import { setupPWAInstall, installApp } from './pwa.js';
 
 hooks.renderFileList = renderFileList;
@@ -32,6 +32,10 @@ initMenu({
   'install-app': installApp,
   about: openAboutWindow,
   'run-in-tab': runInNewTab,
+  'run-scene': async () => {
+    const launched = await runCurrentScene();
+    if (!launched) showToast('Select a scene to run', 'error');
+  },
 });
 
 document.getElementById('run-btn').addEventListener('click', runInNewTab);
