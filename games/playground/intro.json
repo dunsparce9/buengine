@@ -215,6 +215,13 @@
       "run": "intro_sequence"
     },
     {
+      "effect": {
+        "type": "fade-out",
+        "seconds": 2,
+        "blocking": true
+      }
+    },
+    {
       "goto": "abode"
     }
   ]
