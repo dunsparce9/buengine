@@ -17,6 +17,13 @@ export class SceneRenderer {
     this._cols = 16;
     this._rows = 9;
 
+    this._backgroundLayer = document.createElement('div');
+    this._backgroundLayer.className = 'scene-runtime-layer scene-runtime-layer-background';
+    this._objectLayer = document.createElement('div');
+    this._objectLayer.className = 'scene-object-layer';
+    this._overlayLayer = document.createElement('div');
+    this._overlayLayer.className = 'scene-runtime-layer scene-runtime-layer-overlay';
+
     this._tooltip = document.createElement('div');
     this._tooltip.className = 'object-tooltip hidden';
     this._tooltipAction = document.createElement('div');
@@ -24,7 +31,7 @@ export class SceneRenderer {
     this._tooltipLabel = document.createElement('div');
     this._tooltipLabel.className = 'object-tooltip-label';
     this._tooltip.append(this._tooltipAction, this._tooltipLabel);
-    this.el.appendChild(this._tooltip);
+    this.el.append(this._backgroundLayer, this._objectLayer, this._overlayLayer, this._tooltip);
 
     /**
      * Unified entity registry.
@@ -86,7 +93,7 @@ export class SceneRenderer {
     // Clear all tracked entities (scene objects + runtime overlays)
     this._clearAllEntities();
     // Safety net: remove any orphaned .scene-object elements
-    this.el.querySelectorAll('.scene-object').forEach(h => h.remove());
+    this._objectLayer.querySelectorAll('.scene-object').forEach(h => h.remove());
 
     // Background
     if (scene.background) {
@@ -111,6 +118,7 @@ export class SceneRenderer {
         const div = document.createElement('div');
         div.className = 'scene-object';
         div.dataset.objectId = obj.id;
+        div.classList.toggle('scene-object-highlight-disabled', obj.highlight === false);
         div.style.left   = `${obj.x * tilePctW}%`;
         div.style.top    = `${obj.y * tilePctH}%`;
         div.style.width  = `${obj.w * tilePctW}%`;
@@ -159,8 +167,8 @@ export class SceneRenderer {
           });
         });
 
-        this.el.appendChild(div);
-        this._entities.set(obj.id, { el: div, def: obj, runtime: false, visible, kind: 'scene-object' });
+        this._objectLayer.appendChild(div);
+        this._entities.set(obj.id, { el: div, def: obj, runtime: false, visible, kind: 'scene-object', layer: 'objects' });
       }
     }
   }
@@ -218,7 +226,7 @@ export class SceneRenderer {
 
     const runtime = this._createRuntimeEntity(payload);
     if (runtime) {
-      this.el.appendChild(runtime.el);
+      this._getEntityHost(runtime.layer).appendChild(runtime.el);
       this._entities.set(id, runtime);
       this._applyFadeIn(runtime.el, effect, onDone);
       return;
@@ -277,7 +285,7 @@ export class SceneRenderer {
     this.el.style.height = '';
     this.el.style.opacity = '';
     this.el.style.transition = '';
-    this.el.querySelectorAll('.scene-object').forEach(h => h.remove());
+    this._objectLayer.querySelectorAll('.scene-object').forEach(h => h.remove());
     this._tooltip.classList.add('hidden');
     this._clearAllEntities();
   }
@@ -290,12 +298,14 @@ export class SceneRenderer {
   }
 
   _createRuntimeEntity(payload) {
+    const layer = this._resolveRuntimeLayer(payload);
+
     if (payload.kind === 'text' || payload.text != null) {
       const el = document.createElement('div');
       el.className = 'text-overlay';
       el.dataset.objectId = payload.id;
       this._applyTextContent(el, payload);
-      return { el, def: null, runtime: true, visible: true, kind: 'text-overlay' };
+      return { el, def: null, runtime: true, visible: true, kind: 'text-overlay', layer };
     }
 
     if (payload.texture) {
@@ -303,7 +313,7 @@ export class SceneRenderer {
       el.className = 'image-overlay';
       el.dataset.objectId = payload.id;
       this._applyImageContent(el, payload);
-      return { el, def: null, runtime: true, visible: true, kind: 'image-overlay' };
+      return { el, def: null, runtime: true, visible: true, kind: 'image-overlay', layer };
     }
 
     return null;
@@ -311,8 +321,21 @@ export class SceneRenderer {
 
   _updateRuntimeEntity(entry, payload) {
     if (!entry.runtime) return;
+    const layer = this._resolveRuntimeLayer(payload);
+    if (layer !== entry.layer) {
+      this._getEntityHost(layer).appendChild(entry.el);
+      entry.layer = layer;
+    }
     if (entry.kind === 'image-overlay') this._applyImageContent(entry.el, payload);
     if (entry.kind === 'text-overlay') this._applyTextContent(entry.el, payload);
+  }
+
+  _resolveRuntimeLayer(payload = {}) {
+    return payload.layer === 'background' ? 'background' : 'overlay';
+  }
+
+  _getEntityHost(layer) {
+    return layer === 'background' ? this._backgroundLayer : this._overlayLayer;
   }
 
   _applyImageContent(el, { texture, scaling, z }) {

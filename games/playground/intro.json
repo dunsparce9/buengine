@@ -252,7 +252,38 @@
       }
     ]
   },
-  "objects": [],
+  "objects": [
+    {
+      "id": "skip_area",
+      "x": 0,
+      "y": 0,
+      "w": 20,
+      "h": 10,
+      "options": [
+        {
+          "text": "wanna skip?",
+          "icon": "",
+          "actions": []
+        },
+        {
+          "text": "yes skip intro please",
+          "icon": "⏩️",
+          "actions": [
+            {
+              "stopsound": {
+                "id": "introbg"
+              }
+            },
+            {
+              "goto": "abode"
+            }
+          ]
+        }
+      ],
+      "cursor": "default",
+      "highlight": false
+    }
+  ],
   "onEnter": [
     {
       "run": "intro_sequence"

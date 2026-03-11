@@ -43,6 +43,10 @@ export class ActionRunner {
     // Resolve any pending blocking promise so the run() loop can unwind cleanly.
     const pending = this._pendingResolve;
     this._pendingResolve = null;
+    // Tear down any active modal UI tied to the aborted sequence so it cannot
+    // bleed into the next scene or wait for stale callbacks/timers.
+    this.bus.emit('dialogue:dismiss');
+    this.bus.emit('choice:dismiss');
     if (pending) pending();
   }
 

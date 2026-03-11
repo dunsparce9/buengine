@@ -7,6 +7,28 @@
   background-position: center;
 }
 
+.scene-runtime-layer,
+.scene-object-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.scene-runtime-layer {
+  pointer-events: none;
+}
+
+.scene-runtime-layer-background {
+  z-index: 0;
+}
+
+.scene-object-layer {
+  z-index: 0;
+}
+
+.scene-runtime-layer-overlay {
+  z-index: 4;
+}
+
 .scene-object {
   position: absolute;
   cursor: pointer;
@@ -28,6 +50,15 @@
   border-color: transparent;
   background-color: transparent;
   filter: drop-shadow(0 0 4px rgba(255, 248, 200, 0.9));
+}
+
+.scene-object-highlight-disabled:hover {
+  border-color: transparent;
+  background-color: transparent;
+}
+
+.scene-object-textured.scene-object-highlight-disabled:hover {
+  filter: none;
 }
 
 /* ── Grid overlay ─────────────────────────────── */
@@ -101,14 +132,12 @@
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  z-index: 5;
   pointer-events: none;
 }
 
 /* ── Runtime text overlays ─────────────────────── */
 .text-overlay {
   position: absolute;
-  z-index: 6;
   max-width: min(90%, 42rem);
   color: #fff;
   font-size: 1rem;

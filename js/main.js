@@ -160,21 +160,34 @@ function trackObjectClick(obj) {
   state.setFlag(key, (state.getFlag(key) ?? 0) + 1);
 }
 
-async function runObjectInteraction(obj, optionIndex = 0) {
-  if (runner.running) return;
+async function runObjectInteraction(obj, optionIndex = 0, { interruptIfRunning = false } = {}) {
   const options = getObjectOptions(obj);
 
   if (options.length > 0) {
     const option = options[optionIndex];
     if (!option) return;
+    const actions = Array.isArray(option.actions) ? option.actions : [];
+    if (runner.running) {
+      if (!interruptIfRunning) return;
+      if (!actions.length) return;
+      runner.abort();
+      await Promise.resolve();
+    }
     trackObjectClick(obj);
     runner.currentObjectId = obj.id || null;
     try {
-      await runner.run(Array.isArray(option.actions) ? option.actions : []);
+      await runner.run(actions);
     } finally {
       runner.currentObjectId = null;
     }
     return;
+  }
+
+  if (runner.running) {
+    if (!interruptIfRunning) return;
+    if (!Array.isArray(obj?.actions) || obj.actions.length === 0) return;
+    runner.abort();
+    await Promise.resolve();
   }
 
   trackObjectClick(obj);
@@ -194,11 +207,10 @@ bus.on('object:click', async (obj) => {
 });
 
 bus.on('object:option', async ({ obj, index }) => {
-  await runObjectInteraction(obj, index);
+  await runObjectInteraction(obj, index, { interruptIfRunning: true });
 });
 
 bus.on('object:contextmenu', ({ obj, clientX, clientY }) => {
-  if (runner.running) return;
   const options = getObjectOptions(obj);
   if (!options.length) return;
   bus.emit('object-options:show', { obj, options, clientX, clientY });

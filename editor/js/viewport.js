@@ -139,6 +139,7 @@ export function renderViewport() {
       div.className = 'editor-object';
       const selected = obj.id === state.selectedObjectId;
       if (selected) div.classList.add('selected');
+      if (obj.highlight === false) div.classList.add('editor-object-highlight-disabled');
 
       div.style.left   = `${(obj.x / cols) * 100}%`;
       div.style.top    = `${(obj.y / rows) * 100}%`;

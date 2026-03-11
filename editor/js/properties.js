@@ -339,6 +339,33 @@ function renderObjectProps(obj) {
     dom.propsContent.appendChild(group);
   }
 
+  // ── Highlight ──
+  {
+    const group = document.createElement('div');
+    group.className = 'prop-group';
+    const row = document.createElement('div');
+    row.className = 'prop-row';
+    const label = document.createElement('span');
+    label.className = 'prop-key';
+    label.textContent = 'highlight';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.className = 'prop-checkbox';
+    input.checked = obj.highlight !== false;
+    input.addEventListener('change', () => {
+      if (input.checked) {
+        delete obj.highlight;
+      } else {
+        obj.highlight = false;
+      }
+      markDirty(sceneId);
+      hooks.renderViewport();
+    });
+    row.append(label, input);
+    group.appendChild(row);
+    dom.propsContent.appendChild(group);
+  }
+
   // ── Actions ──
   {
     const options = getObjectOptionsPreview(obj);

@@ -88,6 +88,12 @@
   background-color: transparent;
   filter: drop-shadow(0 0 4px rgba(255, 248, 200, 0.9));
 }
+.editor-object-highlight-disabled:hover {
+  background-color: rgba(254, 128, 25, 0.08);
+}
+.editor-object-textured.editor-object-highlight-disabled:hover {
+  filter: none;
+}
 .editor-object-textured.selected {
   background-color: transparent;
   filter: drop-shadow(0 0 4px rgba(250, 189, 47, 0.9));
