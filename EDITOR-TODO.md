@@ -6,7 +6,7 @@
 - [ ] Fix Action Viewer identity/deduping. Viewer reuse is currently keyed by title alone, so generic nested titles like `then`, `else`, and `do` can reopen the wrong action list.
 - [ ] Fix item option authoring so zero-action options are editable. A newly created option needs a way to open an empty action list immediately.
 - [ ] Add undo/redo.
-- [ ] Remove `hotspot` naming and backward compatibility entirely. Standardize editor UI, state helpers, viewport code, properties, and file semantics on `objects`.
+- [x] Standardize editor naming, state helpers, viewport code, properties, and file semantics on `objects`.
 - [ ] Redesign preview mode so projects larger than a few MB do not fail on `localStorage` limits. This includes both edited JSON handoff and asset URL handoff strategy.
 - [ ] Expose currently missing scene fields in the inspector, especially `id`, `background`, and `grid`.
 - [ ] Add definition management to the editor. Definitions cannot currently be created at all, and zero-action definitions are too easy to lose from the UI.

@@ -2,8 +2,8 @@
  * Renders a scene: sets the background and creates clickable object elements
  * positioned on a tile grid. Also manages runtime image and text overlays.
  *
- * Both scene-defined objects (formerly "hotspots") and runtime entities
- * created by `show` / `text` actions are tracked in a unified entity map
+ * Both scene-defined objects and runtime entities created by `show` / `text`
+ * actions are tracked in a unified entity map
  * so that `show` / `hide` actions work on any entity by id.
  */
 export class SceneRenderer {
@@ -18,11 +18,11 @@ export class SceneRenderer {
     this._rows = 9;
 
     this._tooltip = document.createElement('div');
-    this._tooltip.className = 'hotspot-tooltip hidden';
+    this._tooltip.className = 'object-tooltip hidden';
     this._tooltipAction = document.createElement('div');
-    this._tooltipAction.className = 'hotspot-tooltip-action hidden';
+    this._tooltipAction.className = 'object-tooltip-action hidden';
     this._tooltipLabel = document.createElement('div');
-    this._tooltipLabel.className = 'hotspot-tooltip-label';
+    this._tooltipLabel.className = 'object-tooltip-label';
     this._tooltip.append(this._tooltipAction, this._tooltipLabel);
     this.el.appendChild(this._tooltip);
 
@@ -85,8 +85,8 @@ export class SceneRenderer {
   render(scene) {
     // Clear all tracked entities (scene objects + runtime overlays)
     this._clearAllEntities();
-    // Safety net: remove any orphaned .hotspot elements
-    this.el.querySelectorAll('.hotspot').forEach(h => h.remove());
+    // Safety net: remove any orphaned .scene-object elements
+    this.el.querySelectorAll('.scene-object').forEach(h => h.remove());
 
     // Background
     if (scene.background) {
@@ -105,12 +105,11 @@ export class SceneRenderer {
     const tilePctW = 100 / cols;
     const tilePctH = 100 / rows;
 
-    // Scene objects (backward-compat: fall back to "hotspots")
-    const objects = scene.objects ?? scene.hotspots;
+    const objects = scene.objects;
     if (Array.isArray(objects)) {
       for (const obj of objects) {
         const div = document.createElement('div');
-        div.className = 'hotspot';
+        div.className = 'scene-object';
         div.dataset.objectId = obj.id;
         div.style.left   = `${obj.x * tilePctW}%`;
         div.style.top    = `${obj.y * tilePctH}%`;
@@ -118,7 +117,7 @@ export class SceneRenderer {
         div.style.height = `${obj.h * tilePctH}%`;
 
         if (obj.texture) {
-          div.classList.add('hotspot-textured');
+          div.classList.add('scene-object-textured');
           div.style.backgroundImage = `url('${CSS.escape(this._resolve(obj.texture))}')`;
         }
 
@@ -148,12 +147,12 @@ export class SceneRenderer {
         }
 
         div.addEventListener('click', () => {
-          this.bus.emit('hotspot:click', obj);
+          this.bus.emit('object:click', obj);
         });
         div.addEventListener('contextmenu', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          this.bus.emit('hotspot:contextmenu', {
+          this.bus.emit('object:contextmenu', {
             obj,
             clientX: e.clientX,
             clientY: e.clientY,
@@ -278,7 +277,7 @@ export class SceneRenderer {
     this.el.style.height = '';
     this.el.style.opacity = '';
     this.el.style.transition = '';
-    this.el.querySelectorAll('.hotspot').forEach(h => h.remove());
+    this.el.querySelectorAll('.scene-object').forEach(h => h.remove());
     this._tooltip.classList.add('hidden');
     this._clearAllEntities();
   }

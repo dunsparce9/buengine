@@ -25,7 +25,7 @@ export async function handleOpenFolder() {
 
   state.scripts = {};
   state.selectedId = null;
-  state.selectedHs = null;
+  state.selectedObjectId = null;
   state.selectedItem = null;
   state.selectedPath = null;
   state.dirtySet.clear();
@@ -50,7 +50,7 @@ export async function handleOpenFolder() {
       continue;
     }
     if (data.background) imagePaths.push(data.background);
-    const objects = data.objects ?? data.hotspots;
+    const objects = data.objects;
     if (!Array.isArray(objects)) continue;
     for (const obj of objects) {
       if (obj.texture) imagePaths.push(obj.texture);

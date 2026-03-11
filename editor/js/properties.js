@@ -2,7 +2,7 @@
  * Right-side property inspector panel.
  */
 
-import { state, dom, hooks, escapeHtml, markDirty, collectImagePaths, deleteHotspot } from './state.js';
+import { state, dom, hooks, escapeHtml, markDirty, collectImagePaths, deleteObject } from './state.js';
 import { openActionViewer } from './action-viewer.js';
 import { findNode } from './fs-provider.js';
 import { getFileExtension, getFileKind, isPreviewableMedia } from './file-types.js';
@@ -46,11 +46,11 @@ export function renderProperties() {
     return;
   }
 
-  if (state.selectedHs) {
-    const objects = data.objects ?? data.hotspots;
-    const hs = objects?.find(h => h.id === state.selectedHs);
-    if (hs) {
-      renderHotspotProps(hs);
+  if (state.selectedObjectId) {
+    const objects = data.objects;
+    const obj = objects?.find(item => item.id === state.selectedObjectId);
+    if (obj) {
+      renderObjectProps(obj);
       return;
     }
   }
@@ -80,9 +80,9 @@ function renderSceneProps(data) {
     ['grid',            data.grid ? `${data.grid.cols} × ${data.grid.rows}` : '16 × 9'],
   ]);
 
-  const objects = data.objects ?? data.hotspots;
+  const objects = data.objects;
   addPropGroup(`Objects (${objects?.length ?? 0})`,
-    (objects || []).map(hs => [hs.id || '?', hs.label || '—'])
+    (objects || []).map(obj => [obj.id || '?', obj.label || '—'])
   );
 
   {
@@ -112,13 +112,13 @@ const STANDARD_CURSORS = [
   'col-resize', 'row-resize', 'none',
 ];
 
-function renderHotspotProps(hs) {
+function renderObjectProps(obj) {
   const sceneId = state.selectedId;
   const data = state.scripts[sceneId];
 
-  function setHsProp(prop, raw) {
+  function setObjectProp(prop, raw) {
     const v = parseFloat(raw);
-    if (Number.isFinite(v)) hs[prop] = v;
+    if (Number.isFinite(v)) obj[prop] = v;
     markDirty(sceneId);
     hooks.renderViewport();
   }
@@ -142,20 +142,19 @@ function renderHotspotProps(hs) {
       const input = document.createElement('input');
       input.type = 'text';
       input.className = 'prop-input';
-      input.value = hs.id || '';
+      input.value = obj.id || '';
       input.addEventListener('change', () => {
         const v = input.value.trim().replace(/\s+/g, '_');
-        if (!v) { input.value = hs.id; return; }
-        const others = (data.objects ?? data.hotspots ?? []).filter(h => h !== hs);
-        if (others.some(h => h.id === v)) {
+        if (!v) { input.value = obj.id; return; }
+        const others = (data.objects ?? []).filter(item => item !== obj);
+        if (others.some(item => item.id === v)) {
           input.classList.add('prop-input-error');
           return;
         }
         input.classList.remove('prop-input-error');
-        const oldId = hs.id;
-        hs.id = v;
+        obj.id = v;
         input.value = v;
-        state.selectedHs = v;
+        state.selectedObjectId = v;
         markDirty(sceneId);
         hooks.renderViewport();
       });
@@ -173,9 +172,9 @@ function renderHotspotProps(hs) {
       const input = document.createElement('input');
       input.type = 'text';
       input.className = 'prop-input';
-      input.value = hs.label || '';
+      input.value = obj.label || '';
       input.addEventListener('input', () => {
-        hs.label = input.value || undefined;
+        obj.label = input.value || undefined;
         markDirty(sceneId);
         hooks.renderViewport();
       });
@@ -188,10 +187,10 @@ function renderHotspotProps(hs) {
 
   // ── Position ──
   addEditablePropGroup('Position', [
-    { key: 'x', value: hs.x, type: 'number', step: 1, min: 0, onChange: v => setHsProp('x', v) },
-    { key: 'y', value: hs.y, type: 'number', step: 1, min: 0, onChange: v => setHsProp('y', v) },
-    { key: 'w', value: hs.w, type: 'number', step: 1, min: 1, onChange: v => setHsProp('w', v) },
-    { key: 'h', value: hs.h, type: 'number', step: 1, min: 1, onChange: v => setHsProp('h', v) },
+    { key: 'x', value: obj.x, type: 'number', step: 1, min: 0, onChange: v => setObjectProp('x', v) },
+    { key: 'y', value: obj.y, type: 'number', step: 1, min: 0, onChange: v => setObjectProp('y', v) },
+    { key: 'w', value: obj.w, type: 'number', step: 1, min: 1, onChange: v => setObjectProp('w', v) },
+    { key: 'h', value: obj.h, type: 'number', step: 1, min: 1, onChange: v => setObjectProp('h', v) },
   ]);
 
   // ── Texture — combo box ──
@@ -213,10 +212,10 @@ function renderHotspotProps(hs) {
     input.type = 'text';
     input.className = 'prop-input';
     input.setAttribute('list', 'texture-datalist');
-    input.value = hs.texture || '';
+    input.value = obj.texture || '';
     input.placeholder = '(none)';
     input.addEventListener('input', () => {
-      hs.texture = input.value || undefined;
+      obj.texture = input.value || undefined;
       markDirty(sceneId);
       hooks.renderViewport();
     });
@@ -268,11 +267,11 @@ function renderHotspotProps(hs) {
       const o = document.createElement('option');
       o.value = c;
       o.textContent = c;
-      if (c === (hs.cursor || '')) o.selected = true;
+      if (c === (obj.cursor || '')) o.selected = true;
       sel.appendChild(o);
     }
     sel.addEventListener('change', () => {
-      hs.cursor = sel.value || undefined;
+      obj.cursor = sel.value || undefined;
       markDirty(sceneId);
     });
 
@@ -293,12 +292,12 @@ function renderHotspotProps(hs) {
     const input = document.createElement('input');
     input.type = 'checkbox';
     input.className = 'prop-checkbox';
-    input.checked = hs.visible !== false;
+    input.checked = obj.visible !== false;
     input.addEventListener('change', () => {
       if (input.checked) {
-        delete hs.visible;
+        delete obj.visible;
       } else {
-        hs.visible = false;
+        obj.visible = false;
       }
       markDirty(sceneId);
       hooks.renderViewport();
@@ -310,15 +309,15 @@ function renderHotspotProps(hs) {
 
   // ── Actions ──
   {
-    const options = getHotspotOptionsPreview(hs);
+    const options = getObjectOptionsPreview(obj);
     const openOptionsManager = () => {
-      ensureHotspotOptions(hs, sceneId);
+      ensureObjectOptions(obj, sceneId);
       openOptionsModal({
-        target: hs,
+        target: obj,
         scriptId: sceneId,
-        title: `${hs.id} — Options`,
-        modalKey: `${sceneId}:${hs.id}:options`,
-        ownerLabel: hs.label || hs.id,
+        title: `${obj.id} — Options`,
+        modalKey: `${sceneId}:${obj.id}:options`,
+        ownerLabel: obj.label || obj.id,
         actionViewerContext: {
           sceneId,
           sceneData: data,
@@ -328,12 +327,12 @@ function renderHotspotProps(hs) {
       });
     };
     addOptionsLinkGroup('Options', options, openOptionsManager, (optionIndex) => {
-      const liveOptions = ensureHotspotOptions(hs, sceneId);
+      const liveOptions = ensureObjectOptions(obj, sceneId);
       const option = liveOptions[optionIndex];
       if (!option) return;
       if (!Array.isArray(option.actions)) option.actions = [];
       openActionViewer(
-        `${hs.label || hs.id} — ${option.text || `Option ${optionIndex + 1}`}`,
+        `${obj.label || obj.id} — ${option.text || `Option ${optionIndex + 1}`}`,
         option.actions,
         {
           onChange: () => { markDirty(sceneId); hooks.renderProperties(); },
@@ -353,7 +352,7 @@ function renderHotspotProps(hs) {
     const btn = document.createElement('button');
     btn.className = 'prop-danger-btn';
     btn.innerHTML = '<span class="material-symbols-outlined">delete</span> Delete object';
-    btn.addEventListener('click', () => deleteHotspot(hs.id));
+    btn.addEventListener('click', () => deleteObject(obj.id));
     group.appendChild(btn);
     dom.propsContent.appendChild(group);
   }
@@ -643,35 +642,35 @@ function addOptionsLinkGroup(title, options, onManage, onOpenOptionActions) {
   dom.propsContent.appendChild(group);
 }
 
-function getHotspotOptionsPreview(hs) {
-  if (Array.isArray(hs.options)) return hs.options;
-  if (Array.isArray(hs.actions)) {
+function getObjectOptionsPreview(obj) {
+  if (Array.isArray(obj.options)) return obj.options;
+  if (Array.isArray(obj.actions)) {
     return [{
       ...createDefaultObjectOption(),
-      actions: hs.actions,
+      actions: obj.actions,
     }];
   }
   return [];
 }
 
-function ensureHotspotOptions(hs, sceneId) {
-  if (Array.isArray(hs.options)) return hs.options;
-  if (Array.isArray(hs.actions)) {
-    hs.options = [{
+function ensureObjectOptions(obj, sceneId) {
+  if (Array.isArray(obj.options)) return obj.options;
+  if (Array.isArray(obj.actions)) {
+    obj.options = [{
       ...createDefaultObjectOption(),
-      actions: hs.actions,
+      actions: obj.actions,
     }];
-    delete hs.actions;
+    delete obj.actions;
     markDirty(sceneId);
     hooks.renderViewport();
     hooks.renderProperties();
-    return hs.options;
+    return obj.options;
   }
-  hs.options = [createDefaultObjectOption()];
+  obj.options = [createDefaultObjectOption()];
   markDirty(sceneId);
   hooks.renderViewport();
   hooks.renderProperties();
-  return hs.options;
+  return obj.options;
 }
 
 function addDefinitionsGroup(data, names) {

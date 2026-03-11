@@ -37,7 +37,7 @@ export class ObjectOptionsUI {
       btn.textContent = (opt?.icon ? opt.icon + ' ' : '') + (opt?.text || `Option ${index + 1}`);
       btn.addEventListener('click', () => {
         this._close();
-        this.bus.emit('hotspot:option', { obj, index });
+        this.bus.emit('object:option', { obj, index });
       });
       menu.appendChild(btn);
     });

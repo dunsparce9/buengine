@@ -62,38 +62,38 @@
   width: min(520px, 100%);
 }
 
-/* Hotspot outlines in viewport */
-.editor-hotspot {
+/* Object outlines in viewport */
+.editor-object {
   position: absolute;
   border: 2px dashed #fe8019;
   background-color: rgba(254, 128, 25, 0.08);
   cursor: pointer;
   transition: background-color 0.15s, border-color 0.15s, filter 0.15s;
 }
-.editor-hotspot:hover {
+.editor-object:hover {
   background-color: rgba(254, 128, 25, 0.18);
 }
-.editor-hotspot.selected {
+.editor-object.selected {
   border-color: #fabd2f;
   background-color: rgba(250, 189, 47, 0.12);
 }
-.editor-hotspot-textured {
+.editor-object-textured {
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
   background-color: transparent;
   image-rendering: pixelated;
 }
-.editor-hotspot-textured:hover {
+.editor-object-textured:hover {
   background-color: transparent;
   filter: drop-shadow(0 0 4px rgba(255, 248, 200, 0.9));
 }
-.editor-hotspot-textured.selected {
+.editor-object-textured.selected {
   background-color: transparent;
   filter: drop-shadow(0 0 4px rgba(250, 189, 47, 0.9));
 }
 
-.editor-hotspot-label {
+.editor-object-label {
   position: absolute;
   top: 2px;
   left: 4px;
@@ -103,7 +103,7 @@
   pointer-events: none;
   white-space: nowrap;
 }
-.editor-hotspot.selected .editor-hotspot-label {
+.editor-object.selected .editor-object-label {
   color: #fabd2f;
 }
 
@@ -118,9 +118,9 @@
   cursor: default;
 }
 
-/* ── Resize handles on selected hotspot ────────── */
+/* ── Resize handles on selected object ─────────── */
 
-.editor-hotspot.selected {
+.editor-object.selected {
   z-index: 50;
 }
 

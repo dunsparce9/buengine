@@ -7,24 +7,24 @@
   background-position: center;
 }
 
-.hotspot {
+.scene-object {
   position: absolute;
   cursor: pointer;
   border: 2px dashed rgba(255,255,200,0.0);
   transition: border-color 0.2s, background 0.2s;
 }
-.hotspot:hover {
+.scene-object:hover {
   border-color: rgba(255,255,200,0.6);
   background-color: rgba(255,255,200,0.1);
 }
-.hotspot-textured {
+.scene-object-textured {
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
   image-rendering: pixelated;
   transition: filter 0.2s;
 }
-.hotspot-textured:hover {
+.scene-object-textured:hover {
   border-color: transparent;
   background-color: transparent;
   filter: drop-shadow(0 0 4px rgba(255, 248, 200, 0.9));
@@ -53,8 +53,8 @@
     );
 }
 
-/* ── Hotspot tooltip ───────────────────────────── */
-.hotspot-tooltip {
+/* ── Object tooltip ────────────────────────────── */
+.object-tooltip {
   position: absolute;
   display: flex;
   flex-direction: column;
@@ -72,18 +72,18 @@
   transform: translate(-50%, calc(-100% - 10px));
 }
 
-.hotspot-tooltip-action {
+.object-tooltip-action {
   color: rgba(255, 255, 255, 0.62);
   font-size: 0.68rem;
   line-height: 1.1;
 }
 
-.hotspot-tooltip-label {
+.object-tooltip-label {
   color: #fff;
   line-height: 1.15;
 }
 
-.hotspot-tooltip::after {
+.object-tooltip::after {
   content: '';
   position: absolute;
   top: 100%;

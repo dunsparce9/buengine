@@ -108,7 +108,7 @@ function preloadAssets(data) {
 function preloadNeighbors(data) {
   const ids = new Set();
   if (Array.isArray(data.onEnter)) collectGotos(data.onEnter, ids);
-  const objects = data.objects ?? data.hotspots;
+  const objects = data.objects;
   if (Array.isArray(objects)) {
     for (const obj of objects) collectObjectGotos(obj, ids);
   }
@@ -189,15 +189,15 @@ async function runObjectInteraction(obj, optionIndex = 0) {
 }
 
 /* ── Object clicks → run attached actions/options ───── */
-bus.on('hotspot:click', async (obj) => {
+bus.on('object:click', async (obj) => {
   await runObjectInteraction(obj, 0);
 });
 
-bus.on('hotspot:option', async ({ obj, index }) => {
+bus.on('object:option', async ({ obj, index }) => {
   await runObjectInteraction(obj, index);
 });
 
-bus.on('hotspot:contextmenu', ({ obj, clientX, clientY }) => {
+bus.on('object:contextmenu', ({ obj, clientX, clientY }) => {
   if (runner.running) return;
   const options = getObjectOptions(obj);
   if (!options.length) return;
@@ -347,7 +347,7 @@ bus.on('game:quit', () => {
 /* ── Debug mode (key 1) ─────────────────────────── */
 const debugBox     = document.getElementById('debug-box');
 const debugTile    = document.getElementById('debug-tile');
-const debugHotspot = document.getElementById('debug-hotspot');
+const debugObject = document.getElementById('debug-object');
 const debugScene   = document.getElementById('debug-scene');
 let debugActive = false;
 
@@ -374,7 +374,7 @@ sceneLayer.addEventListener('mousemove', (e) => {
 
   // Find hovered object
   let hoveredLabel = '—';
-  const sceneObjects = currentSceneData.objects ?? currentSceneData.hotspots;
+  const sceneObjects = currentSceneData.objects;
   if (Array.isArray(sceneObjects)) {
     for (const obj of sceneObjects) {
       if (tileX >= obj.x && tileX < obj.x + obj.w &&
@@ -384,13 +384,13 @@ sceneLayer.addEventListener('mousemove', (e) => {
       }
     }
   }
-  debugHotspot.textContent = `Object: ${hoveredLabel}`;
+  debugObject.textContent = `Object: ${hoveredLabel}`;
 });
 
 sceneLayer.addEventListener('mouseleave', () => {
   if (!debugActive) return;
   debugTile.textContent = 'Tile: —, —';
-  debugHotspot.textContent = 'Object: —';
+  debugObject.textContent = 'Object: —';
 });
 
 /* ── Initial boot ───────────────────────────────── */

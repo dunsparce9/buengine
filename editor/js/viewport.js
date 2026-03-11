@@ -1,9 +1,9 @@
 /**
- * Centre viewport — scene preview with hotspot overlays.
+ * Centre viewport — scene preview with object overlays.
  * Supports: selection, drag-to-move, drag-to-resize, drag-to-create, context menu.
  */
 
-import { state, dom, hooks, markDirty, addHotspot, deleteHotspot, uniqueHotspotId } from './state.js';
+import { state, dom, hooks, markDirty, addObject, deleteObject, uniqueObjectId } from './state.js';
 import { showContextMenu } from './context-menu.js';
 import { resolveAssetURL, resolveAssetURLSync } from './fs-provider.js';
 import { getFileKind, isPreviewableMedia } from './file-types.js';
@@ -44,9 +44,9 @@ function clampGrid(v, max) {
 export function renderViewport() {
   const { viewport, viewportWrap } = dom;
 
-  // Clear previous hotspot elements (keep selection box if present)
+  // Clear previous object elements (keep selection box if present)
   viewport.querySelectorAll('.editor-media-preview, .editor-media-empty, .items-viewer').forEach(el => el.remove());
-  viewport.querySelectorAll('.editor-hotspot, .editor-resize-handle').forEach(el => el.remove());
+  viewport.querySelectorAll('.editor-object, .editor-resize-handle').forEach(el => el.remove());
   viewport.style.backgroundImage = '';
   viewport.style.backgroundColor = '#181825';
   viewport.style.width  = '';
@@ -111,29 +111,29 @@ export function renderViewport() {
     viewport.style.backgroundColor = data.backgroundColor || '#111';
   }
 
-  // Objects (supports both "objects" and "hotspots" keys)
-  const objects = data.objects ?? data.hotspots;
+  // Objects
+  const objects = data.objects;
   if (Array.isArray(objects)) {
-    for (const hs of objects) {
+    for (const obj of objects) {
       const div = document.createElement('div');
-      div.className = 'editor-hotspot';
-      const selected = hs.id === state.selectedHs;
+      div.className = 'editor-object';
+      const selected = obj.id === state.selectedObjectId;
       if (selected) div.classList.add('selected');
 
-      div.style.left   = `${(hs.x / cols) * 100}%`;
-      div.style.top    = `${(hs.y / rows) * 100}%`;
-      div.style.width  = `${(hs.w / cols) * 100}%`;
-      div.style.height = `${(hs.h / rows) * 100}%`;
+      div.style.left   = `${(obj.x / cols) * 100}%`;
+      div.style.top    = `${(obj.y / rows) * 100}%`;
+      div.style.width  = `${(obj.w / cols) * 100}%`;
+      div.style.height = `${(obj.h / rows) * 100}%`;
 
-      if (hs.texture) {
-        div.classList.add('editor-hotspot-textured');
-        const texUrl = resolveAssetURLSync(hs.texture);
+      if (obj.texture) {
+        div.classList.add('editor-object-textured');
+        const texUrl = resolveAssetURLSync(obj.texture);
         if (texUrl) div.style.backgroundImage = `url('${texUrl}')`;
       }
 
       const label = document.createElement('span');
-      label.className = 'editor-hotspot-label';
-      label.textContent = hs.id || hs.label || '';
+      label.className = 'editor-object-label';
+      label.textContent = obj.id || obj.label || '';
       div.appendChild(label);
 
       // Click to select
@@ -141,35 +141,35 @@ export function renderViewport() {
         if (e.button !== 0) return;
         e.stopPropagation();
         // If not already selected, just select
-        if (state.selectedHs !== hs.id) {
+        if (state.selectedObjectId !== obj.id) {
           clearSelectionBox();
-          state.selectedHs = hs.id;
+          state.selectedObjectId = obj.id;
           renderViewport();
           hooks.renderProperties();
           return;
         }
         // Already selected — start drag-to-move
-        startMove(e, hs);
+        startMove(e, obj);
       });
 
-      // Right-click on hotspot
+      // Right-click on object
       div.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        state.selectedHs = hs.id;
+        state.selectedObjectId = obj.id;
         clearSelectionBox();
         renderViewport();
         hooks.renderProperties();
         showContextMenu(e.clientX, e.clientY, [
-          { icon: 'delete', label: 'Delete hotspot', danger: true, onClick: () => deleteHotspot(hs.id) },
+          { icon: 'delete', label: 'Delete object', danger: true, onClick: () => deleteObject(obj.id) },
         ]);
       });
 
       viewport.appendChild(div);
 
-      // Add resize handles for selected hotspot
+      // Add resize handles for selected object
       if (selected) {
-        addResizeHandles(div, hs);
+        addResizeHandles(div, obj);
       }
     }
   }
@@ -255,11 +255,11 @@ function renderUnsupportedMedia(path) {
   viewport.appendChild(empty);
 }
 
-/* ── Resize handles on selected hotspot ────────── */
+/* ── Resize handles on selected object ─────────── */
 
 const RESIZE_EDGES = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
 
-function addResizeHandles(hsEl, hs) {
+function addResizeHandles(objectEl, obj) {
   for (const edge of RESIZE_EDGES) {
     const handle = document.createElement('div');
     handle.className = `editor-resize-handle editor-resize-${edge}`;
@@ -267,19 +267,19 @@ function addResizeHandles(hsEl, hs) {
       if (e.button !== 0) return;
       e.preventDefault();
       e.stopPropagation();
-      startResize(e, hs, edge);
+      startResize(e, obj, edge);
     });
-    hsEl.appendChild(handle);
+    objectEl.appendChild(handle);
   }
 }
 
 /* ── Drag to move ──────────────────────────────── */
 
-function startMove(e, hs) {
+function startMove(e, obj) {
   e.preventDefault();
   const { gx, gy } = pxToGrid(e.clientX, e.clientY);
-  const offsetX = gx - hs.x;
-  const offsetY = gy - hs.y;
+  const offsetX = gx - obj.x;
+  const offsetY = gy - obj.y;
   const { cols, rows } = getSceneGrid();
   const sceneId = state.selectedId;
 
@@ -287,11 +287,11 @@ function startMove(e, hs) {
     const { gx, gy } = pxToGrid(e.clientX, e.clientY);
     let nx = snapToGrid(gx - offsetX);
     let ny = snapToGrid(gy - offsetY);
-    nx = clampGrid(nx, cols - hs.w);
-    ny = clampGrid(ny, rows - hs.h);
-    if (nx !== hs.x || ny !== hs.y) {
-      hs.x = nx;
-      hs.y = ny;
+    nx = clampGrid(nx, cols - obj.w);
+    ny = clampGrid(ny, rows - obj.h);
+    if (nx !== obj.x || ny !== obj.y) {
+      obj.x = nx;
+      obj.y = ny;
       markDirty(sceneId);
       renderViewport();
     }
@@ -313,8 +313,8 @@ function startMove(e, hs) {
 
 /* ── Drag to resize ────────────────────────────── */
 
-function startResize(e, hs, edge) {
-  const startX = hs.x, startY = hs.y, startW = hs.w, startH = hs.h;
+function startResize(e, obj, edge) {
+  const startX = obj.x, startY = obj.y, startW = obj.w, startH = obj.h;
   const { cols, rows } = getSceneGrid();
   const sceneId = state.selectedId;
   const { gx: startGx, gy: startGy } = pxToGrid(e.clientX, e.clientY);
@@ -337,8 +337,8 @@ function startResize(e, hs, edge) {
     if (nx + nw > cols) nw = cols - nx;
     if (ny + nh > rows) nh = rows - ny;
 
-    if (hs.x !== nx || hs.y !== ny || hs.w !== nw || hs.h !== nh) {
-      hs.x = nx; hs.y = ny; hs.w = nw; hs.h = nh;
+    if (obj.x !== nx || obj.y !== ny || obj.w !== nw || obj.h !== nh) {
+      obj.x = nx; obj.y = ny; obj.w = nw; obj.h = nh;
       markDirty(sceneId);
       renderViewport();
     }
@@ -388,10 +388,10 @@ function renderSelectionBoxEl() {
     showContextMenu(e.clientX, e.clientY, [
       {
         icon: 'add_box',
-        label: 'Create hotspot',
+        label: 'Create object',
         onClick: () => {
-          const id = uniqueHotspotId('hotspot');
-          addHotspot({ id, x: sel.x, y: sel.y, w: sel.w, h: sel.h, options: [createDefaultObjectOption()] });
+          const id = uniqueObjectId('object');
+          addObject({ id, x: sel.x, y: sel.y, w: sel.w, h: sel.h, options: [createDefaultObjectOption()] });
           clearSelectionBox();
         },
       },
@@ -420,9 +420,9 @@ export function initViewportInteractions() {
     const data = state.scripts[state.selectedId];
     if (!data || state.selectedId === '_game') return;
 
-    // Deselect current hotspot
-    if (state.selectedHs) {
-      state.selectedHs = null;
+    // Deselect current object
+    if (state.selectedObjectId) {
+      state.selectedObjectId = null;
       renderViewport();
       hooks.renderProperties();
     }
@@ -466,9 +466,9 @@ export function initViewportInteractions() {
     document.addEventListener('mouseup', onUp);
   });
 
-  // Right-click on viewport background (not on hotspot or selection) — context menu
+  // Right-click on viewport background (not on an object or selection) — context menu
   vp.addEventListener('contextmenu', (e) => {
-    // Let hotspot/selection box handlers take priority (they stopPropagation)
+    // Let object/selection box handlers take priority (they stopPropagation)
     e.preventDefault();
   });
 }

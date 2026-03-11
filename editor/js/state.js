@@ -11,7 +11,7 @@ export const state = {
   manifest:   null,       // parsed _game.json
   scripts:    {},         // id → parsed JSON
   selectedId: null,       // currently selected script id
-  selectedHs: null,       // currently selected hotspot id
+  selectedObjectId: null, // currently selected object id
   selectedItem: null,     // currently selected item id in items/items
   dirtySet:   new Set(),  // script ids with unsaved edits
 
@@ -55,16 +55,15 @@ export function markDirty(id) {
   }
 }
 
-/** Get the objects array from scene data (supports both "objects" and "hotspots" keys). */
+/** Get the objects array from scene data. */
 function getObjectsArray(data) {
-  return data?.objects ?? data?.hotspots;
+  return data?.objects;
 }
 
 /** Get or create the objects array on scene data. */
 function ensureObjectsArray(data) {
   if (!data) return [];
   if (data.objects) return data.objects;
-  if (data.hotspots) return data.hotspots;
   data.objects = [];
   return data.objects;
 }
@@ -117,16 +116,16 @@ export function collectImagePaths() {
 /**
  * Delete an object from the currently selected scene.
  */
-export function deleteHotspot(hsId) {
+export function deleteObject(objectId) {
   const sceneId = state.selectedId;
   if (!sceneId) return;
   const data = state.scripts[sceneId];
   const objects = getObjectsArray(data);
   if (!objects) return;
-  const idx = objects.findIndex(h => h.id === hsId);
+  const idx = objects.findIndex(obj => obj.id === objectId);
   if (idx < 0) return;
   objects.splice(idx, 1);
-  if (state.selectedHs === hsId) state.selectedHs = null;
+  if (state.selectedObjectId === objectId) state.selectedObjectId = null;
   markDirty(sceneId);
   hooks.renderViewport();
   hooks.renderProperties();
@@ -135,14 +134,14 @@ export function deleteHotspot(hsId) {
 /**
  * Add an object to the currently selected scene.
  */
-export function addHotspot(hs) {
+export function addObject(obj) {
   const sceneId = state.selectedId;
   if (!sceneId) return;
   const data = state.scripts[sceneId];
   if (!data) return;
   const objects = ensureObjectsArray(data);
-  objects.push(hs);
-  state.selectedHs = hs.id;
+  objects.push(obj);
+  state.selectedObjectId = obj.id;
   markDirty(sceneId);
   hooks.renderViewport();
   hooks.renderProperties();
@@ -151,10 +150,10 @@ export function addHotspot(hs) {
 /**
  * Generate a unique object id within the current scene.
  */
-export function uniqueHotspotId(base = 'object') {
+export function uniqueObjectId(base = 'object') {
   const data = state.scripts[state.selectedId];
   const objects = getObjectsArray(data) || [];
-  const existing = new Set(objects.map(h => h.id));
+  const existing = new Set(objects.map(obj => obj.id));
   if (!existing.has(base)) return base;
   let i = 1;
   while (existing.has(`${base}_${i}`)) i++;

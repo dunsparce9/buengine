@@ -4,7 +4,7 @@
  * Usage:
  *   import { showContextMenu } from './context-menu.js';
  *   showContextMenu(e.clientX, e.clientY, [
- *     { icon: 'add', label: 'Create hotspot', onClick: () => { ... } },
+ *     { icon: 'add', label: 'Create object', onClick: () => { ... } },
  *     { separator: true },
  *     { icon: 'delete', label: 'Delete', danger: true, onClick: () => { ... } },
  *   ]);
