@@ -230,12 +230,7 @@
 }
 
 .options-editor-toolbar {
-  position: relative;
-  flex: 0 0 auto;
   margin: 0;
-  padding: 8px 12px;
-  top: auto;
-  border-bottom: 1px solid #3c3836;
 }
 
 .options-editor-content {
