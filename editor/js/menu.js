@@ -7,25 +7,32 @@
  * @param {Object<string, Function>} handlers  Maps `data-action` names to callbacks.
  */
 export function initMenu(handlers) {
+  const menuBar = document.getElementById('menu-bar');
   const items = [...document.querySelectorAll('.menu-item')];
-  const actionButtons = [...document.querySelectorAll('.menu-action')];
+  const submenuItems = [...document.querySelectorAll('.menu-submenu-item')];
+  const getActionButtons = () => [...document.querySelectorAll('.menu-action[data-action]')];
   const closeMenus = () => {
     document.querySelectorAll('.menu-item.open').forEach(m => m.classList.remove('open'));
+    submenuItems.forEach(item => item.classList.remove('open'));
   };
   const openMenu = (item) => {
     items.forEach(menuItem => {
       menuItem.classList.toggle('open', menuItem === item);
     });
+    submenuItems.forEach(submenuItem => submenuItem.classList.remove('open'));
+  };
+  const closeSubmenus = () => {
+    submenuItems.forEach(item => item.classList.remove('open'));
   };
   const dispatchAction = (btn) => {
     if (!btn || btn.disabled) return;
     closeMenus();
     pointerMenuMode = false;
     const action = btn.dataset.action;
-    if (handlers[action]) handlers[action]();
+    if (handlers[action]) handlers[action](btn);
   };
   const setHoveredAction = (btn) => {
-    actionButtons.forEach(actionBtn => {
+    getActionButtons().forEach(actionBtn => {
       actionBtn.classList.toggle('menu-hover', actionBtn === btn);
     });
   };
@@ -58,21 +65,41 @@ export function initMenu(handlers) {
     });
   }
 
-  for (const btn of actionButtons) {
-    btn.addEventListener('pointerenter', () => {
-      if (!pointerPressed) return;
-      setHoveredAction(btn.disabled ? null : btn);
-    });
+  menuBar.addEventListener('pointerover', (e) => {
+    const btn = e.target.closest('.menu-action[data-action]');
+    if (!btn || !pointerPressed) return;
+    setHoveredAction(btn.disabled ? null : btn);
+  });
 
-    btn.addEventListener('pointerleave', () => {
-      if (!pointerPressed) return;
-      setHoveredAction(null);
+  menuBar.addEventListener('pointerout', (e) => {
+    if (!pointerPressed) return;
+    const btn = e.target.closest('.menu-action[data-action]');
+    if (!btn) return;
+    if (btn.contains(e.relatedTarget)) return;
+    setHoveredAction(null);
+  });
+
+  for (const item of submenuItems) {
+    item.addEventListener('mouseenter', () => {
+      if (!item.closest('.menu-item.open')) return;
+      submenuItems.forEach(submenuItem => submenuItem.classList.toggle('open', submenuItem === item));
     });
   }
 
+  menuBar.addEventListener('pointermove', (e) => {
+    const openMenuItem = e.target.closest('.menu-item.open');
+    if (!openMenuItem) return;
+
+    const insideSubmenu = e.target.closest('.menu-submenu-item');
+    if (insideSubmenu) return;
+
+    const hoveredAction = e.target.closest('.menu-action');
+    if (hoveredAction) closeSubmenus();
+  });
+
   document.addEventListener('pointerup', (e) => {
     if (pointerPressed && pointerMenuMode) {
-      const actionButton = e.target.closest('.menu-action');
+      const actionButton = e.target.closest('.menu-action[data-action]');
       if (actionButton) {
         suppressedClickButton = actionButton;
       }
@@ -92,18 +119,17 @@ export function initMenu(handlers) {
     setHoveredAction(null);
   });
 
-  // Menu actions
-  for (const btn of actionButtons) {
-    btn.addEventListener('click', (e) => {
-      if (suppressedClickButton === btn) {
-        suppressedClickButton = null;
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
+  menuBar.addEventListener('click', (e) => {
+    const btn = e.target.closest('.menu-action[data-action]');
+    if (!btn) return;
+    if (suppressedClickButton === btn) {
       suppressedClickButton = null;
+      e.preventDefault();
       e.stopPropagation();
-      dispatchAction(btn);
-    });
-  }
+      return;
+    }
+    suppressedClickButton = null;
+    e.stopPropagation();
+    dispatchAction(btn);
+  });
 }

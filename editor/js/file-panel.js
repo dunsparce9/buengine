@@ -7,6 +7,7 @@ import { showContextMenu } from './context-menu.js';
 import { createFloatingWindow } from './floating-window.js';
 import { promptForConfirmation } from './confirm-dialog.js';
 import { getFileExtension } from './file-types.js';
+import { rememberRecentFolderSelection } from './app/recent-folders.js';
 import {
   buildTree, deleteEntry, renameEntry, moveEntry, createDir,
   writeFileBinary, findNode,
@@ -76,6 +77,7 @@ export function selectScript(id) {
   renderFileList();
   hooks.renderViewport();
   hooks.renderProperties();
+  persistCurrentSelection();
 }
 
 export function selectPath(path) {
@@ -95,6 +97,19 @@ export function selectPath(path) {
   renderFileList();
   hooks.renderViewport();
   hooks.renderProperties();
+  persistCurrentSelection();
+}
+
+export function expandFoldersForPath(path) {
+  if (!path) return;
+  const parts = path.split('/').filter(Boolean);
+  if (parts.length < 2) return;
+
+  let current = '';
+  for (let i = 0; i < parts.length - 1; i++) {
+    current = current ? `${current}/${parts[i]}` : parts[i];
+    state.expandedFolders.add(current);
+  }
 }
 
 /* ── Empty state ────────────────────────────────── */
@@ -236,6 +251,12 @@ function selectFileNode(node) {
   renderFileList();
   hooks.renderViewport();
   hooks.renderProperties();
+  persistCurrentSelection();
+}
+
+function persistCurrentSelection() {
+  if (!state.rootHandle || !state.selectedPath) return;
+  void rememberRecentFolderSelection(state.rootHandle, state.selectedPath);
 }
 
 /* ── Drag-and-drop onto folders ────────────────── */

@@ -19,13 +19,28 @@ export async function openFolder() {
   }
   try {
     const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
-    state.rootHandle = handle;
-    await buildTree();
+    await openFolderHandle(handle);
     return handle;
   } catch (e) {
     if (e.name === 'AbortError') return null;
     throw e;
   }
+}
+
+export async function openFolderHandle(handle) {
+  state.rootHandle = handle;
+  await buildTree();
+  return handle;
+}
+
+export async function ensureHandlePermission(handle, mode = 'readwrite') {
+  if (!handle) return false;
+  if (typeof handle.queryPermission !== 'function') return true;
+
+  const options = { mode };
+  if (await handle.queryPermission(options) === 'granted') return true;
+  if (typeof handle.requestPermission !== 'function') return false;
+  return (await handle.requestPermission(options)) === 'granted';
 }
 
 /* ── Tree scanning ─────────────────────────────── */

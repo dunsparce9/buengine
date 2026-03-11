@@ -7,10 +7,11 @@ import { hooks, state, deleteObject } from '../state.js';
 import '../action-editor.js';
 
 import { updateMenuVisibility, updateWindowTitle, openAboutWindow, hasUnsavedChanges, showToast } from './ui.js';
-import { handleOpenFolder, saveCurrentFile, saveAllFiles, confirmDiscardUnsavedChanges } from './workspace.js';
+import { handleOpenFolder, handleOpenRecentFolder, saveCurrentFile, saveAllFiles, confirmDiscardUnsavedChanges } from './workspace.js';
 import { exportCurrentJson, exportZip, importZip } from './archive.js';
 import { runInNewTab, runCurrentScene } from './preview.js';
 import { setupPWAInstall, installApp } from './pwa.js';
+import { initRecentFolders, handleOpenRecentFolder as dispatchOpenRecentFolder } from './recent-folders.js';
 
 hooks.renderFileList = renderFileList;
 hooks.renderViewport = renderViewport;
@@ -18,6 +19,7 @@ hooks.renderProperties = renderProperties;
 
 initMenu({
   'open-folder': handleOpenFolder,
+  'open-recent-folder': dispatchOpenRecentFolder,
   save: saveCurrentFile,
   'save-all': saveAllFiles,
   'export-json': exportCurrentJson,
@@ -79,6 +81,7 @@ window.addEventListener('beforeunload', (event) => {
 });
 
 (function boot() {
+  initRecentFolders(handleOpenRecentFolder);
   updateWindowTitle();
   updateMenuVisibility();
   renderFileList();

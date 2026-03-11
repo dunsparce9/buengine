@@ -1,9 +1,10 @@
 import { state, hooks } from '../state.js';
 import { discoverScripts } from '../script-loader.js';
-import { openFolder, writeFile, clearAssetCache, cacheAssetURLs } from '../fs-provider.js';
+import { openFolder, openFolderHandle, ensureHandlePermission, writeFile, clearAssetCache, cacheAssetURLs } from '../fs-provider.js';
 import { promptForConfirmation } from '../confirm-dialog.js';
-import { renderFileList, selectScript } from '../file-panel.js';
+import { renderFileList, selectScript, selectPath, expandFoldersForPath } from '../file-panel.js';
 import { showToast, hasUnsavedChanges, updateMenuVisibility, updateWindowTitle } from './ui.js';
+import { rememberRecentFolder } from './recent-folders.js';
 
 export async function confirmDiscardUnsavedChanges(message = 'You have unsaved changes. Discard them?') {
   if (!hasUnsavedChanges()) return true;
@@ -22,6 +23,42 @@ export async function handleOpenFolder() {
 
   const handle = await openFolder();
   if (!handle) return;
+  await loadWorkspaceFromHandle(handle, { remember: true, treeReady: true });
+}
+
+export async function handleOpenRecentFolder(folder) {
+  if (!folder?.handle) return false;
+  if (!await confirmDiscardUnsavedChanges('You have unsaved changes. Open a different folder and discard them?')) {
+    return false;
+  }
+
+  let permitted = false;
+  try {
+    permitted = await ensureHandlePermission(folder.handle, 'readwrite');
+  } catch (err) {
+    showToast(`Failed to reopen ${folder.name}: ${err.message}`, 'error');
+    return false;
+  }
+
+  if (!permitted) {
+    showToast(`Permission denied for ${folder.name}`, 'error');
+    return false;
+  }
+
+  try {
+    await loadWorkspaceFromHandle(folder.handle, {
+      remember: true,
+      initialPath: folder.lastPath || null,
+    });
+    return true;
+  } catch (err) {
+    showToast(`Failed to reopen ${folder.name}: ${err.message}`, 'error');
+    return false;
+  }
+}
+
+async function loadWorkspaceFromHandle(handle, { remember = false, treeReady = false, initialPath = null } = {}) {
+  if (!treeReady) await openFolderHandle(handle);
 
   state.scripts = {};
   state.selectedId = null;
@@ -61,8 +98,36 @@ export async function handleOpenFolder() {
   updateWindowTitle();
   updateMenuVisibility();
   renderFileList();
-  selectScript('_game');
+  restoreInitialSelection(initialPath);
+
+  if (remember) await rememberRecentFolder(handle);
   showToast(`Opened ${handle.name}`);
+}
+
+function restoreInitialSelection(initialPath) {
+  if (initialPath && pathExists(initialPath)) {
+    expandFoldersForPath(initialPath);
+    renderFileList();
+    selectPath(initialPath);
+    return;
+  }
+  selectScript('_game');
+}
+
+function pathExists(path) {
+  if (!path) return false;
+  const parts = path.split('/').filter(Boolean);
+  let nodes = state.fileTree;
+
+  for (let i = 0; i < parts.length; i++) {
+    const node = nodes.find((entry) => entry.name === parts[i]);
+    if (!node) return false;
+    if (i === parts.length - 1) return true;
+    if (node.type !== 'dir' || !Array.isArray(node.children)) return false;
+    nodes = node.children;
+  }
+
+  return false;
 }
 
 hooks.openFolder = handleOpenFolder;

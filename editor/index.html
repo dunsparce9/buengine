@@ -17,6 +17,16 @@
       File
       <div class="menu-dropdown" id="menu-file">
         <button class="menu-action" data-action="open-folder"><span class="material-symbols-outlined">folder_open</span>Open Folder&hellip;<span class="menu-shortcut">Ctrl+O</span></button>
+        <div class="menu-submenu-item" id="recent-folders-entry">
+          <button type="button" class="menu-action menu-submenu-trigger" aria-haspopup="true">
+            <span class="material-symbols-outlined">history</span>
+            <span>Recent folders</span>
+            <span class="material-symbols-outlined menu-submenu-caret">chevron_right</span>
+          </button>
+          <div class="menu-dropdown menu-submenu-panel" id="menu-file-recent">
+            <div class="menu-action menu-action-empty">No recent folders</div>
+          </div>
+        </div>
         <div class="menu-sep" data-requires-game></div>
         <button class="menu-action" data-action="save" data-requires-game><span class="material-symbols-outlined">save</span>Save<span class="menu-shortcut">Ctrl+S</span></button>
         <button class="menu-action" data-action="save-all" data-requires-game><span class="material-symbols-outlined">save_as</span>Save All<span class="menu-shortcut">Ctrl+Shift+S</span></button>
