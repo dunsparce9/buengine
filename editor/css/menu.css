@@ -1,10 +1,12 @@
 /* ── Menu bar ──────────────────────────────────── */
 #menu-bar {
+  position: relative;
   display: flex;
   height: 30px;
   background: #1d2021;
   border-bottom: 1px solid #3c3836;
   user-select: none;
+  z-index: 6000;
 }
 
 .menu-item {
@@ -27,7 +29,7 @@
   width: max-content;
   background: #282828;
   border: 1px solid #3c3836;
-  z-index: 1000;
+  z-index: 6001;
   box-shadow: 0 4px 12px rgba(0,0,0,0.5);
 }
 .menu-item.open .menu-dropdown {
