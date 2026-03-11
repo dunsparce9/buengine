@@ -8,6 +8,9 @@ applyTo: "**"
 ## Project Overview
 büegame is a **static, browser-only, 2D point-and-click adventure game engine**. There is no server, no build step, no bundler — just ES modules served from files. Games are stored in `games/` as self-contained folders, each with its own JSON scripts and assets.
 
+## Testing and verification (important!)
+No testing, browser automation or CI steps. Just write code. The user handles in-browser verification themselves. (You can still note manual testing steps or any "gotchas" for the user *as necessary*.)
+
 ## Architecture
 
 ```
@@ -115,3 +118,4 @@ All game UI lives inside `#game-container`. The `#scene-layer` holds backgrounds
 5. When adding new action commands, add them to `ActionRunner.run()` and document them in this file's action table.
 6. CSS lives in `css/style.css` — don't use inline styles in JS except for dynamic positioning (objects, images).
 7. New UI components should follow the pattern: constructor takes `bus`, queries its own DOM elements, subscribes to relevant events.
+
