@@ -11,7 +11,8 @@ function bringToFront(el) {
 
 /**
  * @param {Object}  opts
- * @param {string}  opts.title
+ * @param {string}  [opts.title]
+ * @param {string}  [opts.subtitle]
  * @param {string}  [opts.icon='']
  * @param {string}  [opts.iconClass='']
  * @param {number}  [opts.width=300]
@@ -20,7 +21,7 @@ function bringToFront(el) {
  * @param {boolean} [opts.closeOnBackdrop=false]
  * @returns {{ el: HTMLElement, body: HTMLElement, open(): void, close(): void, destroy(): void }}
  */
-export function createFloatingWindow({ title, icon = '', iconClass = '', width = 300, height, resizable = false, modal = false, closeOnBackdrop = false, parent = null }) {
+export function createFloatingWindow({ title = '', subtitle = '', icon = '', iconClass = '', width = 300, height, resizable = false, modal = false, closeOnBackdrop = false, parent = null }) {
   const el = document.createElement('div');
   el.className = 'fw hidden';
   el.style.width = `${width}px`;
@@ -34,15 +35,28 @@ export function createFloatingWindow({ title, icon = '', iconClass = '', width =
   iconEl.className = iconClass ? `fw-icon ${iconClass}` : 'fw-icon';
   iconEl.textContent = icon;
 
-  const titleEl = document.createElement('span');
-  titleEl.className = 'fw-title';
-  titleEl.textContent = title;
+  const headingEl = document.createElement('div');
+  headingEl.className = 'fw-heading';
+
+  if (title) {
+    const titleEl = document.createElement('span');
+    titleEl.className = 'fw-title';
+    titleEl.textContent = title;
+    headingEl.appendChild(titleEl);
+  }
+
+  if (subtitle) {
+    const subtitleEl = document.createElement('span');
+    subtitleEl.className = 'fw-subtitle';
+    subtitleEl.textContent = subtitle;
+    headingEl.appendChild(subtitleEl);
+  }
 
   const closeBtn = document.createElement('button');
   closeBtn.className = 'fw-close';
   closeBtn.textContent = '\u00d7';
 
-  header.append(iconEl, titleEl, closeBtn);
+  header.append(iconEl, headingEl, closeBtn);
 
   // Body
   const body = document.createElement('div');

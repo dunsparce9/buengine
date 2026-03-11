@@ -33,7 +33,8 @@ export function openActionEditor(title, actions, opts = {}) {
   }
 
   const fw = createFloatingWindow({
-    title: key,
+    title: 'Actions',
+    subtitle: key === 'Actions' ? '' : key,
     icon: 'list_alt',
     iconClass: 'material-symbols-outlined',
     width: 480,
@@ -306,7 +307,8 @@ function pickActionType(parentFw) {
   return new Promise((resolve) => {
     let resolved = false;
     const fw = createFloatingWindow({
-      title: 'Add Action',
+      title: 'Actions',
+      subtitle: 'Add Action',
       icon: 'add_circle',
       iconClass: 'material-symbols-outlined',
       width: 420,

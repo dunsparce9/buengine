@@ -36,7 +36,8 @@ export function openOptionsModal({
   }
 
   const fw = createFloatingWindow({
-    title,
+    title: 'Options',
+    subtitle: getOptionsSubtitle(title),
     icon: 'tune',
     iconClass: 'material-symbols-outlined',
     width: 500,
@@ -65,6 +66,11 @@ export function openOptionsModal({
   modalState.rebuild();
   fw.open();
   return fw;
+}
+
+function getOptionsSubtitle(title) {
+  const label = String(title || '').replace(/\s*[—-]\s*Options\s*$/i, '').trim();
+  return label && label.toLowerCase() !== 'options' ? label : '';
 }
 
 function notifyChange(scriptId, onChange) {
