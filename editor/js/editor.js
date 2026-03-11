@@ -394,6 +394,36 @@ async function runInNewTab() {
 }
 
 let deferredInstallPrompt = null;
+let hasReloadedForServiceWorkerUpdate = false;
+
+function setupServiceWorkerUpdates(registration) {
+  const requestUpdateCheck = () => registration.update().catch(() => {});
+
+  window.addEventListener('focus', requestUpdateCheck);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') requestUpdateCheck();
+  });
+
+  if (registration.waiting) {
+    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+  }
+
+  registration.addEventListener('updatefound', () => {
+    const worker = registration.installing;
+    if (!worker) return;
+    worker.addEventListener('statechange', () => {
+      if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+        worker.postMessage({ type: 'SKIP_WAITING' });
+      }
+    });
+  });
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hasReloadedForServiceWorkerUpdate) return;
+    hasReloadedForServiceWorkerUpdate = true;
+    window.location.reload();
+  });
+}
 
 function updateInstallMenuVisibility() {
   const installBtn = document.getElementById('install-app-btn');
@@ -426,7 +456,9 @@ function setupPWAInstall() {
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js');
+      navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
+        .then(setupServiceWorkerUpdates)
+        .catch(() => {});
     });
   }
 }
