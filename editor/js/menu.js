@@ -32,6 +32,7 @@ export function initMenu(handlers) {
 
   let pointerMenuMode = false;
   let pointerPressed = false;
+  let suppressedClickButton = null;
 
   for (const item of items) {
     item.addEventListener('pointerdown', (e) => {
@@ -71,7 +72,11 @@ export function initMenu(handlers) {
 
   document.addEventListener('pointerup', (e) => {
     if (pointerPressed && pointerMenuMode) {
-      dispatchAction(e.target.closest('.menu-action'));
+      const actionButton = e.target.closest('.menu-action');
+      if (actionButton) {
+        suppressedClickButton = actionButton;
+      }
+      dispatchAction(actionButton);
     }
     pointerPressed = false;
     pointerMenuMode = false;
@@ -90,6 +95,13 @@ export function initMenu(handlers) {
   // Menu actions
   for (const btn of actionButtons) {
     btn.addEventListener('click', (e) => {
+      if (suppressedClickButton === btn) {
+        suppressedClickButton = null;
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      suppressedClickButton = null;
       e.stopPropagation();
       dispatchAction(btn);
     });
