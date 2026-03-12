@@ -4,6 +4,22 @@ function getSceneSequences(viewCtx = {}) {
   return viewCtx.sceneData?.sequences || viewCtx.sceneData?.definitions || null;
 }
 
+function renderRudimentaryMarkdown(text) {
+  let html = escapeHtml(text ?? '');
+  const replacements = [
+    [/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>'],
+    [/__([\s\S]+?)__/g, '<u>$1</u>'],
+    [/~~([\s\S]+?)~~/g, '<s>$1</s>'],
+    [/\*([\s\S]+?)\*/g, '<em>$1</em>'],
+  ];
+
+  for (const [pattern, replacement] of replacements) {
+    html = html.replace(pattern, replacement);
+  }
+
+  return html.replace(/\n/g, '<br>');
+}
+
 export function createActionRenderers(openActionEditor, buildReadOnlyList) {
   function getForkSequenceName(forkDef) {
     if (typeof forkDef === 'string') return forkDef;
@@ -60,7 +76,7 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
     }
     const text = document.createElement('div');
     text.className = 'ae-say-text';
-    text.textContent = action.say;
+    text.innerHTML = renderRudimentaryMarkdown(action.say);
     body.appendChild(text);
     return body;
   }
@@ -204,7 +220,7 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
     if (data.text) {
       const preview = document.createElement('div');
       preview.className = 'ae-say-text';
-      preview.textContent = data.text;
+      preview.innerHTML = renderRudimentaryMarkdown(data.text);
       body.appendChild(preview);
     }
     const props = [];
@@ -416,7 +432,11 @@ export function renderCollapsedSummary(action, type, shortenText, viewCtx = {}) 
 
   const el = document.createElement(onClick ? 'button' : 'span');
   el.className = `ae-summary${onClick ? ' ae-summary-link' : ''}`;
-  el.textContent = summaryText;
+  if (type === 'text') {
+    el.innerHTML = renderRudimentaryMarkdown(summaryText);
+  } else {
+    el.textContent = summaryText;
+  }
   if (onClick) {
     el.type = 'button';
     el.title = title;
