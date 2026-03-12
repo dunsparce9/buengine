@@ -191,12 +191,18 @@ function createActionsPill({ sceneId, name, actions, scriptId, onChange, actionV
   const pill = document.createElement('button');
   pill.type = 'button';
   pill.className = 'ae-mini-btn items-actions-pill';
-  pill.innerHTML = '<span class="material-symbols-outlined">list_alt</span> ' + actions.length;
-  pill.title = `${actions.length} action(s)`;
+  const renderPill = () => {
+    pill.innerHTML = '<span class="material-symbols-outlined">list_alt</span> ' + actions.length;
+    pill.title = `${actions.length} action(s)`;
+  };
+  renderPill();
   pill.addEventListener('click', () => {
     openActionEditor(`${sceneId} — ${name}`, actions, {
       ...actionViewerContext,
-      onChange: () => notifyChange(scriptId, onChange),
+      onChange: () => {
+        renderPill();
+        notifyChange(scriptId, onChange);
+      },
     });
   });
   return pill;

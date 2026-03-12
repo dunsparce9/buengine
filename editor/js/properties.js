@@ -114,7 +114,10 @@ function renderSceneProps(data) {
     if (!data.onEnter) data.onEnter = [];
     addActionLinkGroup('onEnter', [['actions', data.onEnter.length]],
       () => openActionEditor(`${data.id} — onEnter`, data.onEnter, {
-        onChange: () => markDirty(data.id),
+        onChange: () => {
+          markDirty(data.id);
+          hooks.renderProperties();
+        },
         sceneId: data.id,
         sceneData: data,
         markDirty,
@@ -736,7 +739,10 @@ function addSequencesGroup(data, names) {
     link.textContent = `${actions.length} action(s)`;
     link.addEventListener('click', () =>
       openActionEditor(`${data.id} — ${name}`, actions, {
-        onChange: () => markDirty(data.id),
+        onChange: () => {
+          markDirty(data.id);
+          hooks.renderProperties();
+        },
         sceneId: data.id,
         sceneData: data,
         markDirty,

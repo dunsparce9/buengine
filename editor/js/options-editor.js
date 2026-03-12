@@ -244,15 +244,21 @@ function buildOptionsContent(container, ctx) {
     const pill = document.createElement('button');
     pill.type = 'button';
     pill.className = 'ae-mini-btn items-actions-pill';
-    pill.innerHTML = '<span class="material-symbols-outlined">list_alt</span> ' + actions.length;
-    pill.title = `${actions.length} action(s)`;
+    const renderPill = () => {
+      pill.innerHTML = '<span class="material-symbols-outlined">list_alt</span> ' + actions.length;
+      pill.title = `${actions.length} action(s)`;
+    };
+    renderPill();
     pill.addEventListener('click', () => {
       openActionEditor(
         `${ownerLabel} — ${option.text || 'Option ' + (optionIndex + 1)}`,
         actions,
         {
           ...actionViewerContext,
-          onChange: () => notifyChange(scriptId, onChange),
+          onChange: () => {
+            renderPill();
+            notifyChange(scriptId, onChange);
+          },
         }
       );
     });
