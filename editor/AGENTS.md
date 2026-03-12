@@ -1,12 +1,12 @@
 ---
-description: Instructions for the büegame visual level editor.
+description: Instructions for the büengine visual level editor.
 applyTo: "editor/**"
 ---
 
-# büegame Editor — Agent Instructions
+# büengine Editor — Agent Instructions
 
 ## Overview
-The editor is a **browser-only visual level editor** for büegame JSON scripts. It lives entirely inside `editor/` and is opened via `editor/index.html`. Like the game engine, there is no build step — just vanilla ES modules and static files.
+The editor is a **browser-only visual level editor** for büengine JSON scripts. It lives entirely inside `editor/` and is opened via `editor/index.html`. Like the game engine, there is no build step — just vanilla ES modules and static files.
 
 It edits real folders on disk through the browser's File System Access API and keeps unsaved changes in memory until the user saves. The editor is a separate app from the runtime, but it intentionally shares the action schema with the engine.
 
@@ -171,7 +171,7 @@ When editing AE-related code:
 | Action Editor | `action-editor/` | `openActionEditor()` — floating action list editor for arrays |
 | Items editor | `items-viewer.js` | `renderItemsProperties()` — inventory item editing |
 | Export JSON | `app/archive.js` | `exportCurrentJson()` — Blob download of current script |
-| Run preview | `app/preview.js` | Stores all edited scripts into `localStorage` key `buegame_editor_preview`, opens game in new tab with `?preview` |
+| Run preview | `app/preview.js` | Stores all edited scripts into `localStorage` key `buengine_editor_preview`, opens game in new tab with `?preview` |
 | Floating windows | `floating-window.js` | `createFloatingWindow()` — draggable, optionally resizable panels (`.fw`) |
 | Toast notifications | `app/ui.js` | `showToast(msg, type)` — bottom-center transient messages |
 | Keyboard shortcuts | `app/index.js` | Ctrl+S (save), Ctrl+Shift+S (save all), Ctrl+O (open folder) |
@@ -185,7 +185,7 @@ When editing AE-related code:
 5. **Colour palette** — the editor uses Gruvbox Dark (`#282828` bg, `#ebdbb2` fg, `#fe8019` accent, `#1d2021` panel bg, `#3c3836` borders). Keep new UI consistent.
 6. **Object visualisation** — dashed orange outlines (`.editor-object`), yellow when selected. Labels are 10px overlays.
 7. **Grid-aware positioning** — all object coordinates are in tile units. Convert to percentages (`tile / cols * 100%`) for CSS positioning.
-8. **Preview round-trip** — edits stay in memory. The Run button serialises everything to `localStorage` under `buegame_editor_preview`. The game should check for this on `?preview` and overlay the data.
+8. **Preview round-trip** — edits stay in memory. The Run button serialises everything to `localStorage` under `buengine_editor_preview`. The game should check for this on `?preview` and overlay the data.
 9. **HTML escaping** — use `escapeHtml()` (DOM-based) when injecting user-provided text. Never use `innerHTML` with raw script data.
 10. **Dirty-state discipline** — any edit that changes persistent data should mark the relevant script dirty so Save / Save All remain trustworthy.
 11. **AE changes are high-impact** — if you change action editing behavior, check nested arrays, drag/drop, and schema-derived field rendering, not just the top-level happy path.

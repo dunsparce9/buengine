@@ -17,7 +17,7 @@ const aboutWindow = createFloatingWindow({
   content.style.padding = '20px 28px';
 
   const heading = document.createElement('h2');
-  heading.textContent = 'büegame editor';
+  heading.textContent = 'büengine editor';
   heading.style.fontSize = '1.3rem';
   heading.style.marginBottom = '6px';
 
@@ -54,7 +54,7 @@ export function isStandalonePWA() {
 }
 
 export function updateWindowTitle() {
-  const appName = 'büegame editor';
+  const appName = 'büengine editor';
   const context = state.selectedPath || state.rootHandle?.name || '';
 
   if (!context) {

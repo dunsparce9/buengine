@@ -268,7 +268,7 @@ async function showGameSelector() {
     editorEntry.className = 'game-entry';
     const editorTitle = document.createElement('div');
     editorTitle.className = 'game-entry-title';
-    editorTitle.textContent = 'b\u00fcegame editor';
+    editorTitle.textContent = 'b\u00fcengine editor';
     editorEntry.appendChild(editorTitle);
     const editorSub = document.createElement('div');
     editorSub.className = 'game-entry-subtitle';
@@ -304,7 +304,7 @@ async function showTitle() {
     }
     overlay.showTitle({ title: manifest.title, subtitle: manifest.subtitle });
   } catch {
-    overlay.showTitle({ title: 'b\u00fcegame', subtitle: 'A point-and-click adventure' });
+    overlay.showTitle({ title: 'b\u00fcengine', subtitle: 'A point-and-click adventure' });
   }
 }
 

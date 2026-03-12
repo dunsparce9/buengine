@@ -44,7 +44,7 @@ export class OverlayUI {
   }
 
   showTitle(cfg = {}) {
-    this.titleText.textContent = cfg.title || 'büegame';
+    this.titleText.textContent = cfg.title || 'büengine';
     this.titleSub.textContent  = cfg.subtitle || '';
     this.title.classList.remove('hidden');
     this.pause.classList.add('hidden');

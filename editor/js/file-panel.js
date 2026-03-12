@@ -226,7 +226,7 @@ function renderFileNode(node, parent, depth) {
   // Draggable for moving
   li.draggable = true;
   li.addEventListener('dragstart', (e) => {
-    e.dataTransfer.setData('text/x-buegame-path', node.path);
+    e.dataTransfer.setData('text/x-buengine-path', node.path);
     e.dataTransfer.effectAllowed = 'move';
     li.classList.add('dragging');
   });
@@ -280,7 +280,7 @@ function setupDropTarget(el, folderPath) {
     el.classList.remove('drop-target');
 
     // Internal move (file dragged within tree)
-    const srcPath = e.dataTransfer.getData('text/x-buegame-path');
+    const srcPath = e.dataTransfer.getData('text/x-buengine-path');
     if (srcPath) {
       const srcName = srcPath.split('/').pop();
       const destPath = folderPath ? `${folderPath}/${srcName}` : srcName;
@@ -329,7 +329,7 @@ export function initFilePanelDrop() {
 
   panel.addEventListener('dragover', (e) => {
     // Only highlight for external files (not internal tree drags)
-    if (e.dataTransfer.types.includes('text/x-buegame-path')) return;
+    if (e.dataTransfer.types.includes('text/x-buengine-path')) return;
     if (!e.dataTransfer.types.includes('Files')) return;
     e.preventDefault();
     panel.classList.add('drop-active');
@@ -343,7 +343,7 @@ export function initFilePanelDrop() {
 
   panel.addEventListener('drop', async (e) => {
     panel.classList.remove('drop-active');
-    if (e.dataTransfer.types.includes('text/x-buegame-path')) return;
+    if (e.dataTransfer.types.includes('text/x-buengine-path')) return;
     if (!e.dataTransfer.files.length) return;
     e.preventDefault();
     // Drop into root folder

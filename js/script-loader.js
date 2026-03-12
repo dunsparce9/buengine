@@ -18,7 +18,7 @@ export class ScriptLoader {
     // Editor preview mode: pre-populate cache from localStorage
     if (new URLSearchParams(location.search).has('preview')) {
       try {
-        const raw = localStorage.getItem('buegame_editor_preview');
+        const raw = localStorage.getItem('buengine_editor_preview');
         if (raw) {
           const overrides = JSON.parse(raw);
           this._previewOverrides = new Map(Object.entries(overrides));
@@ -30,7 +30,7 @@ export class ScriptLoader {
 
       // Load asset blob URL mapping (set by editor for local folders)
       try {
-        const rawAssets = localStorage.getItem('buegame_editor_assets');
+        const rawAssets = localStorage.getItem('buengine_editor_assets');
         if (rawAssets) {
           this._assetMap = new Map(Object.entries(JSON.parse(rawAssets)));
         }

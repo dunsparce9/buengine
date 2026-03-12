@@ -1,12 +1,12 @@
 {
-  "name": "büegame editor",
+  "name": "büengine editor",
   "short_name": "büe editor",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#282828",
   "theme_color": "#1d2021",
-  "description": "Static editor for büegame point-and-click adventures.",
+  "description": "Static editor for büengine point-and-click adventures.",
   "icons": [
     {
       "src": "assets/icon.svg",

@@ -7,7 +7,7 @@ async function persistPreviewState() {
   for (const [id, data] of Object.entries(state.scripts)) {
     overrides[id] = data;
   }
-  localStorage.setItem('buegame_editor_preview', JSON.stringify(overrides));
+  localStorage.setItem('buengine_editor_preview', JSON.stringify(overrides));
 
   if (state.rootHandle) {
     const assetMap = {};
@@ -18,9 +18,9 @@ async function persistPreviewState() {
         if (url) assetMap[path] = url;
       } catch {}
     }
-    localStorage.setItem('buegame_editor_assets', JSON.stringify(assetMap));
+    localStorage.setItem('buengine_editor_assets', JSON.stringify(assetMap));
   } else {
-    localStorage.removeItem('buegame_editor_assets');
+    localStorage.removeItem('buengine_editor_assets');
   }
 }
 

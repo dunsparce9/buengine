@@ -1,4 +1,4 @@
-const CACHE_NAME = 'buegame-editor-v4';
+const CACHE_NAME = 'buengine-editor-v4';
 const CORE_ASSETS = [
   './',
   './index.html',

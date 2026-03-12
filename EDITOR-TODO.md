@@ -1,4 +1,4 @@
-# büegame Editor TODO
+# büengine Editor TODO
 
 ## Must Address Before Further Dev
 - [ ] Fix editor source-of-truth problems after file operations. Create / rename / move / delete / external drop must keep disk state, `state.scripts`, selection, and dirty tracking in sync.

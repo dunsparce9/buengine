@@ -1,4 +1,4 @@
-# büegame Engine TODO
+# büengine Engine TODO
 
 ## Must Address Before Further Dev
 - [x] Standardize on `objects` across runtime, editor, schema assumptions, docs, and sample JSON handling.

@@ -1,4 +1,4 @@
-const DB_NAME = 'buegame-editor';
+const DB_NAME = 'buengine-editor';
 const STORE_NAME = 'recent-folders';
 const MAX_RECENT_FOLDERS = 8;
 

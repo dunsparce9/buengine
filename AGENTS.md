@@ -1,12 +1,12 @@
 ---
-description: Project-wide instructions for the büegame point-and-click game engine.
+description: Project-wide instructions for the büengine point-and-click game engine.
 applyTo: "**"
 ---
 
-# büegame — Agent Instructions
+# büengine — Agent Instructions
 
 ## Project Overview
-büegame is a **static, browser-only, 2D point-and-click adventure game engine**. There is no server, no build step, no bundler — just ES modules served from files. Games are stored in `games/` as self-contained folders, each with its own JSON scripts and assets.
+büengine is a **static, browser-only, 2D point-and-click adventure game engine**. There is no server, no build step, no bundler — just ES modules served from files. Games are stored in `games/` as self-contained folders, each with its own JSON scripts and assets.
 
 ## Testing and verification
 No testing, no browser automation or CI steps (syntax checks are fine). The user handles in-browser verification.
