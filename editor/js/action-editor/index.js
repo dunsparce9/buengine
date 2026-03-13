@@ -25,8 +25,9 @@ const forms = createFormBuilders(openActionEditor);
 const drag = createDragController({ moveActionBetweenEditors });
 
 export function openActionEditor(title, actions, opts = {}) {
-  const key = title || 'Actions';
-  const existing = getOpenEditor(key);
+  const displayTitle = title || 'Actions';
+  const editorKey = getEditorKey(displayTitle, actions, opts);
+  const existing = getOpenEditor(editorKey);
   if (existing && !existing.fw.el.classList.contains('hidden')) {
     existing.fw.open();
     return;
@@ -34,7 +35,7 @@ export function openActionEditor(title, actions, opts = {}) {
 
   const fw = createFloatingWindow({
     title: 'Actions',
-    subtitle: key === 'Actions' ? '' : key,
+    subtitle: displayTitle === 'Actions' ? '' : displayTitle,
     icon: 'list_alt',
     iconClass: 'material-symbols-outlined',
     width: 480,
@@ -43,7 +44,7 @@ export function openActionEditor(title, actions, opts = {}) {
   });
 
   const editorState = {
-    key,
+    key: editorKey,
     fw,
     actions,
     opts,
@@ -55,10 +56,16 @@ export function openActionEditor(title, actions, opts = {}) {
     },
   };
 
-  setOpenEditor(key, editorState);
-  fw.onClose(() => deleteOpenEditor(key));
+  setOpenEditor(editorKey, editorState);
+  fw.onClose(() => deleteOpenEditor(editorKey));
   editorState.rebuild();
   fw.open();
+}
+
+function getEditorKey(title, actions, opts) {
+  if (opts.editorKey != null) return opts.editorKey;
+  if (actions && (typeof actions === 'object' || typeof actions === 'function')) return actions;
+  return title || 'Actions';
 }
 
 function moveActionBetweenEditors(sourceEditor, sourceIdx, targetEditor, targetIdx) {
