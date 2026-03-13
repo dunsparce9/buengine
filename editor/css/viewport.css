@@ -8,6 +8,14 @@
   padding: 24px;
 }
 
+#viewport.viewport-pan-enabled {
+  cursor: grab;
+}
+
+#viewport.viewport-is-panning {
+  cursor: grabbing;
+}
+
 #viewport.viewport-items-mode {
   align-items: stretch;
   justify-content: stretch;
@@ -120,8 +128,7 @@
   border: 2px solid #ebdbb2;
   background-color: rgba(235, 219, 178, 0.08);
   z-index: 100;
-  pointer-events: auto;
-  cursor: default;
+  pointer-events: none;
 }
 
 /* ── Resize handles on selected object ─────────── */

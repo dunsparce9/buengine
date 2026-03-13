@@ -1,6 +1,6 @@
 /**
  * Centre viewport — scene preview with object overlays.
- * Supports: selection, drag-to-move, drag-to-resize, drag-to-create, context menu.
+ * Supports: selection, pan/zoom, drag-to-move, drag-to-resize, drag-to-create, context menu.
  */
 
 import { state, dom, hooks, markDirty, addObject, deleteObject, uniqueObjectId } from './state.js';
@@ -12,6 +12,17 @@ import { openOptionsModal, createDefaultObjectOption } from './options-editor.js
 
 /* ── Drag state (module-scoped, survives re-renders) ── */
 let _selectionBox = null; // { x, y, w, h } in grid units (for drag-to-create)
+let _viewportSceneKey = null;
+let _viewportCamera = createDefaultViewportCamera();
+
+const PAN_DRAG_THRESHOLD = 4;
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 4;
+const ZOOM_SENSITIVITY = 0.0015;
+
+function createDefaultViewportCamera() {
+  return { zoom: 1, panX: 0, panY: 0 };
+}
 
 /* ── Helpers ───────────────────────────────────── */
 
@@ -39,6 +50,84 @@ function clampGrid(v, max) {
   return Math.max(0, Math.min(v, max));
 }
 
+function clampZoom(zoom) {
+  return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom));
+}
+
+function getViewportSceneKey() {
+  if (state.selectedPath && !state.selectedId) return `asset:${state.selectedPath}`;
+  if (!state.selectedId) return 'empty';
+  return `script:${state.selectedId}`;
+}
+
+function syncViewportSceneKey() {
+  const nextKey = getViewportSceneKey();
+  if (_viewportSceneKey === nextKey) return;
+  _viewportSceneKey = nextKey;
+  _viewportCamera = createDefaultViewportCamera();
+  clearSelectionBox();
+}
+
+function isActiveSceneData(data = state.scripts[state.selectedId]) {
+  return Boolean(state.selectedId && state.selectedId !== '_game' && data && !Array.isArray(data));
+}
+
+function setViewportPanning(active) {
+  dom.viewportWrap.classList.toggle('viewport-is-panning', active);
+}
+
+function applyViewportCamera() {
+  const { viewport, viewportWrap } = dom;
+  if (!isActiveSceneData()) {
+    viewport.style.transform = '';
+    viewport.style.transformOrigin = '';
+    viewportWrap.classList.remove('viewport-pan-enabled', 'viewport-is-panning');
+    return;
+  }
+
+  viewport.style.transformOrigin = 'center center';
+  viewport.style.transform = `translate(${_viewportCamera.panX}px, ${_viewportCamera.panY}px) scale(${_viewportCamera.zoom})`;
+  viewportWrap.classList.add('viewport-pan-enabled');
+}
+
+function zoomViewportAt(clientX, clientY, nextZoom) {
+  if (!isActiveSceneData()) return;
+  const wrapperRect = dom.viewportWrap.getBoundingClientRect();
+  const sceneRect = dom.viewport.getBoundingClientRect();
+  const prevZoom = _viewportCamera.zoom;
+  const clampedZoom = clampZoom(nextZoom);
+  if (clampedZoom === prevZoom) return;
+
+  const wrapperCenterX = wrapperRect.left + (wrapperRect.width / 2);
+  const wrapperCenterY = wrapperRect.top + (wrapperRect.height / 2);
+  const sceneCenterX = sceneRect.left + (sceneRect.width / 2);
+  const sceneCenterY = sceneRect.top + (sceneRect.height / 2);
+
+  const localX = (clientX - sceneCenterX) / prevZoom;
+  const localY = (clientY - sceneCenterY) / prevZoom;
+
+  const newCenterX = clientX - (localX * clampedZoom);
+  const newCenterY = clientY - (localY * clampedZoom);
+
+  _viewportCamera.zoom = clampedZoom;
+  _viewportCamera.panX = newCenterX - wrapperCenterX;
+  _viewportCamera.panY = newCenterY - wrapperCenterY;
+  applyViewportCamera();
+}
+
+function showCreateObjectMenu(clientX, clientY, selection) {
+  showContextMenu(clientX, clientY, [
+    {
+      icon: 'add_box',
+      label: 'Create object',
+      onClick: () => {
+        const id = uniqueObjectId('object');
+        addObject({ id, x: selection.x, y: selection.y, w: selection.w, h: selection.h, options: [createDefaultObjectOption()] });
+      },
+    },
+  ]);
+}
+
 function openObjectOptionsManager(obj) {
   const sceneId = state.selectedId;
   if (!sceneId) return;
@@ -64,6 +153,7 @@ function openObjectOptionsManager(obj) {
 
 export function renderViewport() {
   const { viewport, viewportWrap } = dom;
+  syncViewportSceneKey();
 
   // Clear previous object elements (keep selection box if present)
   viewport.querySelectorAll('.editor-media-preview, .editor-media-empty, .items-viewer').forEach(el => el.remove());
@@ -72,8 +162,11 @@ export function renderViewport() {
   viewport.style.backgroundColor = '#181825';
   viewport.style.width  = '';
   viewport.style.height = '';
+  viewport.style.transform = '';
+  viewport.style.transformOrigin = '';
   viewport.classList.remove('viewport-items-mode');
   viewportWrap.classList.remove('viewport-items-mode');
+  viewportWrap.classList.remove('viewport-pan-enabled', 'viewport-is-panning');
 
   if (state.selectedPath && !state.selectedId) {
     viewport.classList.remove('hidden');
@@ -162,15 +255,16 @@ export function renderViewport() {
       div.addEventListener('mousedown', (e) => {
         if (e.button !== 0) return;
         e.stopPropagation();
-        // If not already selected, just select
         if (state.selectedObjectId !== obj.id) {
-          clearSelectionBox();
-          state.selectedObjectId = obj.id;
-          renderViewport();
-          hooks.renderProperties();
+          startPanOrClickGesture(e, () => {
+            clearSelectionBox();
+            state.selectedObjectId = obj.id;
+            renderViewport();
+            hooks.renderProperties();
+          });
           return;
         }
-        // Already selected — start drag-to-move
+        clearSelectionBox();
         startMove(e, obj);
       });
 
@@ -200,6 +294,7 @@ export function renderViewport() {
 
   // Render selection box (drag-to-create preview)
   renderSelectionBoxEl();
+  applyViewportCamera();
 }
 
 function renderMediaViewport(path) {
@@ -404,28 +499,105 @@ function renderSelectionBoxEl() {
   box.style.width  = `${(_selectionBox.w / cols) * 100}%`;
   box.style.height = `${(_selectionBox.h / rows) * 100}%`;
 
-  // Right-click on selection box → context menu
-  box.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const sel = { ..._selectionBox };
-    showContextMenu(e.clientX, e.clientY, [
-      {
-        icon: 'add_box',
-        label: 'Create object',
-        onClick: () => {
-          const id = uniqueObjectId('object');
-          addObject({ id, x: sel.x, y: sel.y, w: sel.w, h: sel.h, options: [createDefaultObjectOption()] });
-          clearSelectionBox();
-        },
-      },
-    ]);
-  });
-
   dom.viewport.appendChild(box);
 }
 
 /* ── Viewport mouse handlers (installed once) ──── */
+
+function startPanDrag(startEvent, initialMoveEvent = null) {
+  const startClientX = startEvent.clientX;
+  const startClientY = startEvent.clientY;
+  const startPanX = _viewportCamera.panX;
+  const startPanY = _viewportCamera.panY;
+
+  setViewportPanning(true);
+  document.body.style.userSelect = 'none';
+
+  function onMove(moveEvent) {
+    _viewportCamera.panX = startPanX + (moveEvent.clientX - startClientX);
+    _viewportCamera.panY = startPanY + (moveEvent.clientY - startClientY);
+    applyViewportCamera();
+  }
+
+  function onUp() {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    document.body.style.userSelect = '';
+    setViewportPanning(false);
+  }
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+  if (initialMoveEvent) onMove(initialMoveEvent);
+}
+
+function startPanOrClickGesture(startEvent, onClick) {
+  const startClientX = startEvent.clientX;
+  const startClientY = startEvent.clientY;
+  let didPan = false;
+
+  function onMove(moveEvent) {
+    if (didPan) return;
+    const dx = moveEvent.clientX - startClientX;
+    const dy = moveEvent.clientY - startClientY;
+    if (Math.hypot(dx, dy) < PAN_DRAG_THRESHOLD) return;
+    didPan = true;
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    startPanDrag(startEvent, moveEvent);
+  }
+
+  function onUp() {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    if (!didPan) onClick();
+  }
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+function startSelectionDrag(startEvent) {
+  startEvent.preventDefault();
+  const { cols, rows } = getSceneGrid();
+  const { gx, gy } = pxToGrid(startEvent.clientX, startEvent.clientY);
+  const startCol = clampGrid(snapToGrid(gx), cols - 1);
+  const startRow = clampGrid(snapToGrid(gy), rows - 1);
+  let dragged = false;
+
+  clearSelectionBox();
+
+  function onMove(moveEvent) {
+    const { gx: cx, gy: cy } = pxToGrid(moveEvent.clientX, moveEvent.clientY);
+    const endCol = clampGrid(snapToGrid(cx), cols);
+    const endRow = clampGrid(snapToGrid(cy), rows);
+    const x = Math.min(startCol, endCol);
+    const y = Math.min(startRow, endRow);
+    const w = Math.max(1, Math.abs(endCol - startCol));
+    const h = Math.max(1, Math.abs(endRow - startRow));
+    dragged = dragged || Math.hypot(moveEvent.clientX - startEvent.clientX, moveEvent.clientY - startEvent.clientY) >= PAN_DRAG_THRESHOLD;
+    _selectionBox = { x, y, w, h };
+    renderSelectionBoxEl();
+  }
+
+  function onUp(upEvent) {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    document.body.style.userSelect = '';
+    if (!dragged || !_selectionBox) {
+      clearSelectionBox();
+      return;
+    }
+
+    const selection = { ..._selectionBox };
+    clearSelectionBox();
+    showCreateObjectMenu(upEvent.clientX, upEvent.clientY, selection);
+  }
+
+  document.body.style.userSelect = 'none';
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
 
 let _viewportWired = false;
 
@@ -433,66 +605,39 @@ export function initViewportInteractions() {
   if (_viewportWired) return;
   _viewportWired = true;
 
-  const vp = dom.viewport;
+  const { viewport: sceneEl, viewportWrap: wrapEl } = dom;
 
-  // Mousedown on empty viewport area — either deselect or start selection drag
-  vp.addEventListener('mousedown', (e) => {
+  // Left mouse: pan by drag anywhere in the viewport wrapper, click background to clear selection.
+  wrapEl.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
-    // Only start creation drag if clicking on the viewport background itself
-    if (e.target !== vp) return;
+    if (!isActiveSceneData()) return;
+    if (e.target.closest('.editor-resize-handle')) return;
 
-    const data = state.scripts[state.selectedId];
-    if (!data || state.selectedId === '_game') return;
-
-    // Deselect current object
-    if (state.selectedObjectId) {
+    startPanOrClickGesture(e, () => {
+      if (!state.selectedObjectId && !_selectionBox) return;
       state.selectedObjectId = null;
+      clearSelectionBox();
       renderViewport();
       hooks.renderProperties();
-    }
-
-    // Start drag-to-create
-    const { gx, gy } = pxToGrid(e.clientX, e.clientY);
-    const { cols, rows } = getSceneGrid();
-    const startCol = clampGrid(snapToGrid(gx), cols - 1);
-    const startRow = clampGrid(snapToGrid(gy), rows - 1);
-
-    clearSelectionBox();
-
-    function onMove(ev) {
-      const { gx: cx, gy: cy } = pxToGrid(ev.clientX, ev.clientY);
-      const endCol = clampGrid(snapToGrid(cx), cols);
-      const endRow = clampGrid(snapToGrid(cy), rows);
-
-      const x = Math.min(startCol, endCol);
-      const y = Math.min(startRow, endRow);
-      const w = Math.max(1, Math.abs(endCol - startCol));
-      const h = Math.max(1, Math.abs(endRow - startRow));
-
-      _selectionBox = { x, y, w, h };
-      renderSelectionBoxEl();
-    }
-
-    function onUp() {
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      // If the user just clicked (no drag), clear selection box
-      if (!_selectionBox || (_selectionBox.w <= 0 && _selectionBox.h <= 0)) {
-        clearSelectionBox();
-      }
-    }
-
-    document.body.style.cursor = 'crosshair';
-    document.body.style.userSelect = 'none';
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
+    });
   });
 
-  // Right-click on viewport background (not on an object or selection) — context menu
-  vp.addEventListener('contextmenu', (e) => {
-    // Let object/selection box handlers take priority (they stopPropagation)
+  // Wheel zoom is bound to the wrapper so it still works in the outer deadzone.
+  wrapEl.addEventListener('wheel', (e) => {
+    if (!isActiveSceneData()) return;
+    e.preventDefault();
+    const nextZoom = _viewportCamera.zoom * Math.exp(-e.deltaY * ZOOM_SENSITIVITY);
+    zoomViewportAt(e.clientX, e.clientY, nextZoom);
+  }, { passive: false });
+
+  sceneEl.addEventListener('mousedown', (e) => {
+    if (e.button !== 2) return;
+    if (!isActiveSceneData()) return;
+    if (e.target !== sceneEl) return;
+    startSelectionDrag(e);
+  });
+
+  wrapEl.addEventListener('contextmenu', (e) => {
     e.preventDefault();
   });
 }
