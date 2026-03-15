@@ -30,6 +30,13 @@ export function createActionRenderers(openActionEditor, {
   let choiceDragState = null;
   let choiceDragAutoScrollRaf = 0;
 
+  function preventMouseFocus(button) {
+    button.addEventListener('mousedown', (event) => {
+      event.preventDefault();
+    });
+    return button;
+  }
+
   function getRootEditorState(viewCtx = {}) {
     return viewCtx.editorState?.rootEditorState || viewCtx.editorState || null;
   }
@@ -181,6 +188,7 @@ export function createActionRenderers(openActionEditor, {
 
           const addBtn = document.createElement('button');
           addBtn.className = 'ae-header-btn ae-add-btn';
+          preventMouseFocus(addBtn);
           addBtn.type = 'button';
           addBtn.title = 'Add action';
           addBtn.innerHTML = '<span class="material-symbols-outlined">add</span>';
@@ -191,6 +199,7 @@ export function createActionRenderers(openActionEditor, {
 
           const cloneBtn = document.createElement('button');
           cloneBtn.className = 'ae-header-btn ae-clone-btn';
+          preventMouseFocus(cloneBtn);
           cloneBtn.type = 'button';
           cloneBtn.title = 'Clone option';
           cloneBtn.innerHTML = '<span class="material-symbols-outlined">content_copy</span>';
@@ -202,6 +211,7 @@ export function createActionRenderers(openActionEditor, {
 
           const editBtn = document.createElement('button');
           editBtn.className = 'ae-header-btn ae-edit-btn';
+          preventMouseFocus(editBtn);
           editBtn.type = 'button';
           editBtn.title = 'Edit option text';
           editBtn.innerHTML = '<span class="material-symbols-outlined">edit</span>';
@@ -212,6 +222,7 @@ export function createActionRenderers(openActionEditor, {
 
           const deleteBtn = document.createElement('button');
           deleteBtn.className = 'ae-header-btn ae-delete-btn';
+          preventMouseFocus(deleteBtn);
           deleteBtn.type = 'button';
           deleteBtn.title = 'Delete option';
           deleteBtn.innerHTML = '<span class="material-symbols-outlined">delete</span>';
@@ -266,6 +277,10 @@ export function createActionRenderers(openActionEditor, {
 
       editBtn.title = 'Edit option text';
       editBtn.innerHTML = '<span class="material-symbols-outlined">edit</span>';
+
+      // Clicking the apply button moves focus onto it, which would keep the
+      // header in :focus-within and leave the action buttons stuck visible.
+      if (document.activeElement === editBtn) editBtn.blur();
     };
 
     editBtn.title = 'Apply option text';

@@ -100,6 +100,25 @@
   align-items: center;
   gap: 2px;
   flex-shrink: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.ae-block-header > .ae-header-actions,
+.ae-choice-option-header > .ae-header-actions {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.ae-block-header:hover > .ae-header-actions,
+.ae-block-header:focus-within > .ae-header-actions,
+.ae-choice-option-header:hover > .ae-header-actions,
+.ae-choice-option-header:focus-within > .ae-header-actions {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 /* ── Action body ───────────────────────────────── */

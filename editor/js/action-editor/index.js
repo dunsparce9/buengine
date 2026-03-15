@@ -31,6 +31,13 @@ const renderers = createActionRenderers(openActionEditor, {
 const forms = createFormBuilders(openActionEditor);
 const drag = createDragController({ moveActionBetweenEditors });
 
+function preventMouseFocus(button) {
+  button.addEventListener('mousedown', (event) => {
+    event.preventDefault();
+  });
+  return button;
+}
+
 export function openActionEditor(title, actions, opts = {}) {
   const displayTitle = title || 'Actions';
   const editorKey = getEditorKey(displayTitle, actions, opts);
@@ -237,6 +244,7 @@ function buildEditableBlock(action, index, ctx) {
 
   const cloneBtn = document.createElement('button');
   cloneBtn.className = 'ae-header-btn ae-clone-btn';
+  preventMouseFocus(cloneBtn);
   cloneBtn.title = 'Clone';
   cloneBtn.innerHTML = '<span class="material-symbols-outlined">content_copy</span>';
   cloneBtn.addEventListener('click', (event) => {
@@ -246,6 +254,7 @@ function buildEditableBlock(action, index, ctx) {
 
   const editBtn = document.createElement('button');
   editBtn.className = 'ae-header-btn ae-edit-btn';
+  preventMouseFocus(editBtn);
   editBtn.title = isEditing ? 'Done' : 'Edit';
   editBtn.innerHTML = `<span class="material-symbols-outlined">${isEditing ? 'check' : 'edit'}</span>`;
   editBtn.addEventListener('click', (event) => {
@@ -255,6 +264,7 @@ function buildEditableBlock(action, index, ctx) {
 
   const delBtn = document.createElement('button');
   delBtn.className = 'ae-header-btn ae-delete-btn';
+  preventMouseFocus(delBtn);
   delBtn.title = 'Delete';
   delBtn.innerHTML = '<span class="material-symbols-outlined">delete</span>';
   delBtn.addEventListener('click', (event) => {
@@ -267,6 +277,7 @@ function buildEditableBlock(action, index, ctx) {
   if (type === 'choice') {
     const addBtn = document.createElement('button');
     addBtn.className = 'ae-header-btn ae-add-btn';
+    preventMouseFocus(addBtn);
     addBtn.title = 'Add choice';
     addBtn.innerHTML = '<span class="material-symbols-outlined">add</span>';
     addBtn.addEventListener('click', (event) => {
