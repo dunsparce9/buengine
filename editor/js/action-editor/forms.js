@@ -14,7 +14,6 @@ export function createFormBuilders(openActionEditor) {
     }
 
     if (type === 'set') form.appendChild(buildSetEditor(action, ctx));
-    if (type === 'choice') form.appendChild(buildChoiceEditor(action, ctx));
     if (type === 'if') form.appendChild(buildIfBranchesEditor(action, ctx));
     if (type === 'loop') form.appendChild(buildLoopEditor(action, ctx));
 
@@ -231,84 +230,6 @@ export function createFormBuilders(openActionEditor) {
         let suffix = 1;
         while (action.set[name]) name = `new_flag_${suffix++}`;
         action.set[name] = true;
-        ctx.onFieldChange();
-        render();
-      });
-      wrap.appendChild(addBtn);
-    }
-
-    render();
-    return wrap;
-  }
-
-  function buildChoiceEditor(action, ctx) {
-    const wrap = document.createElement('div');
-    wrap.className = 'ae-choice-editor';
-    if (!action.choice) action.choice = { prompt: '', options: [] };
-    if (!action.choice.options) action.choice.options = [];
-
-    function render() {
-      wrap.innerHTML = '';
-      const choiceOptions = action.choice.options;
-      for (let i = 0; i < choiceOptions.length; i++) {
-        const opt = choiceOptions[i];
-        const row = document.createElement('div');
-        row.className = 'ae-choice-edit-option';
-
-        const header = document.createElement('div');
-        header.className = 'ae-choice-edit-option-header';
-
-        const badge = document.createElement('span');
-        badge.className = 'ae-choice-option-idx';
-        badge.textContent = i + 1;
-
-        const textInput = document.createElement('input');
-        textInput.type = 'text';
-        textInput.className = 'ae-field-input';
-        textInput.value = opt.text || '';
-        textInput.placeholder = 'Option text';
-        textInput.addEventListener('input', () => {
-          opt.text = textInput.value;
-          ctx.onFieldChange();
-        });
-
-        const actionsBtn = document.createElement('button');
-        actionsBtn.className = 'ae-mini-btn';
-        actionsBtn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${opt.actions?.length || 0}`;
-        actionsBtn.title = 'Edit option actions';
-        actionsBtn.addEventListener('click', () => {
-          if (!opt.actions) opt.actions = [];
-          openActionEditor(`Option ${i + 1}: ${opt.text || '…'}`, opt.actions, {
-            onChange() {
-              ctx.onFieldChange();
-              actionsBtn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${opt.actions.length}`;
-            },
-            sceneId: ctx.opts.sceneId,
-            sceneData: ctx.opts.sceneData,
-            markDirty: ctx.opts.markDirty,
-            focusScene: ctx.opts.focusScene,
-          });
-        });
-
-        const removeBtn = document.createElement('button');
-        removeBtn.className = 'ae-mini-btn ae-mini-btn-danger';
-        removeBtn.innerHTML = '<span class="material-symbols-outlined">close</span>';
-        removeBtn.addEventListener('click', () => {
-          choiceOptions.splice(i, 1);
-          ctx.onFieldChange();
-          render();
-        });
-
-        header.append(badge, textInput, actionsBtn, removeBtn);
-        row.appendChild(header);
-        wrap.appendChild(row);
-      }
-
-      const addBtn = document.createElement('button');
-      addBtn.className = 'ae-mini-btn';
-      addBtn.innerHTML = '<span class="material-symbols-outlined">add</span> Add option';
-      addBtn.addEventListener('click', () => {
-        choiceOptions.push({ text: '', actions: [] });
         ctx.onFieldChange();
         render();
       });

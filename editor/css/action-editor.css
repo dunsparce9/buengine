@@ -13,12 +13,6 @@
   gap: 4px;
 }
 
-.ae-list.ae-nested {
-  margin-left: 16px;
-  padding-left: 8px;
-  border-left: 2px solid #3c3836;
-}
-
 /* ── Action block ──────────────────────────────── */
 
 .ae-block {
@@ -138,8 +132,13 @@
   margin-bottom: 6px;
 }
 
+.ae-choice-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .ae-choice-option {
-  margin-bottom: 4px;
   border-radius: 3px;
   background: rgba(211, 134, 155, 0.06);
   border: 1px solid #3c3836;
@@ -152,6 +151,10 @@
   gap: 6px;
   padding: 4px 8px;
   background: rgba(211, 134, 155, 0.08);
+}
+
+.ae-choice-drag-handle {
+  font-size: 13px;
 }
 
 .ae-choice-option-idx {
@@ -171,11 +174,14 @@
   font-size: 12px;
   color: #ebdbb2;
   font-weight: 500;
+  min-width: 0;
+  flex: 1;
 }
 
-.ae-choice-option > .ae-list.ae-nested {
-  margin: 4px 4px 6px 12px;
-  border-left-color: rgba(211, 134, 155, 0.3);
+.ae-choice-option-text-input {
+  min-width: 0;
+  font-size: 12px;
+  padding: 2px 6px;
 }
 
 /* Set flag */
@@ -343,6 +349,7 @@ button.ae-chip:hover {
 .ae-header-btn .material-symbols-outlined { font-size: 14px; }
 .ae-header-btn:hover { background: #3c3836; color: #ebdbb2; }
 
+.ae-add-btn:hover { color: #8ec07c; }
 .ae-clone-btn:hover { color: #fabd2f; }
 .ae-edit-btn:hover { color: #83a598; }
 .ae-delete-btn:hover { color: #fb4934; }
@@ -494,30 +501,6 @@ button.ae-chip:hover {
 .ae-set-edit-row .ae-field-input:first-child { flex: 2; }
 .ae-set-edit-row .ae-field-input:nth-child(2) { flex: 3; }
 
-/* ── Action viewer: choice editor ──────────────── */
-
-.ae-choice-editor {
-  padding: 4px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.ae-choice-edit-option {
-  border: 1px solid #3c3836;
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.ae-choice-edit-option-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 6px;
-  background: rgba(211, 134, 155, 0.06);
-}
-.ae-choice-edit-option-header .ae-field-input { flex: 1; }
-
 /* ── Action viewer: if branches editor ─────────── */
 
 .ae-if-editor {
@@ -590,6 +573,14 @@ button.ae-chip:hover {
 }
 
 .ae-block.ae-drag-source-hidden {
+  display: none;
+}
+
+.ae-choice-option.ae-dragging {
+  opacity: 0.35;
+}
+
+.ae-choice-option.ae-drag-source-hidden {
   display: none;
 }
 

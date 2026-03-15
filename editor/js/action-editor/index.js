@@ -20,7 +20,14 @@ import { createActionRenderers, getBadges, renderCollapsedSummary } from './rend
 import { createFormBuilders } from './forms.js';
 import { createDragController } from './drag.js';
 
-const renderers = createActionRenderers(openActionEditor, buildReadOnlyList);
+const inlineEditorStates = new WeakMap();
+
+const renderers = createActionRenderers(openActionEditor, {
+  buildReadOnlyList,
+  buildNestedList,
+  pickActionType,
+  createDefaultAction,
+});
 const forms = createFormBuilders(openActionEditor);
 const drag = createDragController({ moveActionBetweenEditors });
 
@@ -55,6 +62,7 @@ export function openActionEditor(title, actions, opts = {}) {
       buildEditorContent(fw.body, editorState);
     },
   };
+  editorState.rootEditorState = editorState;
 
   setOpenEditor(editorKey, editorState);
   fw.onClose(() => deleteOpenEditor(editorKey));
@@ -256,6 +264,22 @@ function buildEditableBlock(action, index, ctx) {
 
   const actions = document.createElement('div');
   actions.className = 'ae-header-actions';
+  if (type === 'choice') {
+    const addBtn = document.createElement('button');
+    addBtn.className = 'ae-header-btn ae-add-btn';
+    addBtn.title = 'Add choice';
+    addBtn.innerHTML = '<span class="material-symbols-outlined">add</span>';
+    addBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      if (!action.choice || typeof action.choice !== 'object') action.choice = { prompt: '', options: [] };
+      if (!Array.isArray(action.choice.options)) action.choice.options = [];
+      action.choice.options.push({ text: '', actions: [] });
+      notifyEditorChange(ctx.editorState);
+      ctx.editorState.rebuild();
+    });
+    actions.appendChild(addBtn);
+  }
+
   actions.append(cloneBtn, editBtn, delBtn);
 
   header.appendChild(actions);
@@ -264,7 +288,10 @@ function buildEditableBlock(action, index, ctx) {
   if (isEditing) {
     block.appendChild(forms.buildEditForm(action, type, ctx));
   } else if (!isCollapsed) {
-    const body = renderers.renderActionBody(action, type, ctx.opts);
+    const body = renderers.renderActionBody(action, type, {
+      ...ctx.opts,
+      editorState: ctx.editorState,
+    });
     if (body) block.appendChild(body);
   }
 
@@ -308,6 +335,38 @@ function buildReadOnlyList(actions, viewCtx = {}) {
     container.appendChild(block);
   }
   return container;
+}
+
+function buildNestedList(actions, parentEditorState, viewCtx = {}) {
+  const editorState = getInlineEditorState(actions, parentEditorState, viewCtx);
+  return buildEditableList(editorState);
+}
+
+function getInlineEditorState(actions, parentEditorState, viewCtx = {}) {
+  let editorState = inlineEditorStates.get(actions);
+  if (!editorState) {
+    editorState = {
+      key: actions,
+      actions,
+      opts: {},
+      collapsed: false,
+      editingIdx: null,
+      rebuild() {
+        editorState.rootEditorState?.rebuild();
+      },
+    };
+    inlineEditorStates.set(actions, editorState);
+  }
+
+  const rootEditorState = parentEditorState.rootEditorState || parentEditorState;
+  editorState.actions = actions;
+  editorState.opts = {
+    ...rootEditorState.opts,
+    ...viewCtx,
+  };
+  editorState.collapsed = rootEditorState.collapsed;
+  editorState.rootEditorState = rootEditorState;
+  return editorState;
 }
 
 function pickActionType(parentFw) {

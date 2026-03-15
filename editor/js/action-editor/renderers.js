@@ -1,4 +1,5 @@
 import { escapeHtml } from '../state.js';
+import { cloneAction, notifyEditorChange } from './utils.js';
 
 function getSceneSequences(viewCtx = {}) {
   return viewCtx.sceneData?.sequences || viewCtx.sceneData?.definitions || null;
@@ -20,7 +21,57 @@ function renderRudimentaryMarkdown(text) {
   return html.replace(/\n/g, '<br>');
 }
 
-export function createActionRenderers(openActionEditor, buildReadOnlyList) {
+export function createActionRenderers(openActionEditor, {
+  buildReadOnlyList,
+  buildNestedList,
+  pickActionType,
+  createDefaultAction,
+}) {
+  let choiceDragState = null;
+  let choiceDragAutoScrollRaf = 0;
+
+  function getRootEditorState(viewCtx = {}) {
+    return viewCtx.editorState?.rootEditorState || viewCtx.editorState || null;
+  }
+
+  function notifyInlineEdit(viewCtx = {}) {
+    const rootEditorState = getRootEditorState(viewCtx);
+    if (!rootEditorState) return;
+    notifyEditorChange(rootEditorState);
+  }
+
+  function commitInlineEdit(viewCtx = {}) {
+    const rootEditorState = getRootEditorState(viewCtx);
+    if (!rootEditorState) return;
+    notifyInlineEdit(viewCtx);
+    rootEditorState.rebuild();
+  }
+
+  function createChoiceOption() {
+    return { text: '', actions: [] };
+  }
+
+  function ensureChoiceOptions(choice) {
+    if (!Array.isArray(choice.options)) choice.options = [];
+    return choice.options;
+  }
+
+  async function addChoiceOptionAction(opt, viewCtx = {}) {
+    if (!Array.isArray(opt.actions)) opt.actions = [];
+    const rootEditorState = getRootEditorState(viewCtx);
+    const type = await pickActionType?.(rootEditorState?.fw);
+    if (!type) return;
+    opt.actions.push(createDefaultAction(type));
+    commitInlineEdit(viewCtx);
+  }
+
+  function buildActionList(actions, viewCtx = {}) {
+    if (viewCtx.editorState && typeof buildNestedList === 'function') {
+      return buildNestedList(actions, viewCtx.editorState, viewCtx);
+    }
+    return buildReadOnlyList(actions, viewCtx);
+  }
+
   function getForkSequenceName(forkDef) {
     if (typeof forkDef === 'string') return forkDef;
     if (typeof forkDef?.run === 'string') return forkDef.run;
@@ -43,7 +94,9 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
   function renderActionBody(action, type, viewCtx = {}) {
     switch (type) {
       case 'say': return renderSay(action);
-      case 'choice': return renderChoice(action.choice, viewCtx);
+      case 'choice':
+        if (!action.choice || typeof action.choice !== 'object') action.choice = { prompt: '', options: [] };
+        return renderChoice(action.choice, viewCtx);
       case 'goto': return renderGotoChip(action.goto, '#8ec07c', viewCtx);
       case 'set': return renderSet(action.set);
       case 'if': return renderIf(action, viewCtx);
@@ -90,26 +143,320 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
       prompt.textContent = choice.prompt;
       body.appendChild(prompt);
     }
-    if (Array.isArray(choice.options)) {
-      for (let i = 0; i < choice.options.length; i++) {
-        const opt = choice.options[i];
+    const options = ensureChoiceOptions(choice);
+    if (options.length > 0) {
+      const optionsWrap = document.createElement('div');
+      optionsWrap.className = 'ae-choice-options';
+
+      for (let i = 0; i < options.length; i++) {
+        const opt = options[i];
         const optBlock = document.createElement('div');
         optBlock.className = 'ae-choice-option';
+        optBlock.dataset.choiceIndex = i;
+
         const optHeader = document.createElement('div');
         optHeader.className = 'ae-choice-option-header';
-        optHeader.innerHTML =
-          `<span class="ae-choice-option-idx">${escapeHtml(String(i + 1))}</span>` +
-          `<span class="ae-choice-option-text">${escapeHtml(opt.text || '—')}</span>`;
+
+        const dragHandle = document.createElement('span');
+        dragHandle.className = 'ae-drag-handle ae-choice-drag-handle material-symbols-outlined';
+        dragHandle.textContent = 'drag_indicator';
+        dragHandle.title = 'Drag to reorder';
+        dragHandle.addEventListener('mousedown', (event) => {
+          beginChoiceOptionDrag(event, optBlock, optHeader, choice, i, viewCtx);
+        });
+
+        const idx = document.createElement('span');
+        idx.className = 'ae-choice-option-idx';
+        idx.textContent = i + 1;
+
+        const text = document.createElement('span');
+        text.className = 'ae-choice-option-text';
+        text.textContent = opt.text || '—';
+
+        optHeader.append(dragHandle, idx, text);
+
+        if (viewCtx.editorState) {
+          const headerActions = document.createElement('div');
+          headerActions.className = 'ae-header-actions';
+
+          const addBtn = document.createElement('button');
+          addBtn.className = 'ae-header-btn ae-add-btn';
+          addBtn.type = 'button';
+          addBtn.title = 'Add action';
+          addBtn.innerHTML = '<span class="material-symbols-outlined">add</span>';
+          addBtn.addEventListener('click', async (event) => {
+            event.stopPropagation();
+            await addChoiceOptionAction(opt, viewCtx);
+          });
+
+          const cloneBtn = document.createElement('button');
+          cloneBtn.className = 'ae-header-btn ae-clone-btn';
+          cloneBtn.type = 'button';
+          cloneBtn.title = 'Clone option';
+          cloneBtn.innerHTML = '<span class="material-symbols-outlined">content_copy</span>';
+          cloneBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            choice.options.splice(i + 1, 0, cloneAction(opt));
+            commitInlineEdit(viewCtx);
+          });
+
+          const editBtn = document.createElement('button');
+          editBtn.className = 'ae-header-btn ae-edit-btn';
+          editBtn.type = 'button';
+          editBtn.title = 'Edit option text';
+          editBtn.innerHTML = '<span class="material-symbols-outlined">edit</span>';
+          editBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            beginChoiceTextEdit(opt, optHeader, editBtn, viewCtx);
+          });
+
+          const deleteBtn = document.createElement('button');
+          deleteBtn.className = 'ae-header-btn ae-delete-btn';
+          deleteBtn.type = 'button';
+          deleteBtn.title = 'Delete option';
+          deleteBtn.innerHTML = '<span class="material-symbols-outlined">delete</span>';
+          deleteBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            choice.options.splice(i, 1);
+            commitInlineEdit(viewCtx);
+          });
+
+          headerActions.append(addBtn, cloneBtn, editBtn, deleteBtn);
+          optHeader.appendChild(headerActions);
+        }
+
         optBlock.appendChild(optHeader);
         if (Array.isArray(opt.actions) && opt.actions.length > 0) {
-          const nested = buildReadOnlyList(opt.actions, viewCtx);
-          nested.className += ' ae-nested';
+          const nested = buildActionList(opt.actions, viewCtx);
           optBlock.appendChild(nested);
         }
-        body.appendChild(optBlock);
+        optionsWrap.appendChild(optBlock);
       }
+
+      body.appendChild(optionsWrap);
     }
     return body;
+  }
+
+  function beginChoiceTextEdit(opt, optHeader, editBtn, viewCtx = {}) {
+    if (!optHeader?.isConnected) return;
+    if (optHeader.querySelector('.ae-choice-option-text-input')) return;
+
+    const textEl = optHeader.querySelector('.ae-choice-option-text');
+    if (!textEl) return;
+
+    const currentText = opt.text || '';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'ae-field-input ae-choice-option-text-input';
+    input.value = currentText;
+    input.placeholder = 'Choice text';
+
+    const finish = (mode = 'commit') => {
+      if (!input.isConnected) return;
+      const nextText = mode === 'cancel' ? currentText : input.value;
+      opt.text = nextText;
+      notifyInlineEdit(viewCtx);
+      editBtn.onclick = null;
+
+      const nextTextEl = document.createElement('span');
+      nextTextEl.className = 'ae-choice-option-text';
+      nextTextEl.textContent = nextText || '—';
+      input.replaceWith(nextTextEl);
+
+      editBtn.title = 'Edit option text';
+      editBtn.innerHTML = '<span class="material-symbols-outlined">edit</span>';
+    };
+
+    editBtn.title = 'Apply option text';
+    editBtn.innerHTML = '<span class="material-symbols-outlined">check</span>';
+    editBtn.onclick = (event) => {
+      event.stopPropagation();
+      finish('commit');
+      editBtn.onclick = null;
+    };
+
+    input.addEventListener('click', (event) => event.stopPropagation());
+    input.addEventListener('input', () => {
+      opt.text = input.value;
+      notifyInlineEdit(viewCtx);
+    });
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        finish('commit');
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        finish('cancel');
+      }
+    });
+    input.addEventListener('blur', () => finish('commit'));
+
+    textEl.replaceWith(input);
+    input.focus();
+    input.select();
+  }
+
+  function beginChoiceOptionDrag(event, optionEl, optionHeader, choice, optionIdx, viewCtx = {}) {
+    if (event.button !== 0) return;
+    const optionsContainer = optionEl.parentNode;
+    if (!optionsContainer) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    cancelChoiceOptionDrag();
+
+    const headerRect = optionHeader.getBoundingClientRect();
+    choiceDragState = {
+      choice,
+      sourceIdx: optionIdx,
+      sourceEl: optionEl,
+      container: optionsContainer,
+      dropIdx: optionIdx,
+      indicator: null,
+      previewEl: createChoiceOptionDragPreview(optionHeader, headerRect),
+      clientX: event.clientX,
+      clientY: event.clientY,
+      previewOffsetX: event.clientX - headerRect.left,
+      previewOffsetY: event.clientY - headerRect.top,
+      scrollHost: optionEl.closest('.fw-body'),
+      viewCtx,
+    };
+
+    optionEl.classList.add('ae-dragging', 'ae-drag-source-hidden');
+    document.body.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onChoiceOptionDragMove);
+    document.addEventListener('mouseup', onChoiceOptionDragEnd);
+    updateChoiceOptionDragTarget(event.clientX, event.clientY);
+    scheduleChoiceOptionDragAutoScroll();
+  }
+
+  function onChoiceOptionDragMove(event) {
+    if (!choiceDragState) return;
+    choiceDragState.clientX = event.clientX;
+    choiceDragState.clientY = event.clientY;
+    updateChoiceOptionDragTarget(event.clientX, event.clientY);
+  }
+
+  function onChoiceOptionDragEnd() {
+    if (!choiceDragState) return;
+    const { choice, sourceIdx, dropIdx, viewCtx } = choiceDragState;
+    cancelChoiceOptionDrag();
+    if (!Number.isInteger(dropIdx) || dropIdx === sourceIdx || dropIdx === sourceIdx + 1) return;
+
+    const options = ensureChoiceOptions(choice);
+    const [moved] = options.splice(sourceIdx, 1);
+    let insertIdx = dropIdx;
+    if (sourceIdx < insertIdx) insertIdx--;
+    options.splice(insertIdx, 0, moved);
+    commitInlineEdit(viewCtx);
+  }
+
+  function cancelChoiceOptionDrag() {
+    if (!choiceDragState) return;
+    if (choiceDragState.sourceEl) {
+      choiceDragState.sourceEl.classList.remove('ae-dragging', 'ae-drag-source-hidden');
+    }
+    if (choiceDragState.previewEl?.parentNode) choiceDragState.previewEl.remove();
+    if (choiceDragState.indicator?.parentNode) choiceDragState.indicator.remove();
+
+    document.removeEventListener('mousemove', onChoiceOptionDragMove);
+    document.removeEventListener('mouseup', onChoiceOptionDragEnd);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+
+    if (choiceDragAutoScrollRaf) {
+      cancelAnimationFrame(choiceDragAutoScrollRaf);
+      choiceDragAutoScrollRaf = 0;
+    }
+
+    choiceDragState = null;
+  }
+
+  function updateChoiceOptionDragTarget(clientX, clientY) {
+    if (!choiceDragState) return;
+    updateChoiceOptionDragPreviewPosition(clientX, clientY);
+
+    const pointEl = document.elementFromPoint(clientX, clientY);
+    const container = pointEl?.closest('.ae-choice-options');
+    if (!container || container !== choiceDragState.container) return;
+
+    const blocks = Array.from(container.children).filter((child) =>
+      child.classList?.contains('ae-choice-option') && child !== choiceDragState.sourceEl
+    );
+
+    let dropIdx = choiceDragState.choice.options.length;
+    for (const block of blocks) {
+      const rect = block.getBoundingClientRect();
+      const blockIdx = parseInt(block.dataset.choiceIndex, 10);
+      if (!Number.isInteger(blockIdx)) continue;
+      if (clientY < rect.top + rect.height / 2) {
+        dropIdx = blockIdx;
+        break;
+      }
+      dropIdx = blockIdx + 1;
+    }
+
+    choiceDragState.dropIdx = dropIdx;
+    showChoiceOptionDragIndicator(container, dropIdx);
+  }
+
+  function showChoiceOptionDragIndicator(container, dropIdx) {
+    if (!choiceDragState) return;
+    if (!choiceDragState.indicator) {
+      choiceDragState.indicator = document.createElement('div');
+      choiceDragState.indicator.className = 'ae-drop-indicator';
+    }
+
+    const blocks = Array.from(container.children).filter((child) =>
+      child.classList?.contains('ae-choice-option') && child !== choiceDragState.sourceEl
+    );
+    const beforeNode = blocks.find((block) => parseInt(block.dataset.choiceIndex, 10) >= dropIdx) || null;
+    container.insertBefore(choiceDragState.indicator, beforeNode);
+  }
+
+  function createChoiceOptionDragPreview(header, rect) {
+    const preview = header.cloneNode(true);
+    preview.classList.add('ae-drag-preview');
+    preview.style.width = `${Math.ceil(rect.width)}px`;
+    document.body.appendChild(preview);
+    return preview;
+  }
+
+  function updateChoiceOptionDragPreviewPosition(clientX, clientY) {
+    if (!choiceDragState?.previewEl) return;
+    choiceDragState.previewEl.style.left = `${Math.round(clientX - choiceDragState.previewOffsetX)}px`;
+    choiceDragState.previewEl.style.top = `${Math.round(clientY - choiceDragState.previewOffsetY)}px`;
+  }
+
+  function scheduleChoiceOptionDragAutoScroll() {
+    if (choiceDragAutoScrollRaf) return;
+
+    const step = () => {
+      choiceDragAutoScrollRaf = 0;
+      if (!choiceDragState) return;
+
+      const host = choiceDragState.scrollHost;
+      if (host) {
+        const rect = host.getBoundingClientRect();
+        const zone = Math.max(36, Math.min(72, rect.height * 0.18));
+        let delta = 0;
+        if (choiceDragState.clientY < rect.top + zone) {
+          delta = -Math.ceil((rect.top + zone - choiceDragState.clientY) / 8);
+        } else if (choiceDragState.clientY > rect.bottom - zone) {
+          delta = Math.ceil((choiceDragState.clientY - (rect.bottom - zone)) / 8);
+        }
+        if (delta !== 0) {
+          host.scrollTop += delta;
+          updateChoiceOptionDragTarget(choiceDragState.clientX, choiceDragState.clientY);
+        }
+      }
+
+      if (choiceDragState) scheduleChoiceOptionDragAutoScroll();
+    };
+
+    choiceDragAutoScrollRaf = requestAnimationFrame(step);
   }
 
   function renderSet(setObj) {
@@ -152,8 +499,7 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
       thenLabel.className = 'ae-branch-label ae-branch-then';
       thenLabel.textContent = 'then';
       body.appendChild(thenLabel);
-      const thenList = buildReadOnlyList(action.then, viewCtx);
-      thenList.className += ' ae-nested';
+      const thenList = buildActionList(action.then, viewCtx);
       body.appendChild(thenList);
     }
     if (Array.isArray(action.else) && action.else.length > 0) {
@@ -161,8 +507,7 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
       elseLabel.className = 'ae-branch-label ae-branch-else';
       elseLabel.textContent = 'else';
       body.appendChild(elseLabel);
-      const elseList = buildReadOnlyList(action.else, viewCtx);
-      elseList.className += ' ae-nested';
+      const elseList = buildActionList(action.else, viewCtx);
       body.appendChild(elseList);
     }
     return body;
@@ -181,8 +526,7 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
       doLabel.className = 'ae-branch-label ae-branch-loop';
       doLabel.textContent = 'do';
       body.appendChild(doLabel);
-      const doList = buildReadOnlyList(loopActions, viewCtx);
-      doList.className += ' ae-nested';
+      const doList = buildActionList(loopActions, viewCtx);
       body.appendChild(doList);
     }
     return body;
@@ -367,8 +711,7 @@ export function createActionRenderers(openActionEditor, buildReadOnlyList) {
       label.className = 'ae-branch-label ae-branch-then';
       label.textContent = 'background';
       body.appendChild(label);
-      const list = buildReadOnlyList(forkDef.actions, viewCtx);
-      list.className += ' ae-nested';
+      const list = buildActionList(forkDef.actions, viewCtx);
       body.appendChild(list);
       return body;
     }
