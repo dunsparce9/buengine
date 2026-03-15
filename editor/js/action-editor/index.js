@@ -64,6 +64,7 @@ export function openActionEditor(title, actions, opts = {}) {
     opts,
     collapsed: true,
     editingIdx: null,
+    pendingRevealIdx: null,
     rebuild() {
       fw.body.innerHTML = '';
       buildEditorContent(fw.body, editorState);
@@ -126,7 +127,10 @@ function buildEditorContent(container, editorState) {
     onAdd: async () => {
       const type = await pickActionType(editorState.fw);
       if (!type) return;
+      const nextIdx = editorState.actions.length;
       editorState.actions.push(createDefaultAction(type));
+      editorState.editingIdx = nextIdx;
+      editorState.pendingRevealIdx = nextIdx;
       notifyEditorChange(editorState);
       editorState.rebuild();
     },
@@ -190,7 +194,28 @@ function buildEditableList(editorState) {
 
   renderBlocks();
   registerEditableList(container, editorState);
+  revealPendingAction(container, editorState);
   return container;
+}
+
+function revealPendingAction(container, editorState) {
+  if (editorState.pendingRevealIdx == null) return;
+  const targetIdx = editorState.pendingRevealIdx;
+  editorState.pendingRevealIdx = null;
+
+  requestAnimationFrame(() => {
+    const block = container.querySelector(`.ae-block[data-index="${targetIdx}"]`);
+    if (!block) return;
+
+    block.scrollIntoView({ block: 'end', behavior: 'smooth' });
+
+    const field = block.querySelector('input:not([type="checkbox"]), textarea, select, input[type="checkbox"]');
+    if (!field) return;
+    field.focus();
+    if (typeof field.select === 'function' && field.tagName !== 'SELECT' && field.type !== 'checkbox') {
+      field.select();
+    }
+  });
 }
 
 function buildEditableBlock(action, index, ctx) {
@@ -362,6 +387,7 @@ function getInlineEditorState(actions, parentEditorState, viewCtx = {}) {
       opts: {},
       collapsed: false,
       editingIdx: null,
+      pendingRevealIdx: null,
       rebuild() {
         editorState.rootEditorState?.rebuild();
       },
