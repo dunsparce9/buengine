@@ -51,7 +51,7 @@ export const ACTION_TYPES = {
     fields: [
       { key: 'choice.prompt', label: 'Prompt', type: 'string' },
     ],
-    defaults: { choice: { prompt: '', options: [{ text: '', actions: [] }] } },
+    defaults: { choice: { prompt: '', options: [] } },
   },
 
   goto: {

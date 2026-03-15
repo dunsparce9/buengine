@@ -157,6 +157,10 @@
   gap: 4px;
 }
 
+.ae-choice-empty {
+  padding: 10px 12px;
+}
+
 .ae-choice-option {
   border-radius: 3px;
   background: rgba(211, 134, 155, 0.06);

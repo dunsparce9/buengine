@@ -54,10 +54,6 @@ export function createActionRenderers(openActionEditor, {
     rootEditorState.rebuild();
   }
 
-  function createChoiceOption() {
-    return { text: '', actions: [] };
-  }
-
   function ensureChoiceOptions(choice) {
     if (!Array.isArray(choice.options)) choice.options = [];
     return choice.options;
@@ -77,6 +73,13 @@ export function createActionRenderers(openActionEditor, {
       return buildNestedList(actions, viewCtx.editorState, viewCtx);
     }
     return buildReadOnlyList(actions, viewCtx);
+  }
+
+  function createChoiceEmptyState(text) {
+    const empty = document.createElement('div');
+    empty.className = 'ae-empty ae-choice-empty';
+    empty.textContent = text;
+    return empty;
   }
 
   function getForkSequenceName(forkDef) {
@@ -240,11 +243,15 @@ export function createActionRenderers(openActionEditor, {
         if (Array.isArray(opt.actions) && opt.actions.length > 0) {
           const nested = buildActionList(opt.actions, viewCtx);
           optBlock.appendChild(nested);
+        } else if (viewCtx.editorState) {
+          optBlock.appendChild(createChoiceEmptyState("Nothing interesting happens. Hover this option's header and click '+' to add actions."));
         }
         optionsWrap.appendChild(optBlock);
       }
 
       body.appendChild(optionsWrap);
+    } else if (viewCtx.editorState) {
+      body.appendChild(createChoiceEmptyState("No options. Hover this block's title and click '+' to add an option."));
     }
     return body;
   }
