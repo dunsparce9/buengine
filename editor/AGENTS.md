@@ -3,10 +3,10 @@ description: Instructions for the büengine visual level editor.
 applyTo: "editor/**"
 ---
 
-# büengine Editor — Agent Instructions
+# büengine Editor
 
 ## Overview
-The editor is a **browser-only visual level editor** for büengine JSON scripts. It lives entirely inside `editor/` and is opened via `editor/index.html`. Like the game engine, there is no build step — just vanilla ES modules and static files.
+A visual level editor for büengine games. It lives entirely inside `editor/` and is opened via `editor/index.html`. Like the game engine, there is no build step — just vanilla ES modules and static files.
 
 It edits real folders on disk through the browser's File System Access API and keeps unsaved changes in memory until the user saves. The editor is a separate app from the runtime, but it intentionally shares the action schema with the engine.
 
@@ -134,7 +134,7 @@ Do not bypass that flow unless there is a clear reason.
 AE is the editor's action array UI rooted at `editor/js/action-editor.js` and implemented under `editor/js/action-editor/`. It is a central subsystem, not a minor helper.
 
 - Opens floating windows for action arrays such as scene `onEnter`, object option actions, choice branches, loop bodies, and named `sequences`
-- Deduplicates windows by title via an internal open-editor registry
+- Deduplicates windows via internal open-editor registry
 - Mutates the provided action array in place and reports changes through `opts.onChange`
 - Supports nested editors, inline field editing, add/delete, collapse, and drag-to-reorder
 - Supports dragging actions between compatible open AE windows
@@ -186,6 +186,6 @@ When editing AE-related code:
 6. **Object visualisation** — dashed orange outlines (`.editor-object`), yellow when selected. Labels are 10px overlays.
 7. **Grid-aware positioning** — all object coordinates are in tile units. Convert to percentages (`tile / cols * 100%`) for CSS positioning.
 8. **Preview round-trip** — edits stay in memory. The Run button serialises everything to `localStorage` under `buengine_editor_preview`. The game should check for this on `?preview` and overlay the data.
-9. **HTML escaping** — use `escapeHtml()` (DOM-based) when injecting user-provided text. Never use `innerHTML` with raw script data.
-10. **Dirty-state discipline** — any edit that changes persistent data should mark the relevant script dirty so Save / Save All remain trustworthy.
-11. **AE changes are high-impact** — if you change action editing behavior, check nested arrays, drag/drop, and schema-derived field rendering, not just the top-level happy path.
+9. **Dirty-state discipline** — any edit that changes persistent data should mark the relevant script dirty so Save / Save All remain trustworthy.
+10. **AE changes are high-impact** — if you change action editing behavior, check nested arrays, drag/drop, and schema-derived field rendering, not just the top-level happy path.
+11. **Agent documentation updates** - Update this file (`editor/AGENTS.md`) after significant or otherwise notable changes, as deemed necessary.

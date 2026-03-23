@@ -31,17 +31,6 @@ js/
   inventory.js           ← inventory state, item definitions, add/remove
   inventory-ui.js        ← inventory floating window (grid/list), context menu
 editor/
-  index.html             ← separate browser-only visual editor app
-  css/                   ← editor-only styles split by subsystem
-  js/
-    editor.js            ← editor bootstrap/orchestrator
-    state.js             ← shared editor state, hooks, utilities
-    fs-provider.js       ← File System Access API wrapper
-    file-panel.js        ← file tree, drag/drop, context menus
-    viewport.js          ← scene preview and object selection
-    properties.js        ← inspector for scene/object/game data
-    action-editor.js     ← floating action array editor ("AE")
-    items-viewer.js      ← inventory item editor UI
   AGENTS.md              ← editor-specific instructions
 games/
   index.json             ← list of available game folder names
@@ -102,17 +91,6 @@ Actions are objects in an array. Supported commands:
 | Stop sound | `{ "stopsound": { "id": "bgm", "fade": 1, "blocking": true } }` — stops a playing sound by id; `fade` (seconds, default 0), `blocking` waits for fade-out to finish |
 | Item add/remove | `{ "item": { "id": "key", "qty": 1 } }` — adds item to inventory (negative `qty` removes). Requires inventory enabled in `_game.json` |
 
-### Action Editor (AE)
-- AE means the editor's Action Editor in `editor/js/action-editor.js`.
-- It is the main visual editor for action arrays such as object option actions, scene `onEnter`, choice branches, loop bodies, and named `sequences`.
-- AE opens in floating windows, deduplicates windows by title, mutates the underlying action array in place, and calls `onChange` hooks so the editor can mark files dirty and re-render.
-- AE behavior is schema-driven. Icons, colors, labels, default payloads, field editors, and action summaries should come from `js/action-schema.js`, not hardcoded duplicate metadata elsewhere.
-- AE supports nested action editing, drag-to-reorder, cross-window drag/move between action lists, inline field editing, and add/delete flows.
-- When adding or changing an action type, verify three layers stay aligned:
-  1. Runtime dispatch in `js/action-runner.js`
-  2. Shared metadata/defaults in `js/action-schema.js`
-  3. AE rendering/editing behavior in `editor/js/action-editor.js`
-
 ### Inventory system
 
 Configured per-game in `_game.json`:
@@ -140,20 +118,18 @@ The inventory UI is a draggable floating window with Grid and List display modes
 ### Communication between modules
 All modules communicate through `EventBus`. Never import one UI module from another — emit an event instead.
 
-Editor modules do not use the runtime `EventBus` as their primary coordination mechanism. In the editor, shared state lives in `editor/js/state.js`, and cross-module refreshes are routed through state hooks wired by `editor/js/editor.js`.
-
 ### DOM structure
 All game UI lives inside `#game-container`. The `#scene-layer` holds backgrounds and scene objects. The `#ui-layer` holds overlays, dialogues, and choice modals, using `.hidden` class toggling.
 
-The editor has its own three-pane layout in `editor/index.html`: file tree on the left, viewport in the centre, properties on the right, with floating windows used for AE, confirmations, and auxiliary tools.
+## Editor
+
+The editor has its own separate instructions at `editor/AGENTS.md`. Refer to this file for editor-specific keywords: "editor:", "AE", "menubar", "panels" etc.
 
 ## Coding Rules
+
 1. **Vanilla JS only** — no frameworks, no dependencies.
-2. **No 3D** — everything is 2D DOM-based.
-3. **Keep scripts JSON** — don't embed JS logic in script files.
-4. **Prefer events over imports** — use `bus.emit()` / `bus.on()` for cross-module communication.
-5. When adding new action commands, add them to `ActionRunner.run()` and document them in this file's action table.
-6. CSS lives in `css/style.css` — don't use inline styles in JS except for dynamic positioning (objects, images).
-7. New UI components should follow the pattern: constructor takes `bus`, queries its own DOM elements, subscribes to relevant events.
-8. Editor-only code lives under `editor/` and should not be bolted into runtime modules unless the feature is genuinely shared.
-9. Shared action metadata belongs in `js/action-schema.js`; do not fork separate action registries for engine vs editor.
+2. **Prefer events over imports** — use `bus.emit()` / `bus.on()` for cross-module communication.
+3. New UI components should follow the pattern: constructor takes `bus`, queries its own DOM elements, subscribes to relevant events.
+4. Editor-only code lives under `editor/` and should not be bolted into runtime modules unless the feature is genuinely shared.
+5. Shared action metadata belongs in `js/action-schema.js`; do not fork separate action registries for engine vs editor.
+6. Update this file (`buegame/AGENTS.md`) after significant **engine-side** changes if necessary. **If editor-side, remember editor has its own `editor/AGENTS.md`!**
