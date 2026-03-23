@@ -38,15 +38,17 @@ export function createFloatingWindow({ title = '', subtitle = '', icon = '', ico
   const headingEl = document.createElement('div');
   headingEl.className = 'fw-heading';
 
+  let titleEl = null;
   if (title) {
-    const titleEl = document.createElement('span');
+    titleEl = document.createElement('span');
     titleEl.className = 'fw-title';
     titleEl.textContent = title;
     headingEl.appendChild(titleEl);
   }
 
+  let subtitleEl = null;
   if (subtitle) {
-    const subtitleEl = document.createElement('span');
+    subtitleEl = document.createElement('span');
     subtitleEl.className = 'fw-subtitle';
     subtitleEl.textContent = subtitle;
     headingEl.appendChild(subtitleEl);
@@ -66,6 +68,9 @@ export function createFloatingWindow({ title = '', subtitle = '', icon = '', ico
 
   // -- Modal backdrop (blocks interaction with windows behind) --
   let backdrop = null;
+  let attentionFrame = 0;
+  let attentionTimer = 0;
+  let closeSeq = 0;
   if (modal) {
     backdrop = document.createElement('div');
     backdrop.className = 'fw-backdrop';
@@ -76,8 +81,7 @@ export function createFloatingWindow({ title = '', subtitle = '', icon = '', ico
         close();
         return;
       }
-      el.classList.add('fw-attention');
-      setTimeout(() => el.classList.remove('fw-attention'), 400);
+      requestAttention();
     };
     backdrop.addEventListener('mousedown', onBackdropPointer);
     backdrop.addEventListener('click', onBackdropPointer);
@@ -177,12 +181,56 @@ export function createFloatingWindow({ title = '', subtitle = '', icon = '', ico
     el.style.top  = `${Math.max(0, (window.innerHeight - h) / 2)}px`;
   }
 
+  function setTitle(nextTitle = '') {
+    if (!nextTitle) {
+      titleEl?.remove();
+      titleEl = null;
+      return;
+    }
+    if (!titleEl) {
+      titleEl = document.createElement('span');
+      titleEl.className = 'fw-title';
+      headingEl.prepend(titleEl);
+    }
+    titleEl.textContent = nextTitle;
+  }
+
+  function setSubtitle(nextSubtitle = '') {
+    if (!nextSubtitle) {
+      subtitleEl?.remove();
+      subtitleEl = null;
+      return;
+    }
+    if (!subtitleEl) {
+      subtitleEl = document.createElement('span');
+      subtitleEl.className = 'fw-subtitle';
+      headingEl.appendChild(subtitleEl);
+    }
+    subtitleEl.textContent = nextSubtitle;
+  }
+
+  function requestAttention() {
+    if (attentionFrame) cancelAnimationFrame(attentionFrame);
+    if (attentionTimer) clearTimeout(attentionTimer);
+    el.classList.remove('fw-attention');
+    attentionFrame = requestAnimationFrame(() => {
+      attentionFrame = 0;
+      el.classList.add('fw-attention');
+      attentionTimer = window.setTimeout(() => {
+        attentionTimer = 0;
+        el.classList.remove('fw-attention');
+      }, 420);
+    });
+  }
+
   function open() {
     const wasHidden = el.classList.contains('hidden');
     if (backdrop && !backdrop.isConnected) document.body.appendChild(backdrop);
     if (parent) parent.el.classList.add('fw-blocked');
 
     if (!wasHidden) {
+      closeSeq++;
+      el.classList.remove(CLOSING_CLASS);
       bringToFront(el);
       if (backdrop) backdrop.style.zIndex = parseInt(el.style.zIndex) - 1;
       return;
@@ -202,10 +250,12 @@ export function createFloatingWindow({ title = '', subtitle = '', icon = '', ico
   function close() {
     if (el.classList.contains('hidden') || el.classList.contains(CLOSING_CLASS)) return;
 
+    const closeId = ++closeSeq;
     el.classList.remove(OPENING_CLASS, CLOSING_CLASS);
     el.classList.add(CLOSING_CLASS);
 
     const finishClose = () => {
+      if (closeId !== closeSeq || !el.classList.contains(CLOSING_CLASS)) return;
       el.classList.remove(CLOSING_CLASS);
       el.classList.add('hidden');
       if (backdrop) backdrop.remove();
@@ -226,6 +276,15 @@ export function createFloatingWindow({ title = '', subtitle = '', icon = '', ico
   }
 
   function destroy() {
+    closeSeq++;
+    if (attentionFrame) {
+      cancelAnimationFrame(attentionFrame);
+      attentionFrame = 0;
+    }
+    if (attentionTimer) {
+      clearTimeout(attentionTimer);
+      attentionTimer = 0;
+    }
     el.classList.remove(CLOSING_CLASS);
     el.remove();
     if (backdrop) backdrop.remove();
@@ -241,5 +300,5 @@ export function createFloatingWindow({ title = '', subtitle = '', icon = '', ico
 
   document.body.appendChild(el);
 
-  return { el, body, open, close, destroy, onClose };
+  return { el, body, open, close, destroy, onClose, setTitle, setSubtitle, requestAttention };
 }

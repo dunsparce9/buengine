@@ -43,7 +43,11 @@ export function openActionEditor(title, actions, opts = {}) {
   const editorKey = getEditorKey(displayTitle, actions, opts);
   const existing = getOpenEditor(editorKey);
   if (existing && !existing.fw.el.classList.contains('hidden')) {
+    existing.actions = actions;
+    existing.opts = opts;
+    existing.fw.setSubtitle(displayTitle === 'Actions' ? '' : displayTitle);
     existing.fw.open();
+    existing.fw.requestAttention();
     return;
   }
 

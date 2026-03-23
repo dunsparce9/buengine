@@ -32,7 +32,15 @@ export function openOptionsModal({
 }) {
   const existing = _openModals.get(modalKey);
   if (existing && !existing.fw.el.classList.contains('hidden')) {
+    existing.state.target = target;
+    existing.state.scriptId = scriptId;
+    existing.state.ownerLabel = ownerLabel;
+    existing.state.onChange = onChange;
+    existing.state.actionViewerContext = actionViewerContext;
+    existing.state.createDefaultOption = createDefaultOption;
+    existing.fw.setSubtitle(subtitle || getOptionsSubtitle(title));
     existing.fw.open();
+    existing.fw.requestAttention();
     return existing.fw;
   }
 

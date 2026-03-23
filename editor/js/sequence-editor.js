@@ -21,7 +21,13 @@ export function openSequencesModal({
 }) {
   const existing = _openWindows.get(modalKey);
   if (existing && !existing.fw.el.classList.contains('hidden')) {
+    existing.state.sceneData = sceneData;
+    existing.state.scriptId = scriptId;
+    existing.state.onChange = onChange;
+    existing.state.actionViewerContext = actionViewerContext;
+    existing.fw.setSubtitle(sceneData?.id || scriptId || '');
     existing.fw.open();
+    existing.fw.requestAttention();
     return existing.fw;
   }
 
