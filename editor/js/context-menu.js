@@ -16,7 +16,7 @@ let _cleanup = null;
 function ensureMenu() {
   if (_menu) return _menu;
   _menu = document.createElement('div');
-  _menu.className = 'ctx-menu hidden';
+  _menu.className = 'menu-dropdown ctx-menu hidden';
   document.body.appendChild(_menu);
   return _menu;
 }
@@ -39,19 +39,20 @@ export function showContextMenu(x, y, items) {
   for (const item of items) {
     if (item.separator) {
       const sep = document.createElement('div');
-      sep.className = 'ctx-sep';
+      sep.className = 'menu-sep';
       menu.appendChild(sep);
       continue;
     }
 
     const btn = document.createElement('button');
-    btn.className = 'ctx-item';
+    btn.type = 'button';
+    btn.className = 'menu-action';
     if (item.danger) btn.classList.add('ctx-danger');
     if (item.disabled) btn.disabled = true;
 
     if (item.icon) {
       const ico = document.createElement('span');
-      ico.className = 'material-symbols-outlined ctx-icon';
+      ico.className = 'material-symbols-outlined';
       ico.textContent = item.icon;
       btn.appendChild(ico);
     }
