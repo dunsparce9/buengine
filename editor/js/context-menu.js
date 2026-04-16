@@ -77,21 +77,19 @@ export function showContextMenu(x, y, items) {
   menu.style.left = `${Math.min(x, window.innerWidth  - mw - 4)}px`;
   menu.style.top  = `${Math.min(y, window.innerHeight - mh - 4)}px`;
 
-  // Close on next click anywhere
-  function onClickAway(e) {
+  // Close on the next outside pointer interaction before local UI handlers run.
+  function onPointerDownAway(e) {
     if (menu.contains(e.target)) return;
     dismiss();
   }
   function onKeyDown(e) {
     if (e.key === 'Escape') dismiss();
   }
-  setTimeout(() => {
-    document.addEventListener('mousedown', onClickAway);
-    document.addEventListener('keydown', onKeyDown);
-  }, 0);
+  document.addEventListener('pointerdown', onPointerDownAway, true);
+  document.addEventListener('keydown', onKeyDown);
 
   _cleanup = () => {
-    document.removeEventListener('mousedown', onClickAway);
+    document.removeEventListener('pointerdown', onPointerDownAway, true);
     document.removeEventListener('keydown', onKeyDown);
   };
 }
