@@ -1,10 +1,10 @@
 {
   "id": "abode",
-  "background": "images/scenes/abode.jpg",
+  "background": "images/scenes/new-abode.jpg",
   "backgroundColor": "#000000",
   "grid": {
-    "cols": 20,
-    "rows": 10
+    "cols": 24,
+    "rows": 13
   },
   "elements": [
     "hud"
@@ -69,10 +69,10 @@
     {
       "id": "ladder",
       "label": "Mysterious ladder",
-      "x": 12,
-      "y": 5,
-      "w": 5,
-      "h": 4,
+      "x": 17,
+      "y": 6,
+      "w": 7,
+      "h": 7,
       "options": [
         {
           "text": "Go down",
@@ -119,8 +119,8 @@
     {
       "id": "spaghetti",
       "label": "Stale spaghetti",
-      "x": 7,
-      "y": 5,
+      "x": 10,
+      "y": 9,
       "w": 2,
       "h": 1,
       "options": [
@@ -144,8 +144,8 @@
     {
       "id": "beer",
       "label": "Mug of ber",
-      "x": 9,
-      "y": 4,
+      "x": 5,
+      "y": 5,
       "w": 1,
       "h": 1,
       "options": [
@@ -215,10 +215,10 @@
       "id": "seal",
       "label": "Seal!",
       "texture": "images/seal.png",
-      "x": 13,
-      "y": 4,
+      "x": 15,
+      "y": 8,
       "w": 2,
-      "h": 1,
+      "h": 2,
       "options": [
         {
           "text": "Observe",
@@ -300,6 +300,26 @@
                   }
                 ]
               }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sloplogo",
+      "x": 22,
+      "y": 11,
+      "w": 2,
+      "h": 2,
+      "options": [
+        {
+          "text": "Interact",
+          "icon": "",
+          "actions": [
+            {
+              "say": "You have clicked the slop logo.",
+              "speaker": "Google(TM) Gemini(R)",
+              "accent": "#ffffff"
             }
           ]
         }
