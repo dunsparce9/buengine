@@ -2,7 +2,7 @@
  * Right-side property inspector panel.
  */
 
-import { state, dom, hooks, escapeHtml, markDirty, collectImagePaths } from './state.js';
+import { state, dom, hooks, escapeHtml, markDirty, collectImagePaths, scriptPathFromId } from './state.js';
 import { openActionEditor } from './action-editor.js';
 import { findNode } from './fs-provider.js';
 import { getFileExtension, getFileKind, isPreviewableMedia } from './file-types.js';
@@ -98,11 +98,52 @@ function renderGameProps(data) {
 }
 
 function renderSceneProps(data) {
-  addPropGroup('Scene', [
-    ['id',              data.id || '—'],
-    ['background',      data.background || '—'],
-    ['backgroundColor', data.backgroundColor || '—'],
-    ['grid',            data.grid ? `${data.grid.cols} × ${data.grid.rows}` : '16 × 9'],
+  const sceneId = state.selectedId;
+
+  addEditablePropGroup('Scene', [
+    {
+      key: 'id',
+      value: data.id ?? '',
+      onChange: (value, input) => updateSceneId(data, sceneId, value, input),
+    },
+    {
+      key: 'background',
+      value: data.background ?? '',
+      onChange: value => {
+        data.background = value || undefined;
+        markDirty(sceneId);
+        hooks.renderViewport();
+      },
+    },
+    {
+      key: 'backgroundColor',
+      value: data.backgroundColor ?? '',
+      onChange: value => {
+        data.backgroundColor = value || undefined;
+        markDirty(sceneId);
+        hooks.renderViewport();
+      },
+    },
+  ]);
+
+  const grid = data.grid ||= { cols: 16, rows: 9 };
+  addCompactEditablePropGroup('Grid', [
+    {
+      key: 'cols',
+      value: grid.cols ?? 16,
+      type: 'number',
+      step: 1,
+      min: 1,
+      onChange: value => updateSceneGrid(data, sceneId, 'cols', value),
+    },
+    {
+      key: 'rows',
+      value: grid.rows ?? 9,
+      type: 'number',
+      step: 1,
+      min: 1,
+      onChange: value => updateSceneGrid(data, sceneId, 'rows', value),
+    },
   ]);
 
   const objects = data.objects;
@@ -129,6 +170,62 @@ function renderSceneProps(data) {
   const sequences = data.sequences || data.definitions || {};
   const names = Object.keys(sequences);
   addSequencesGroup(data, names);
+}
+
+function updateSceneId(data, currentSceneId, raw, input) {
+  const nextId = raw.trim().replace(/\s+/g, '_');
+  const prevId = data.id || currentSceneId;
+
+  if (!nextId) {
+    input.value = prevId;
+    input.classList.remove('prop-input-error');
+    return;
+  }
+
+  const collision = Object.keys(state.scripts).some(id => id !== currentSceneId && !id.includes('/') && id === nextId);
+  if (nextId === '_game' || collision) {
+    input.classList.add('prop-input-error');
+    return;
+  }
+
+  input.classList.remove('prop-input-error');
+  if (nextId === currentSceneId) {
+    data.id = nextId;
+    input.value = nextId;
+    return;
+  }
+
+  const originalPath = state.pendingScriptRenames.get(currentSceneId) || scriptPathFromId(currentSceneId);
+  state.pendingScriptRenames.delete(currentSceneId);
+  state.pendingScriptRenames.set(nextId, originalPath);
+
+  delete state.scripts[currentSceneId];
+  state.scripts[nextId] = data;
+
+  if (state.dirtySet.delete(currentSceneId)) {
+    state.dirtySet.add(nextId);
+  } else {
+    markDirty(nextId);
+  }
+
+  data.id = nextId;
+  state.selectedId = nextId;
+  state.selectedPath = scriptPathFromId(nextId);
+  input.value = nextId;
+
+  hooks.updateWindowTitle();
+  hooks.renderFileList();
+  hooks.renderViewport();
+  hooks.renderProperties();
+}
+
+function updateSceneGrid(data, sceneId, axis, raw) {
+  const next = Number.parseInt(raw, 10);
+  if (!Number.isFinite(next) || next < 1) return;
+  data.grid ||= { cols: 16, rows: 9 };
+  data.grid[axis] = next;
+  markDirty(sceneId);
+  hooks.renderViewport();
 }
 
 const STANDARD_CURSORS = [
@@ -779,7 +876,7 @@ function addEditablePropGroup(title, fields) {
     if (step != null) input.step = step;
     if (min  != null) input.min  = min;
     if (max  != null) input.max  = max;
-    input.addEventListener('input', () => onChange(input.value));
+    input.addEventListener('input', () => onChange(input.value, input));
 
     row.appendChild(label);
     row.appendChild(input);

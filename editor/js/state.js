@@ -14,6 +14,7 @@ export const state = {
   selectedObjectId: null, // currently selected object id
   selectedItem: null,     // currently selected item id in items/items
   dirtySet:   new Set(),  // script ids with unsaved edits
+  pendingScriptRenames: new Map(), // new id -> old path for unsaved scene id renames
 
   /* ── File system ── */
   rootHandle:      null,          // FileSystemDirectoryHandle
@@ -53,6 +54,10 @@ export function markDirty(id) {
     state.dirtySet.add(id);
     hooks.renderFileList();
   }
+}
+
+export function scriptPathFromId(id) {
+  return id === '_game' ? '_game.json' : `${id}.json`;
 }
 
 /** Get the objects array from scene data. */

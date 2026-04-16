@@ -1,6 +1,6 @@
-import { state, hooks } from '../state.js';
+import { state, hooks, scriptPathFromId } from '../state.js';
 import { discoverScripts } from '../script-loader.js';
-import { openFolder, openFolderHandle, ensureHandlePermission, writeFile, clearAssetCache, cacheAssetURLs } from '../fs-provider.js';
+import { openFolder, openFolderHandle, ensureHandlePermission, writeFile, deleteEntry, buildTree, clearAssetCache, cacheAssetURLs } from '../fs-provider.js';
 import { promptForConfirmation } from '../confirm-dialog.js';
 import { renderFileList, selectScript, selectPath, expandFoldersForPath } from '../file-panel.js';
 import { showToast, hasUnsavedChanges, updateMenuVisibility, updateWindowTitle } from './ui.js';
@@ -66,6 +66,7 @@ async function loadWorkspaceFromHandle(handle, { remember = false, treeReady = f
   state.selectedItem = null;
   state.selectedPath = null;
   state.dirtySet.clear();
+  state.pendingScriptRenames.clear();
   state.manifest = null;
   clearAssetCache();
 
@@ -147,10 +148,16 @@ export async function saveCurrentFile() {
 
   const data = state.scripts[id];
   const json = JSON.stringify(data, null, 2) + '\n';
-  const path = id === '_game' ? '_game.json' : `${id}.json`;
+  const path = scriptPathFromId(id);
+  const renamedFrom = state.pendingScriptRenames.get(id);
 
   try {
     await writeFile(path, json);
+    if (renamedFrom && renamedFrom !== path) {
+      await deleteEntry(renamedFrom);
+      state.pendingScriptRenames.delete(id);
+      await buildTree();
+    }
     state.dirtySet.delete(id);
     renderFileList();
     showToast(`Saved ${path}`);
@@ -170,13 +177,20 @@ export async function saveAllFiles() {
   }
 
   let saved = 0;
+  let renamedAny = false;
   for (const id of [...state.dirtySet]) {
     const data = state.scripts[id];
     if (!data) continue;
     const json = JSON.stringify(data, null, 2) + '\n';
-    const path = id === '_game' ? '_game.json' : `${id}.json`;
+    const path = scriptPathFromId(id);
+    const renamedFrom = state.pendingScriptRenames.get(id);
     try {
       await writeFile(path, json);
+      if (renamedFrom && renamedFrom !== path) {
+        await deleteEntry(renamedFrom);
+        state.pendingScriptRenames.delete(id);
+        renamedAny = true;
+      }
       state.dirtySet.delete(id);
       saved++;
     } catch (err) {
@@ -184,6 +198,7 @@ export async function saveAllFiles() {
     }
   }
 
+  if (renamedAny) await buildTree();
   renderFileList();
   showToast(`Saved ${saved} file(s)`);
 }
