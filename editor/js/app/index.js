@@ -17,6 +17,15 @@ hooks.renderFileList = renderFileList;
 hooks.renderViewport = renderViewport;
 hooks.renderProperties = renderProperties;
 
+let suppressBeforeUnloadPrompt = false;
+
+function allowNextInAppNavigation() {
+  suppressBeforeUnloadPrompt = true;
+  setTimeout(() => {
+    suppressBeforeUnloadPrompt = false;
+  }, 1000);
+}
+
 initMenu({
   'open-folder': handleOpenFolder,
   'open-recent-folder': dispatchOpenRecentFolder,
@@ -29,6 +38,7 @@ initMenu({
     if (!await confirmDiscardUnsavedChanges('You have unsaved changes. Leave the editor and discard them?')) {
       return;
     }
+    allowNextInAppNavigation();
     window.location.href = '../index.html';
   },
   'install-app': installApp,
@@ -75,6 +85,7 @@ initFilePanelDrop();
 
 window.addEventListener('resize', () => renderViewport());
 window.addEventListener('beforeunload', (event) => {
+  if (suppressBeforeUnloadPrompt) return;
   if (!hasUnsavedChanges()) return;
   event.preventDefault();
   event.returnValue = '';
