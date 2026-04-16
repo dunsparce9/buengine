@@ -1,3 +1,5 @@
+const DEFAULT_TYPEWRITER_SPEED_MS = 30;
+
 /**
  * Manages the dialogue box UI: show text, optional speaker name,
  * typewriter animation, and click-to-advance.
@@ -34,7 +36,7 @@ export class DialogueUI {
     this.bus.on('dialogue:dismiss', () => this.dismiss());
   }
 
-  show({ speaker, accent, text, delay, onDone }) {
+  show({ speaker, accent, text, typewriterSpeed, delay, onDone }) {
     this._stopType();
     this._clearLock();
     this.box.style.setProperty('--dialogue-accent', accent || '#f0c040');
@@ -57,8 +59,6 @@ export class DialogueUI {
       setTimeout(() => this.box.classList.remove('dialogue-entering'), 300);
     }
 
-    this._typewrite(text);
-
     if (delay > 0) {
       this._locked = true;
       this.box.classList.add('dialogue-locked');
@@ -71,6 +71,8 @@ export class DialogueUI {
         }
       }, delay * 1000);
     }
+
+    this._typewrite(text, typewriterSpeed);
   }
 
   hide() {
@@ -105,7 +107,18 @@ export class DialogueUI {
 
   /* ── internals ───────────────────────────────── */
 
-  _typewrite(str) {
+  _typewrite(str, speedMs = DEFAULT_TYPEWRITER_SPEED_MS) {
+    const cadence = Number.isFinite(speedMs) ? Math.max(0, speedMs) : DEFAULT_TYPEWRITER_SPEED_MS;
+    if (!str || cadence === 0) {
+      this._typing = false;
+      this.text.textContent = str || '';
+      if (!this._locked) {
+        this.text.appendChild(this.hint);
+        this.hint.classList.remove('hidden');
+      }
+      return;
+    }
+
     this._typing = true;
     this.hint.classList.add('hidden');
     let i = 0;
@@ -115,7 +128,7 @@ export class DialogueUI {
         return;
       }
       this.text.textContent += str[i++];
-    }, 30);
+    }, cadence);
   }
 
   _stopType() {

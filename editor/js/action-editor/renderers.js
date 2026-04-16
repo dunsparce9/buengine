@@ -816,6 +816,7 @@ export function renderCollapsedSummary(action, type, shortenText, viewCtx = {}) 
 export function getBadges(action, type) {
   const badges = [];
   if (type === 'say' && action.delay) badges.push(`delay ${action.delay}s`);
+  if (type === 'say' && action.typewriterSpeed != null) badges.push(`type ${action.typewriterSpeed}ms`);
   if (type === 'effect' && action.effect?.blocking) badges.push('blocking');
   if (type === 'playsound') {
     const data = action.playsound;

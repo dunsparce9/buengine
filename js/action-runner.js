@@ -157,6 +157,7 @@ export class ActionRunner {
         speaker: action.speaker || '',
         accent: action.accent || null,
         text: action.say,
+        typewriterSpeed: action.typewriterSpeed,
         delay: action.delay || 0,
         onDone: resolve,
       });

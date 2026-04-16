@@ -37,6 +37,7 @@ export const ACTION_TYPES = {
       { key: 'say',     label: 'Text',      type: 'textarea', required: true },
       { key: 'speaker', label: 'Speaker',   type: 'string' },
       { key: 'accent',  label: 'Accent',    type: 'color', defaultValue: '#f0c040' },
+      { key: 'typewriterSpeed', label: 'Typewriter speed (ms)', type: 'number', min: 0, step: 5 },
       { key: 'delay',   label: 'Delay (s)', type: 'number', step: 0.5 },
     ],
     defaults: { say: '', speaker: '' },

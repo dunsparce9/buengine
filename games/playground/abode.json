@@ -3,8 +3,8 @@
   "background": "images/scenes/new-abode.jpg",
   "backgroundColor": "#000000",
   "grid": {
-    "cols": 24,
-    "rows": 13
+    "cols": 32,
+    "rows": 16
   },
   "elements": [
     "hud"
@@ -63,16 +63,61 @@
           ]
         }
       }
+    ],
+    "beerspam": [
+      {
+        "playsound": {
+          "id": "beer",
+          "path": "sounds/objects/clink.opus",
+          "volume": 0.1,
+          "loop": false,
+          "blocking": false
+        }
+      },
+      {
+        "wait": 100
+      },
+      {
+        "playsound": {
+          "id": "beer",
+          "path": "sounds/objects/clink.opus",
+          "volume": 0.1,
+          "loop": false,
+          "blocking": false
+        }
+      },
+      {
+        "wait": 100
+      },
+      {
+        "playsound": {
+          "id": "beer",
+          "path": "sounds/objects/clink.opus",
+          "volume": 0.1,
+          "loop": false,
+          "blocking": false
+        }
+      },
+      {
+        "wait": 100
+      },
+      {
+        "playsound": {
+          "id": "beer",
+          "path": "sounds/objects/clink.opus",
+          "volume": 0.1
+        }
+      }
     ]
   },
   "objects": [
     {
       "id": "ladder",
       "label": "Mysterious ladder",
-      "x": 17,
+      "x": 23,
       "y": 6,
-      "w": 7,
-      "h": 7,
+      "w": 9,
+      "h": 10,
       "options": [
         {
           "text": "Go down",
@@ -119,10 +164,10 @@
     {
       "id": "spaghetti",
       "label": "Stale spaghetti",
-      "x": 10,
-      "y": 9,
-      "w": 2,
-      "h": 1,
+      "x": 13,
+      "y": 11,
+      "w": 3,
+      "h": 2,
       "options": [
         {
           "text": "Examine",
@@ -144,10 +189,10 @@
     {
       "id": "beer",
       "label": "Mug of ber",
-      "x": 5,
-      "y": 5,
-      "w": 1,
-      "h": 1,
+      "x": 6,
+      "y": 6,
+      "w": 2,
+      "h": 2,
       "options": [
         {
           "text": "Examine",
@@ -215,10 +260,10 @@
       "id": "seal",
       "label": "Seal!",
       "texture": "images/seal.png",
-      "x": 15,
-      "y": 8,
-      "w": 2,
-      "h": 2,
+      "x": 20,
+      "y": 9,
+      "w": 3,
+      "h": 3,
       "options": [
         {
           "text": "Observe",
@@ -307,10 +352,10 @@
     },
     {
       "id": "sloplogo",
-      "x": 22,
-      "y": 11,
+      "x": 30,
+      "y": 15,
       "w": 2,
-      "h": 2,
+      "h": 1,
       "options": [
         {
           "text": "Interact",
@@ -323,7 +368,44 @@
             }
           ]
         }
-      ]
+      ],
+      "label": "Gemini™ Slop Logo"
+    },
+    {
+      "id": "fourbeer",
+      "x": 6,
+      "y": 9,
+      "w": 2,
+      "h": 5,
+      "options": [
+        {
+          "text": "Examine",
+          "icon": "👁️👁️👁️👁️",
+          "actions": [
+            {
+              "fork": {
+                "run": "beerspam"
+              }
+            },
+            {
+              "speaker": "Drunk as shit narrator",
+              "say": "Four beers are better than one beers.",
+              "typewriterSpeed": 1
+            }
+          ]
+        }
+      ],
+      "label": "Four mugs of ber"
+    },
+    {
+      "id": "object",
+      "x": 14,
+      "y": 9,
+      "w": 2,
+      "h": 1,
+      "options": [],
+      "label": "Plate of whatever the fuck",
+      "cursor": "default"
     }
   ],
   "onEnter": [
