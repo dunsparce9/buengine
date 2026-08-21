@@ -16,6 +16,9 @@
  * Emits:
  *   inventory:remove { id, qty }  – when dropping an item
  */
+import { Paths } from './paths.js';
+import { ContextMenu } from './context-menu.js';
+
 export class InventoryUI {
   /**
    * @param {import('./event-bus.js').EventBus} bus
@@ -30,37 +33,14 @@ export class InventoryUI {
     this._win = null;
     this._open = false;
 
-    /** Base path for resolving item icon URLs. */
-    this._basePath = '';
-    /** @type {Map<string, string>|null} Preview asset blob URL map. */
-    this._assetMap = null;
-
-    bus.on('game:basepath', (bp) => { this._basePath = bp; });
-    bus.on('game:assetmap', (map) => { this._assetMap = map; });
     bus.on('hud:inventory', () => this.toggle());
     bus.on('inventory:open', () => this.open());
     bus.on('inventory:changed', () => { if (this._open) this._render(); });
     bus.on('game:quit', () => this.close());
     bus.on('game:title', () => this.close());
 
-    // Close context menu on any click outside
-    document.addEventListener('click', () => this._closeCtx());
-    document.addEventListener('contextmenu', (e) => {
-      // If clicking outside the context menu, close it
-      if (this._ctxEl && !this._ctxEl.contains(e.target)) {
-        this._closeCtx();
-      }
-    });
-
-    /** @type {HTMLElement|null} Active context menu element */
-    this._ctxEl = null;
-  }
-
-  /** Resolve a relative item icon path. */
-  _resolve(path) {
-    if (this._assetMap && path && this._assetMap.has(path)) return this._assetMap.get(path);
-    if (!this._basePath || !path) return path;
-    return `${this._basePath}/${path}`;
+    /** Shared context menu instance (Drop logic lives in onClick callbacks). */
+    this._ctxMenu = new ContextMenu();
   }
 
   toggle() {
@@ -224,7 +204,7 @@ export class InventoryUI {
       if (def?.icon) {
         const img = document.createElement('img');
         img.className = 'inv-grid-icon';
-        img.src = this._resolve(def.icon);
+        img.src = Paths.resolve(def.icon);
         img.alt = def.name ?? id;
         img.draggable = false;
         cell.appendChild(img);
@@ -289,7 +269,7 @@ export class InventoryUI {
       if (def?.icon) {
         const img = document.createElement('img');
         img.className = 'inv-list-icon';
-        img.src = this._resolve(def.icon);
+        img.src = Paths.resolve(def.icon);
         img.alt = def?.name ?? id;
         img.draggable = false;
         tdIcon.appendChild(img);
@@ -327,76 +307,41 @@ export class InventoryUI {
   /* ── Context menu ───────────────────────────── */
 
   _showCtx(e, itemId) {
-    this._closeCtx();
     const def = this.inventory.getDef(itemId);
 
-    const menu = document.createElement('div');
-    menu.className = 'inv-ctx';
+    /** @type {Array<object>} */
+    const options = [];
 
     // Item-defined options
     if (def?.options) {
       for (const opt of def.options) {
-        const btn = document.createElement('button');
-        btn.className = 'inv-ctx-btn';
-        btn.textContent = (opt.icon ? opt.icon + ' ' : '') + opt.text;
-        btn.addEventListener('click', async () => {
-          this._closeCtx();
-          if (opt.actions) {
-            await this.runner.run(opt.actions);
-          }
+        options.push({
+          icon: opt.icon,
+          text: opt.text,
+          onClick: async () => {
+            if (opt.actions) {
+              await this.runner.run(opt.actions);
+            }
+          },
         });
-        menu.appendChild(btn);
       }
     }
 
     // Drop option
     if (!def || def.droppable !== false) {
-      if (menu.children.length > 0) {
-        const sep = document.createElement('div');
-        sep.className = 'inv-ctx-sep';
-        menu.appendChild(sep);
-      }
-      const dropBtn = document.createElement('button');
-      dropBtn.className = 'inv-ctx-btn inv-ctx-drop';
-      dropBtn.textContent = '🗑️ Drop';
-      dropBtn.addEventListener('click', () => {
-        this._closeCtx();
-        this.inventory.remove(itemId, 1);
+      if (options.length > 0) options.push({ separator: true });
+      options.push({
+        className: 'inv-ctx-drop',
+        icon: '🗑️',
+        text: 'Drop',
+        onClick: () => this.inventory.remove(itemId, 1),
       });
-      menu.appendChild(dropBtn);
     }
 
-    // Position relative to the UI layer
-    const uiLayer = document.getElementById('ui-layer');
-    uiLayer.appendChild(menu);
-
-    // Position at mouse, clamped inside game-container (account for CSS scale)
-    const container = document.getElementById('game-container');
-    const cRect = container.getBoundingClientRect();
-    const scale = cRect.width / container.offsetWidth;
-    let x = (e.clientX - cRect.left) / scale;
-    let y = (e.clientY - cRect.top) / scale;
-
-    // Wait for layout to clamp properly
-    requestAnimationFrame(() => {
-      const mw = menu.offsetWidth;
-      const mh = menu.offsetHeight;
-      if (x + mw > container.offsetWidth) x = container.offsetWidth - mw - 4;
-      if (y + mh > container.offsetHeight) y = container.offsetHeight - mh - 4;
-      menu.style.left = `${Math.max(0, x)}px`;
-      menu.style.top = `${Math.max(0, y)}px`;
-    });
-
-    menu.style.left = `${x}px`;
-    menu.style.top = `${y}px`;
-
-    this._ctxEl = menu;
+    this._ctxMenu.show({ options, x: e.clientX, y: e.clientY });
   }
 
   _closeCtx() {
-    if (this._ctxEl) {
-      this._ctxEl.remove();
-      this._ctxEl = null;
-    }
+    this._ctxMenu.close();
   }
 }

@@ -1,3 +1,5 @@
+import { UI_SOUNDS } from './sound-manager.js';
+
 const DEFAULT_TYPEWRITER_SPEED_MS = 30;
 
 /**
@@ -21,10 +23,11 @@ export class DialogueUI {
     this._timer   = null;
     this._locked  = false;
     this._lockTimer = null;
-    this._hideTimer = null;
-    this._basePath = '';
+    /** @type {function|null} animationend handler for dialogue-entering */
+    this._enterEnd = null;
+    /** @type {function|null} animationend handler for dialogue-leaving */
+    this._leaveEnd = null;
 
-    this.bus.on('game:basepath', (bp) => { this._basePath = bp; });
     this.box.addEventListener('click', () => this._advance());
     document.addEventListener('keydown', (e) => {
       if (e.code === 'Space' && !this.box.classList.contains('hidden')) {
@@ -46,17 +49,21 @@ export class DialogueUI {
     this.text.textContent = '';
 
     const wasHidden = this.box.classList.contains('hidden');
-    if (this._hideTimer) {
-      clearTimeout(this._hideTimer);
-      this._hideTimer = null;
-    }
+    // Cancel any pending enter/leave animation from a previous show/hide
+    this._clearEnterEnd();
+    this._clearLeaveEnd();
     this.box.classList.remove('hidden', 'dialogue-leaving');
     this.sceneLayer.classList.add('dialogue-active');
 
     if (wasHidden) {
       void this.box.offsetHeight; // force reflow so animation restarts
       this.box.classList.add('dialogue-entering');
-      setTimeout(() => this.box.classList.remove('dialogue-entering'), 300);
+      this._enterEnd = (e) => {
+        if (e.target !== this.box) return; // ignore bubbled child animations
+        this._clearEnterEnd();
+        this.box.classList.remove('dialogue-entering');
+      };
+      this.box.addEventListener('animationend', this._enterEnd);
     }
 
     if (delay > 0) {
@@ -81,21 +88,25 @@ export class DialogueUI {
     this.hint.classList.add('hidden');
     this.sceneLayer.classList.remove('dialogue-active');
     this._clearLock();
+    this._clearEnterEnd();
     this.box.classList.remove('dialogue-entering');
     this.box.classList.add('dialogue-leaving');
-    this._hideTimer = setTimeout(() => {
+    this._leaveEnd = (e) => {
+      if (e.target !== this.box) return; // ignore bubbled child animations
+      this._clearLeaveEnd();
+      if (!this.box.isConnected) return;
       this.box.classList.remove('dialogue-leaving');
       this.box.classList.add('hidden');
-      this._hideTimer = null;
-    }, 300);
+    };
+    this.box.addEventListener('animationend', this._leaveEnd);
   }
 
   /** Force-dismiss the dialogue immediately (no animation). Resolves the pending onDone callback. */
   dismiss() {
     this._stopType();
     this._clearLock();
-    clearTimeout(this._hideTimer);
-    this._hideTimer = null;
+    this._clearEnterEnd();
+    this._clearLeaveEnd();
     this.hint.classList.add('hidden');
     this.sceneLayer.classList.remove('dialogue-active');
     this.box.classList.remove('dialogue-entering', 'dialogue-leaving');
@@ -147,6 +158,20 @@ export class DialogueUI {
     this.box.classList.remove('dialogue-locked');
   }
 
+  /** Detach a pending dialogue-entering animationend listener, if any. */
+  _clearEnterEnd() {
+    if (!this._enterEnd) return;
+    this.box.removeEventListener('animationend', this._enterEnd);
+    this._enterEnd = null;
+  }
+
+  /** Detach a pending dialogue-leaving animationend listener, if any. */
+  _clearLeaveEnd() {
+    if (!this._leaveEnd) return;
+    this.box.removeEventListener('animationend', this._leaveEnd);
+    this._leaveEnd = null;
+  }
+
   _advance() {
     if (this._locked) return;
     if (this.box.classList.contains('dialogue-leaving')) return;
@@ -154,7 +179,7 @@ export class DialogueUI {
       // Skip to full text — no click sound for skip
       this._stopType();
     } else {
-      this.bus.emit('sound:play', { id: '__ui_dlg', path: 'sounds/common/dialogue-click.opus' });
+      this.bus.emit('sound:play', UI_SOUNDS.dialogueClick);
       this.hide();
       if (this._onDone) this._onDone();
     }

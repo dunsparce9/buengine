@@ -30,6 +30,10 @@ js/
   sound-manager.js       ← audio playback, fade in/out
   inventory.js           ← inventory state, item definitions, add/remove
   inventory-ui.js        ← inventory floating window (grid/list), context menu
+  paths.js               ← shared asset-path resolver (basePath + preview assetMap)
+  context-menu.js        ← shared `.inv-ctx` context menu (buttons, separators, positioning)
+  game-selector.js       ← game picker overlay UI
+  debug-hud.js           ← debug HUD (key "1": grid overlay + tile/object readout)
 editor/
   AGENTS.md              ← editor-specific instructions
 games/

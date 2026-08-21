@@ -1,0 +1,78 @@
+/**
+ * Game picker overlay: lists available games plus an editor shortcut.
+ *
+ * Bus events listened: none (selection is reported via the onSelect callback).
+ *
+ * DOM owned:
+ *   #game-selector  overlay container
+ *   #game-list      game entries are rendered here
+ */
+export class GameSelector {
+  /**
+   * @param {(id: string) => void} onSelect called with the chosen game folder id
+   */
+  constructor(onSelect) {
+    this.onSelect = onSelect;
+    this.overlay = document.getElementById('game-selector');
+    this.listEl  = document.getElementById('game-list');
+  }
+
+  /** Fetch games/index.json, render entries and reveal the overlay. */
+  async show() {
+    try {
+      const res = await fetch('games/index.json');
+      if (!res.ok) throw new Error('Failed to load game list');
+      const gameIds = await res.json();
+
+      // Fetch all manifests in parallel for display
+      const entries = await Promise.all(gameIds.map(async (id) => {
+        try {
+          const r = await fetch(`games/${encodeURIComponent(id)}/_game.json`);
+          return { id, manifest: await r.json() };
+        } catch { return { id, manifest: {} }; }
+      }));
+
+      this.listEl.innerHTML = '';
+      for (const { id, manifest } of entries) {
+        const entry = document.createElement('div');
+        entry.className = 'game-entry';
+        const title = document.createElement('div');
+        title.className = 'game-entry-title';
+        title.textContent = manifest.title || id;
+        entry.appendChild(title);
+        if (manifest.subtitle) {
+          const sub = document.createElement('div');
+          sub.className = 'game-entry-subtitle';
+          sub.textContent = manifest.subtitle;
+          entry.appendChild(sub);
+        }
+        entry.addEventListener('click', () => this.onSelect(id));
+        this.listEl.appendChild(entry);
+      }
+
+      // Editor entry
+      const editorEntry = document.createElement('div');
+      editorEntry.className = 'game-entry';
+      const editorTitle = document.createElement('div');
+      editorTitle.className = 'game-entry-title';
+      editorTitle.textContent = 'b\u00fcengine editor';
+      editorEntry.appendChild(editorTitle);
+      const editorSub = document.createElement('div');
+      editorSub.className = 'game-entry-subtitle';
+      editorSub.textContent = 'Open the scene editor';
+      editorEntry.appendChild(editorSub);
+      editorEntry.addEventListener('click', () => {
+        window.location.href = 'editor/index.html';
+      });
+      this.listEl.appendChild(editorEntry);
+    } catch {
+      this.listEl.innerHTML = '<p style="opacity:0.7">No games found.</p>';
+    }
+    this.overlay.classList.remove('hidden');
+  }
+
+  /** Hide the overlay (after a game has been selected). */
+  hide() {
+    this.overlay.classList.add('hidden');
+  }
+}

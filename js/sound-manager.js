@@ -8,47 +8,36 @@
  *   sound:stopall
  *   overlay:paused  /  overlay:resumed  (subscribed in main.js → pauseAll/resumeAll)
  */
+import { Paths } from './paths.js';
+
+/** Shared UI click sounds — single source of truth for id + path. */
+export const UI_SOUNDS = {
+  buttonClick:   { id: '__ui_btn', path: 'sounds/common/button-click.opus' },
+  dialogueClick: { id: '__ui_dlg', path: 'sounds/common/dialogue-click.opus' },
+};
+
 export class SoundManager {
   /** @param {import('./event-bus.js').EventBus} bus */
   constructor(bus) {
     this.bus = bus;
     /** @type {Map<string, { audio: HTMLAudioElement, fade?: {timer: number, onDone: function|null, finished: boolean}, _wasPlaying?: boolean, _pausedVolume?: number }>} */
     this._sounds = new Map();
+    /** Set once UI sounds have been speculatively preloaded. */
+    this._uiPreloaded = false;
 
-    /** Base path for resolving relative sound URLs. */
-    this._basePath = '';
-    /** @type {Map<string, string>|null} Preview asset blob URL map. */
-    this._assetMap = null;
-
-    bus.on('game:basepath', (bp) => {
-      this._basePath = bp;
-      this._preloadUISounds();
-    });
-    bus.on('game:assetmap', (map) => {
-      this._assetMap = map;
-      this._preloadUISounds();
-    });
     bus.on('sound:play',    (p)     => this._play(p));
     bus.on('sound:stop',    (p)     => this._stop(p));
     bus.on('sound:stopall', ()      => this._stopAll());
   }
 
-  /** Resolve a relative sound path against the game's base directory. */
-  _resolve(path) {
-    if (this._assetMap && path && this._assetMap.has(path)) return this._assetMap.get(path);
-    if (!this._basePath || !path) return path;
-    return `${this._basePath}/${path}`;
-  }
-
   /** Speculatively preload common UI sounds so first-play has no network delay. */
   _preloadUISounds() {
-    this._preloaded = [
-      'sounds/common/button-click.opus',
-      'sounds/common/dialogue-click.opus',
-    ].map(p => {
+    if (this._uiPreloaded) return;
+    this._uiPreloaded = true;
+    this._preloaded = Object.values(UI_SOUNDS).map(({ path }) => {
       const a = new Audio();
       a.preload = 'auto';
-      a.src = this._resolve(p);
+      a.src = Paths.resolve(path);
       return a;
     });
   }
@@ -64,10 +53,11 @@ export class SoundManager {
    * @param {function} [p.onDone]
    */
   _play({ id, path, volume = 1, fade = 0, loop = false, blocking = false, onDone }) {
+    this._preloadUISounds();
     // Stop any existing sound with this id first
     this._stopImmediate(id);
 
-    const audio = new Audio(this._resolve(path));
+    const audio = new Audio(Paths.resolve(path));
     audio.loop = loop;
 
     if (fade > 0) {

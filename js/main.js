@@ -12,6 +12,9 @@ import { Inventory }       from './inventory.js';
 import { InventoryUI }     from './inventory-ui.js';
 import { NotificationUI }  from './notification-ui.js';
 import { ObjectOptionsUI } from './object-options-ui.js';
+import { GameSelector }    from './game-selector.js';
+import { DebugHud }        from './debug-hud.js';
+import { Paths }           from './paths.js';
 
 /* ── Bootstrap ──────────────────────────────────── */
 
@@ -34,6 +37,13 @@ const inventoryUI = new InventoryUI(bus, inventory, runner);
 new NotificationUI(bus);
 new ObjectOptionsUI(bus);
 
+// Plain UI components wired via callbacks instead of the bus
+const gameSelector = new GameSelector((id) => selectGame(id));
+
+/** Currently loaded scene data keyed by id. */
+let currentSceneData = null;
+const debugHud = new DebugHud(() => currentSceneData);
+
 gameContainer.addEventListener('contextmenu', (e) => {
   e.preventDefault();
 });
@@ -41,13 +51,6 @@ gameContainer.addEventListener('contextmenu', (e) => {
 /* ── Pause ↔ audio lifecycle ────────────────────── */
 bus.on('overlay:paused',  () => sound.pauseAll());
 bus.on('overlay:resumed', () => sound.resumeAll());
-
-/** Currently loaded scene data keyed by id. */
-let currentSceneData = null;
-
-/* ── Game selector ──────────────────────────────── */
-const selectorOverlay = document.getElementById('game-selector');
-const gameListEl      = document.getElementById('game-list');
 
 /* ── Scene navigation ───────────────────────────── */
 
@@ -152,7 +155,7 @@ async function gotoScene(id) {
   await preloadAssets(data);
   if (epoch !== sceneEpoch) return; // superseded by a newer transition
   scene.render(data);
-  debugScene.textContent = `Scene: ${id}`;
+  debugHud.setScene(id);
 
   // Show or hide the HUD based on the scene's elements list
   const elements = Array.isArray(data.elements) ? data.elements : [];
@@ -245,66 +248,13 @@ bus.on('object:contextmenu', ({ obj, clientX, clientY }) => {
 /* ── Scene goto (from action runner) ────────────── */
 bus.on('scene:goto', (id) => gotoScene(id));
 
-/* ── Game selector ──────────────────────────────── */
-
-async function showGameSelector() {
-  try {
-    const res = await fetch('games/index.json');
-    if (!res.ok) throw new Error('Failed to load game list');
-    const gameIds = await res.json();
-
-    // Fetch all manifests in parallel for display
-    const entries = await Promise.all(gameIds.map(async (id) => {
-      try {
-        const r = await fetch(`games/${encodeURIComponent(id)}/_game.json`);
-        return { id, manifest: await r.json() };
-      } catch { return { id, manifest: {} }; }
-    }));
-
-    gameListEl.innerHTML = '';
-    for (const { id, manifest } of entries) {
-      const entry = document.createElement('div');
-      entry.className = 'game-entry';
-      const title = document.createElement('div');
-      title.className = 'game-entry-title';
-      title.textContent = manifest.title || id;
-      entry.appendChild(title);
-      if (manifest.subtitle) {
-        const sub = document.createElement('div');
-        sub.className = 'game-entry-subtitle';
-        sub.textContent = manifest.subtitle;
-        entry.appendChild(sub);
-      }
-      entry.addEventListener('click', () => selectGame(id));
-      gameListEl.appendChild(entry);
-    }
-
-    // Editor entry
-    const editorEntry = document.createElement('div');
-    editorEntry.className = 'game-entry';
-    const editorTitle = document.createElement('div');
-    editorTitle.className = 'game-entry-title';
-    editorTitle.textContent = 'b\u00fcengine editor';
-    editorEntry.appendChild(editorTitle);
-    const editorSub = document.createElement('div');
-    editorSub.className = 'game-entry-subtitle';
-    editorSub.textContent = 'Open the scene editor';
-    editorEntry.appendChild(editorSub);
-    editorEntry.addEventListener('click', () => {
-      window.location.href = 'editor/index.html';
-    });
-    gameListEl.appendChild(editorEntry);
-  } catch {
-    gameListEl.innerHTML = '<p style="opacity:0.7">No games found.</p>';
-  }
-  selectorOverlay.classList.remove('hidden');
-}
+/* ── Game selection (engine wiring) ─────────────── */
 
 function selectGame(id) {
   const basePath = `games/${id}`;
   loader.setBasePath(basePath);
-  bus.emit('game:basepath', basePath);
-  selectorOverlay.classList.add('hidden');
+  Paths.basePath = basePath;
+  gameSelector.hide();
   showTitle();
 }
 
@@ -324,10 +274,23 @@ async function showTitle() {
   }
 }
 
-/** Start a new game: reset state, load first scene. */
-bus.on('game:start', async () => {
-  state.reset();
-  inventory.reset();
+/* ── Shared boot (manifest → inventory → scene) ─── */
+
+/**
+ * Common boot sequence for game:start and the preview ?scene deep link:
+ * configure inventory capacity from the manifest, load item definitions,
+ * announce them to the HUD, then enter the requested scene.
+ * @param {string} sceneId scene to enter ('' → manifest.startScene)
+ * @param {{ reset?: boolean, softFail?: boolean }} [opts]
+ *   reset    – reset game state + inventory first (fresh game start)
+ *   softFail – resolve silently when boot fails (editor-preview ?scene boot);
+ *              otherwise fall back to gotoScene('intro')
+ */
+async function bootGame(sceneId, { reset = false, softFail = false } = {}) {
+  if (reset) {
+    state.reset();
+    inventory.reset();
+  }
   try {
     const manifest = await loader.load('_game');
     const invCapacity = manifest.inventory || 0;
@@ -339,18 +302,23 @@ bus.on('game:start', async () => {
         const defs = await loader.load('items/items');
         inventory.loadDefinitionsFromData(defs);
       } catch {
-        await inventory.loadDefinitions(loader.basePath);
+        const pending = inventory.loadDefinitions(loader.basePath);
+        if (softFail) await pending.catch(() => {});
+        else await pending;
       }
     } else {
       await inventory.loadDefinitions(loader.basePath);
     }
 
     bus.emit('hud:inventory-enabled', inventory.enabled);
-    await gotoScene(manifest.startScene || 'intro');
+    await gotoScene(sceneId || manifest.startScene || 'intro');
   } catch {
-    await gotoScene('intro');
+    if (!softFail) await gotoScene('intro');
   }
-});
+}
+
+/** Start a new game: reset state, load first scene. */
+bus.on('game:start', () => bootGame('', { reset: true }));
 
 /** Return to title screen. */
 bus.on('game:title', () => {
@@ -379,56 +347,7 @@ bus.on('game:quit', () => {
     window.close();
     return;
   }
-  showGameSelector();
-});
-
-/* ── Debug mode (key 1) ─────────────────────────── */
-const debugBox     = document.getElementById('debug-box');
-const debugTile    = document.getElementById('debug-tile');
-const debugObject = document.getElementById('debug-object');
-const debugScene   = document.getElementById('debug-scene');
-let debugActive = false;
-
-document.addEventListener('keydown', (e) => {
-  if (e.key === '1') {
-    debugActive = !debugActive;
-    gridOverlay.classList.toggle('hidden', !debugActive);
-    debugBox.classList.toggle('hidden', !debugActive);
-  }
-});
-
-const sceneLayer = document.getElementById('scene-layer');
-
-sceneLayer.addEventListener('mousemove', (e) => {
-  if (!debugActive || !currentSceneData) return;
-  const rect = sceneLayer.getBoundingClientRect();
-  const cols = currentSceneData.grid?.cols ?? 16;
-  const rows = currentSceneData.grid?.rows ?? 9;
-  const tileW = rect.width / cols;
-  const tileH = rect.height / rows;
-  const tileX = Math.floor((e.clientX - rect.left) / tileW);
-  const tileY = Math.floor((e.clientY - rect.top) / tileH);
-  debugTile.textContent = `Tile: ${tileX}, ${tileY}`;
-
-  // Find hovered object
-  let hoveredLabel = '—';
-  const sceneObjects = currentSceneData.objects;
-  if (Array.isArray(sceneObjects)) {
-    for (const obj of sceneObjects) {
-      if (tileX >= obj.x && tileX < obj.x + obj.w &&
-          tileY >= obj.y && tileY < obj.y + obj.h) {
-        hoveredLabel = obj.id || obj.label || '(unnamed)';
-        break;
-      }
-    }
-  }
-  debugObject.textContent = `Object: ${hoveredLabel}`;
-});
-
-sceneLayer.addEventListener('mouseleave', () => {
-  if (!debugActive) return;
-  debugTile.textContent = 'Tile: —, —';
-  debugObject.textContent = 'Object: —';
+  gameSelector.show();
 });
 
 /* ── Initial boot ───────────────────────────────── */
@@ -439,28 +358,16 @@ if (_urlGame) {
   selectGame(_urlGame);
 } else if (loader.isPreview && loader._cache.has('_game')) {
   // Editor preview of a local folder — no game ID needed.
-  // Broadcast the asset map so renderers can resolve blob URLs.
-  if (loader.assetMap) bus.emit('game:assetmap', loader.assetMap);
+  // Point the shared resolver at the editor asset blob URLs.
+  if (loader.assetMap) { Paths.assetMap = loader.assetMap; }
 
   const _sceneParam = _params.get('scene');
   if (_sceneParam) {
     // "Run current scene" — skip title, jump straight into the scene
-    (async () => {
-      const manifest = await loader.load('_game');
-      const invCapacity = manifest.inventory || 0;
-      inventory.configure(invCapacity);
-      try {
-        const defs = await loader.load('items/items');
-        inventory.loadDefinitionsFromData(defs);
-      } catch {
-        await inventory.loadDefinitions(loader.basePath).catch(() => {});
-      }
-      bus.emit('hud:inventory-enabled', inventory.enabled);
-      await gotoScene(_sceneParam);
-    })();
+    bootGame(_sceneParam, { softFail: true });
   } else {
     showTitle();
   }
 } else {
-  showGameSelector();
+  gameSelector.show();
 }

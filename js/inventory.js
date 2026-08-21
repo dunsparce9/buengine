@@ -28,10 +28,6 @@ export class Inventory {
     /** @type {Map<string, number>} Held items: id → quantity. */
     this._items = new Map();
 
-    /** Base path for resolving asset URLs. */
-    this._basePath = '';
-
-    bus.on('game:basepath', (bp) => { this._basePath = bp; });
     bus.on('inventory:add', (p) => this.add(p.id, p.qty ?? 1));
     bus.on('inventory:remove', (p) => this.remove(p.id, p.qty ?? 1));
   }

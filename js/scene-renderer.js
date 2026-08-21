@@ -6,6 +6,8 @@
  * actions are tracked in a unified entity map
  * so that `show` / `hide` actions work on any entity by id.
  */
+import { Paths } from './paths.js';
+
 export class SceneRenderer {
   /**
    * @param {HTMLElement} sceneLayer  #scene-layer element
@@ -40,16 +42,8 @@ export class SceneRenderer {
      */
     this._entities = new Map();
 
-    /** Base path for resolving relative asset URLs. */
-    this._basePath = '';
-
     window.addEventListener('resize', () => this._fitToContainer());
 
-    /** @type {Map<string, string>|null} Preview asset blob URL map. */
-    this._assetMap = null;
-
-    bus.on('game:basepath', (bp) => { this._basePath = bp; });
-    bus.on('game:assetmap', (map) => { this._assetMap = map; });
     bus.on('scene:effect',  (payload) => this._applyEffect(payload));
     bus.on('overlay:show',  (payload) => this._showEntity(payload));
     bus.on('overlay:hide',  (payload) => this._hideEntity(payload));
@@ -78,13 +72,6 @@ export class SceneRenderer {
     this.el.style.height = `${Math.round(h)}px`;
   }
 
-  /** Resolve a relative asset path against the game's base directory. */
-  _resolve(path) {
-    if (this._assetMap && path && this._assetMap.has(path)) return this._assetMap.get(path);
-    if (!this._basePath || !path) return path;
-    return `${this._basePath}/${path}`;
-  }
-
   /**
    * Render a scene object.
    * @param {object} scene  Parsed scene JSON
@@ -102,7 +89,7 @@ export class SceneRenderer {
 
     // Background
     if (scene.background) {
-      this.el.style.backgroundImage = `url('${CSS.escape(this._resolve(scene.background))}')`;
+      this.el.style.backgroundImage = `url('${CSS.escape(Paths.resolve(scene.background))}')`;
     } else {
       this.el.style.backgroundImage = '';
       this.el.style.backgroundColor = scene.backgroundColor || '#111';
@@ -131,7 +118,7 @@ export class SceneRenderer {
 
         if (obj.texture) {
           div.classList.add('scene-object-textured');
-          div.style.backgroundImage = `url('${CSS.escape(this._resolve(obj.texture))}')`;
+          div.style.backgroundImage = `url('${CSS.escape(Paths.resolve(obj.texture))}')`;
         }
 
         if (obj.cursor) div.style.cursor = obj.cursor;
@@ -370,7 +357,7 @@ export class SceneRenderer {
 
   _applyImageContent(el, { texture, scaling, z }) {
     if (texture) {
-      el.style.backgroundImage = `url('${CSS.escape(this._resolve(texture))}')`;
+      el.style.backgroundImage = `url('${CSS.escape(Paths.resolve(texture))}')`;
     }
 
     if (scaling === 'fill' || scaling === 'cover') {
