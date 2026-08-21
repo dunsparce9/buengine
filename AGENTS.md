@@ -91,6 +91,8 @@ Actions are objects in an array. Supported commands:
 | Stop sound | `{ "stopsound": { "id": "bgm", "fade": 1, "blocking": true } }` — stops a playing sound by id; `fade` (seconds, default 0), `blocking` waits for fade-out to finish |
 | Item add/remove | `{ "item": { "id": "key", "qty": 1 } }` — adds item to inventory (negative `qty` removes). Requires inventory enabled in `_game.json` |
 
+**Condition semantics & safety guards:** Unset flags read as numeric `0` everywhere. Plain truthiness checks (`"if": "flag"`) treat unset or `0` as false. In comparisons (`==`, `!=`, `>`, `>=`, `<`, `<=`) operands are coerced with `Number()`, so booleans become `1`/`0` (`true == 1` is true); only when *both* sides are non-numeric strings do they compare lexicographically, and if either side coerces to `NaN` the comparison is false. Two guards prevent hangs: a `loop` whose condition never flips throws an Error after **10,000 iterations**, and nesting deeper than **64 frames** (e.g. runaway recursive `{ "run": ... }`) throws an Error about recursive sequence expansion — both name the scene/condition where they fired.
+
 ### Inventory system
 
 Configured per-game in `_game.json`:

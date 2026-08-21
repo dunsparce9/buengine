@@ -34,7 +34,11 @@ export class OverlayUI {
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         if (!this.title.classList.contains('hidden')) return;
-        this.pause.classList.toggle('hidden');
+        if (this.pause.classList.contains('hidden')) {
+          this.showPause();
+        } else {
+          this.hidePause();
+        }
       }
     });
 
@@ -56,9 +60,11 @@ export class OverlayUI {
 
   showPause() {
     this.pause.classList.remove('hidden');
+    this.bus.emit('overlay:paused');
   }
 
   hidePause() {
     this.pause.classList.add('hidden');
+    this.bus.emit('overlay:resumed');
   }
 }

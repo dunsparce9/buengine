@@ -28,7 +28,7 @@ const gameContainer = document.getElementById('game-container');
 new DialogueUI(bus);
 new ChoiceUI(bus);
 const overlay = new OverlayUI(bus);
-new SoundManager(bus);
+const sound   = new SoundManager(bus);
 const hud = new HudUI(bus);
 const inventoryUI = new InventoryUI(bus, inventory, runner);
 new NotificationUI(bus);
@@ -38,6 +38,10 @@ gameContainer.addEventListener('contextmenu', (e) => {
   e.preventDefault();
 });
 
+/* ── Pause ↔ audio lifecycle ────────────────────── */
+bus.on('overlay:paused',  () => sound.pauseAll());
+bus.on('overlay:resumed', () => sound.resumeAll());
+
 /** Currently loaded scene data keyed by id. */
 let currentSceneData = null;
 
@@ -46,6 +50,13 @@ const selectorOverlay = document.getElementById('game-selector');
 const gameListEl      = document.getElementById('game-list');
 
 /* ── Scene navigation ───────────────────────────── */
+
+/**
+ * Monotonic scene-transition generation counter. Every gotoScene() bumps it
+ * and captures its own value; after each await, a stale generation means a
+ * newer transition superseded this one and it must bail out silently.
+ */
+let sceneEpoch = 0;
 
 /**
  * Collect all `goto` scene IDs reachable from an action array (recursive).
@@ -106,9 +117,8 @@ function preloadAssets(data) {
         img.src = url;
       });
     }
-    const audio = new Audio();
-    audio.preload = 'auto';
-    audio.src = url;
+    // Non-image assets (audio etc.) are not preloaded; the sound manager
+    // fetches them on demand.
     return Promise.resolve();
   }));
 }
@@ -131,13 +141,16 @@ function preloadNeighbors(data) {
 }
 
 async function gotoScene(id) {
+  const epoch = ++sceneEpoch;
   runner.abort();
   const data = await loader.load(id);
+  if (epoch !== sceneEpoch) return; // superseded by a newer transition
   currentSceneData = data;
   runner.sequences = getSceneSequences(data);
   state.pushScene(id);
   bus.emit('overlay:clear');
   await preloadAssets(data);
+  if (epoch !== sceneEpoch) return; // superseded by a newer transition
   scene.render(data);
   debugScene.textContent = `Scene: ${id}`;
 
@@ -155,8 +168,13 @@ async function gotoScene(id) {
   preloadNeighbors(data);
 
   // Run the scene's entry actions, if any
-  if (Array.isArray(data.onEnter)) {
+  if (Array.isArray(data.onEnter) && epoch === sceneEpoch) {
     await runner.run(data.onEnter);
+    if (epoch !== sceneEpoch) {
+      // Superseded mid-onEnter: stop anything of ours still running.
+      runner.abort();
+      return;
+    }
   }
 }
 
@@ -180,8 +198,7 @@ async function runObjectInteraction(obj, optionIndex = 0, { interruptIfRunning =
     if (runner.running) {
       if (!interruptIfRunning) return;
       if (!actions.length) return;
-      runner.abort();
-      await Promise.resolve();
+      await runner.abort(); // handshake: wait for the old chain to fully unwind
     }
     trackObjectClick(obj);
     runner.currentObjectId = obj.id || null;
@@ -196,8 +213,7 @@ async function runObjectInteraction(obj, optionIndex = 0, { interruptIfRunning =
   if (runner.running) {
     if (!interruptIfRunning) return;
     if (!Array.isArray(obj?.actions) || obj.actions.length === 0) return;
-    runner.abort();
-    await Promise.resolve();
+    await runner.abort(); // handshake: wait for the old chain to fully unwind
   }
 
   trackObjectClick(obj);

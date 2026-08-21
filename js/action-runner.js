@@ -8,6 +8,11 @@
  */
 import { detectType, getActionMeta } from './action-schema.js';
 
+/** Max iterations of a single `loop` statement before assuming an infinite loop. */
+const MAX_LOOP_ITERATIONS = 10000;
+/** Max frame-stack depth before recursive sequence expansion (`run`) is treated as runaway. */
+const MAX_FRAME_DEPTH = 64;
+
 export class ActionRunner {
   /**
    * @param {object} deps
@@ -26,6 +31,8 @@ export class ActionRunner {
     this.running = false;
     /** Resolve function for the currently awaited blocking promise (dialogue, choice, effect, etc.). */
     this._pendingResolve = null;
+    /** Resolvers waiting for the current run to fully unwind (see abort()). */
+    this._unwindWaiters = [];
     /** @type {string|null} ID of the object whose actions are currently running (for "this" resolution). */
     this.currentObjectId = null;
     /** @type {Record<string, object[]>} Named action sequences from the current scene. */
@@ -34,11 +41,21 @@ export class ActionRunner {
     this._children = new Set();
   }
 
-  /** Cancel any running sequence (external). */
+  /**
+   * Cancel any running sequence (external).
+   * Returns a promise that resolves once the aborted run — and every forked
+   * child run — has fully unwound. Fire-and-forget callers may ignore it.
+   */
   abort() {
+    // Register the unwind waiter BEFORE flipping `running`, so we can't miss
+    // the finally-block flush even though running goes false synchronously.
+    const selfWait = this.running
+      ? new Promise(resolve => this._unwindWaiters.push(resolve))
+      : null;
+    const childWaits = [];
     this._aborted = true;
     this.running = false;
-    for (const child of this._children) child.abort();
+    for (const child of this._children) childWaits.push(child.abort());
     this._children.clear();
     // Resolve any pending blocking promise so the run() loop can unwind cleanly.
     const pending = this._pendingResolve;
@@ -48,6 +65,8 @@ export class ActionRunner {
     this.bus.emit('dialogue:dismiss');
     this.bus.emit('choice:dismiss');
     if (pending) pending();
+    if (!selfWait && childWaits.length === 0) return Promise.resolve();
+    return Promise.all([selfWait, ...childWaits].filter(Boolean)).then(() => {});
   }
 
   /**
@@ -73,6 +92,14 @@ export class ActionRunner {
         const frame = frames[frames.length - 1];
         if (frame.index >= frame.actions.length) {
           if (frame.loopCondition && this._evalCondition(frame.loopCondition)) {
+            frame.iterations += 1;
+            if (frame.iterations > MAX_LOOP_ITERATIONS) {
+              throw new Error(
+                `Action runner: loop exceeded ${MAX_LOOP_ITERATIONS} iterations without its ` +
+                `condition "${frame.loopCondition}" flipping — probable infinite loop` +
+                this._errorContext()
+              );
+            }
             frame.index = 0;
           } else {
             frames.pop();
@@ -89,6 +116,10 @@ export class ActionRunner {
     } finally {
       if (!_nested) {
         this.running = false;
+        // Release anyone awaiting abort()'s completion handshake.
+        const waiters = this._unwindWaiters;
+        this._unwindWaiters = [];
+        for (const resolve of waiters) resolve();
         // Emit scene change only after the entire action chain has unwound,
         // so gotoScene's fresh runner.run() can't reset flags mid-unwind.
         if (this._gotoFired && this._gotoTarget) {
@@ -118,13 +149,17 @@ export class ActionRunner {
       case 'branch': {
         const result = this._evalCondition(action[engine.condition]);
         const branch = result ? action[engine.trueActions] : action[engine.falseActions];
-        if (branch?.length) frames.push({ actions: branch, index: 0 });
+        if (branch?.length) {
+          this._checkFrameDepth(frames, 'conditional branch');
+          frames.push({ actions: branch, index: 0 });
+        }
         return false;
       }
       case 'loop': {
         const loopActions = this._resolveLoopActions(action);
         if (loopActions?.length && this._evalCondition(action[engine.condition])) {
-          frames.push({ actions: loopActions, index: 0, loopCondition: action[engine.condition] });
+          this._checkFrameDepth(frames, 'loop');
+          frames.push({ actions: loopActions, index: 0, loopCondition: action[engine.condition], iterations: 0 });
         }
         return false;
       }
@@ -133,7 +168,10 @@ export class ActionRunner {
         return false;
       case 'run-sequence': {
         const sequence = this.sequences[action[engine.arg]];
-        if (sequence?.length) frames.push({ actions: sequence, index: 0 });
+        if (sequence?.length) {
+          this._checkFrameDepth(frames, `sequence "${action[engine.arg]}"`);
+          frames.push({ actions: sequence, index: 0 });
+        }
         return false;
       }
       case 'fork': {
@@ -335,10 +373,56 @@ export class ActionRunner {
     return this.state.getFlag(text) ?? 0;
   }
 
+  /** Describe where the runner currently is, for error messages. */
+  _errorContext() {
+    const scene = this.state?.currentScene ?? 'unknown scene';
+    const obj = this.currentObjectId ? `, object "${this.currentObjectId}"` : '';
+    return ` (scene "${scene}"${obj})`;
+  }
+
+  /**
+   * Guard against runaway nesting of the frame stack (recursive `run`
+   * expansion, deeply nested conditionals/loops).
+   */
+  _checkFrameDepth(frames, what) {
+    if (frames.length >= MAX_FRAME_DEPTH) {
+      throw new Error(
+        `Action runner: nested action depth exceeded ${MAX_FRAME_DEPTH} frames while expanding ` +
+        `${what} — probable recursive sequence expansion` + this._errorContext()
+      );
+    }
+  }
+
+  /**
+   * Coerce a pair of resolved operands for comparison.
+   *
+   * Semantics: operands are coerced with `Number()` — booleans become 1/0
+   * (so `true == 1`). Only when BOTH sides are non-numeric strings do they
+   * compare lexicographically as strings. If either side coerces to NaN
+   * (and string-string doesn't apply), the comparison is unresolvable and
+   * null is returned (every comparison yields false).
+   *
+   * @returns {[number|string, number|string]|null}
+   */
+  _coerceComparison(left, right) {
+    const lNum = Number(left);
+    const rNum = Number(right);
+    if (
+      Number.isNaN(lNum) && Number.isNaN(rNum) &&
+      typeof left === 'string' && typeof right === 'string'
+    ) {
+      return [left, right];
+    }
+    if (Number.isNaN(lNum) || Number.isNaN(rNum)) return null;
+    return [lNum, rNum];
+  }
+
   /**
    * Evaluate an `if`/`loop` condition.
-   * - Plain name → truthiness check (backward-compatible).
-   * - "flag op value" → numeric comparison.
+   * - Plain name → truthiness check (unset flags read as 0 → false).
+   * - "flag op value" → comparison with Number() coercion; booleans coerce
+   *   to 1/0 (`true == 1` is true); two non-numeric strings compare as
+   *   strings; any NaN operand makes the comparison false.
    * - `true` / `false` → literal boolean.
    * - "1 == 1" → literal comparison.
    * Supports `items.<id>.qty` for inventory checks.
@@ -355,20 +439,23 @@ export class ActionRunner {
       if (text !== '' && !Number.isNaN(Number(text))) return Number(text) !== 0;
 
       // Plain truthiness: check inventory shorthand or flag
+      // (unset flags read as numeric 0 → falsy)
       const itemMatch = /^items\.(.+?)\.qty$/.exec(text);
       if (itemMatch) return this.inventory.getQty(itemMatch[1]) > 0;
-      return this.state.hasFlag(text);
+      const value = this.state.getFlag(text) ?? 0;
+      return Boolean(value);
     }
 
     const left = this._resolveConditionOperand(m[1]);
     const right = this._resolveConditionOperand(m[3]);
+    const pair = this._coerceComparison(left, right);
     switch (m[2]) {
-      case '==': return left === right;
-      case '!=': return left !== right;
-      case '>':  return left > right;
-      case '>=': return left >= right;
-      case '<':  return left < right;
-      case '<=': return left <= right;
+      case '==': return pair !== null && pair[0] === pair[1];
+      case '!=': return pair !== null && pair[0] !== pair[1];
+      case '>':  return pair !== null && pair[0] > pair[1];
+      case '>=': return pair !== null && pair[0] >= pair[1];
+      case '<':  return pair !== null && pair[0] < pair[1];
+      case '<=': return pair !== null && pair[0] <= pair[1];
       default:   return false;
     }
   }

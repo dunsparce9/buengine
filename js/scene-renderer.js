@@ -90,6 +90,11 @@ export class SceneRenderer {
    * @param {object} scene  Parsed scene JSON
    */
   render(scene) {
+    // Reset any scene-level fade styles left over from the previous scene
+    // (e.g. a blocking fade-out leaves opacity:0 inline, which would make
+    // the next scene invisible unless it fades in itself)
+    this.el.style.opacity = '';
+    this.el.style.transition = '';
     // Clear all tracked entities (scene objects + runtime overlays)
     this._clearAllEntities();
     // Safety net: remove any orphaned .scene-object elements
@@ -190,7 +195,7 @@ export class SceneRenderer {
       this.el.style.opacity = '1';
 
       if (blocking) {
-        this.el.addEventListener('transitionend', () => onDone?.(), { once: true });
+        this._waitForTransition(this.el, seconds, () => onDone?.());
       } else {
         onDone?.();
       }
@@ -199,13 +204,38 @@ export class SceneRenderer {
       this.el.style.opacity = '0';
 
       if (blocking) {
-        this.el.addEventListener('transitionend', () => onDone?.(), { once: true });
+        this._waitForTransition(this.el, seconds, () => onDone?.());
       } else {
         onDone?.();
       }
     } else {
       onDone?.();
     }
+  }
+
+  /**
+   * Wait for an opacity transition to complete, racing `transitionend`
+   * against a timeout fallback. The fallback covers cases where the event
+   * never fires (e.g. a second consecutive fade-out where opacity is
+   * already at the target value, so no CSS transition runs). Resolution
+   * is idempotent — whichever fires first wins and the other is cleared.
+   * @param {HTMLElement} el
+   * @param {number} seconds  transition duration in seconds
+   * @param {function} onDone
+   */
+  _waitForTransition(el, seconds, onDone) {
+    let settled = false;
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      el.removeEventListener('transitionend', handleEnd);
+      clearTimeout(timer);
+      onDone?.();
+    };
+    const handleEnd = () => settle();
+    // +50ms slack so the fallback only fires if transitionend truly never will
+    const timer = setTimeout(settle, seconds * 1000 + 50);
+    el.addEventListener('transitionend', handleEnd, { once: true });
   }
 
   /* ── Unified entity show/hide ────────────────── */
@@ -509,10 +539,10 @@ export class SceneRenderer {
       el.style.pointerEvents = 'none';
 
       if (effect.blocking) {
-        el.addEventListener('transitionend', () => { finish(); onDone?.(); }, { once: true });
+        this._waitForTransition(el, effect.seconds, () => { finish(); onDone?.(); });
       } else {
         onDone?.();
-        el.addEventListener('transitionend', finish, { once: true });
+        this._waitForTransition(el, effect.seconds, () => finish());
       }
       return;
     }

@@ -79,7 +79,10 @@ export class ScriptLoader {
     if (this._cache.has(id)) return this._cache.get(id);
 
     const prefix = this.basePath ? `${this.basePath}/` : '';
-    const url = `${prefix}${encodeURIComponent(id)}.json`;
+    // Encode each path segment separately so nested ids like "items/items.json"
+    // keep their "/" separators instead of producing "%2F" URLs.
+    const encodedId = id.split('/').map(encodeURIComponent).join('/');
+    const url = `${prefix}${encodedId}.json`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Script not found: ${url} (${res.status})`);
     const data = await res.json();
