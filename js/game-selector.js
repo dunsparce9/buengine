@@ -5,6 +5,7 @@
  *
  * DOM owned:
  *   #game-selector  overlay container
+ *   #editor-entry   editor shortcut
  *   #game-list      game entries are rendered here
  */
 export class GameSelector {
@@ -14,7 +15,12 @@ export class GameSelector {
   constructor(onSelect) {
     this.onSelect = onSelect;
     this.overlay = document.getElementById('game-selector');
+    this.editorEntry = document.getElementById('editor-entry');
     this.listEl  = document.getElementById('game-list');
+
+    this.editorEntry.addEventListener('click', () => {
+      window.location.href = 'editor/index.html';
+    });
   }
 
   /** Fetch games/index.json, render entries and reveal the overlay. */
@@ -34,37 +40,32 @@ export class GameSelector {
 
       this.listEl.innerHTML = '';
       for (const { id, manifest } of entries) {
-        const entry = document.createElement('div');
+        const entry = document.createElement('button');
         entry.className = 'game-entry';
-        const title = document.createElement('div');
+        entry.type = 'button';
+
+        const icon = document.createElement('span');
+        icon.className = 'game-entry-icon material-symbols-outlined';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.textContent = 'stadia_controller';
+        entry.appendChild(icon);
+
+        const copy = document.createElement('span');
+        copy.className = 'game-entry-copy';
+        const title = document.createElement('span');
         title.className = 'game-entry-title';
         title.textContent = manifest.title || id;
-        entry.appendChild(title);
+        copy.appendChild(title);
         if (manifest.subtitle) {
-          const sub = document.createElement('div');
+          const sub = document.createElement('span');
           sub.className = 'game-entry-subtitle';
           sub.textContent = manifest.subtitle;
-          entry.appendChild(sub);
+          copy.appendChild(sub);
         }
+        entry.appendChild(copy);
         entry.addEventListener('click', () => this.onSelect(id));
         this.listEl.appendChild(entry);
       }
-
-      // Editor entry
-      const editorEntry = document.createElement('div');
-      editorEntry.className = 'game-entry';
-      const editorTitle = document.createElement('div');
-      editorTitle.className = 'game-entry-title';
-      editorTitle.textContent = 'b\u00fcengine editor';
-      editorEntry.appendChild(editorTitle);
-      const editorSub = document.createElement('div');
-      editorSub.className = 'game-entry-subtitle';
-      editorSub.textContent = 'Open the scene editor';
-      editorEntry.appendChild(editorSub);
-      editorEntry.addEventListener('click', () => {
-        window.location.href = 'editor/index.html';
-      });
-      this.listEl.appendChild(editorEntry);
     } catch {
       this.listEl.innerHTML = '<p style="opacity:0.7">No games found.</p>';
     }

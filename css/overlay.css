@@ -13,23 +13,185 @@
 .overlay-content p  { font-size: 1.2rem; margin-bottom: 1.5rem; opacity: 0.8; }
 
 /* ── Game selector ─────────────────────────────── */
+#game-selector {
+  overflow-y: auto;
+  background: #292929;
+}
+.selector-content {
+  width: min(24rem, calc(100% - 3rem));
+  margin: auto;
+  padding: 2.25rem 0;
+  text-align: left;
+}
+.selector-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+}
+.selector-brand-logo {
+  width: 3.75rem;
+  height: 3.75rem;
+  object-fit: contain;
+}
+.selector-brand-copy h1 {
+  font-family: 'Playwrite HR Lijeva', cursive;
+}
+.selector-brand-copy h1 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 400;
+  line-height: 1.1;
+}
+.selector-brand-copy p {
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  opacity: 0.72;
+}
+.selector-separator {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.6rem 0 0.8rem;
+  color: #929292;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.selector-separator::before,
+.selector-separator::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #555;
+}
+.selector-separator span { flex: none; }
+#game-selector .selector-intro {
+  margin: 0 0 0.8rem;
+  color: #aaa;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  text-align: center;
+}
 #game-list {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-width: 280px;
-  margin-top: 1rem;
 }
 .game-entry {
-  padding: 0.8rem 1.5rem;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 0.75rem;
+  padding: 0.7rem 0.9rem;
   background: rgba(255,255,255,0.08);
+  font: inherit;
   color: #eee;
-  border: 1px solid rgba(255,255,255,0.25);
-  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 6px;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
   text-align: left;
 }
-.game-entry:hover { background: rgba(255,255,255,0.2); }
-.game-entry-title { font-size: 1.1rem; font-weight: bold; }
-.game-entry-subtitle { font-size: 0.85rem; opacity: 0.7; margin-top: 0.15rem; }
+.game-entry:hover {
+  background: rgba(255,255,255,0.14);
+  border-color: rgba(255,255,255,0.28);
+  transform: translateY(-1px);
+}
+.game-entry:focus-visible {
+  outline: 2px solid #ddd;
+  outline-offset: 3px;
+}
+.game-entry-icon {
+  flex: 0 0 2.1rem;
+  color: #aaa;
+  font-size: 1.7rem;
+  text-align: center;
+}
+.game-entry-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+.game-entry-title { font-size: 0.88rem; font-weight: 700; }
+.game-entry-subtitle { margin-top: 0.12rem; font-size: 0.7rem; line-height: 1.4; opacity: 0.65; }
+
+/* ── Game title screen ─────────────────────────── */
+#title-screen {
+  background: #292929;
+}
+.title-content {
+  width: min(28rem, calc(100% - 3rem));
+}
+.title-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+}
+.title-brand-icon {
+  flex: 0 0 3.75rem;
+  color: #aaa;
+  font-size: 3rem;
+}
+.title-brand-copy {
+  min-width: 0;
+  text-align: left;
+}
+#title-text {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+#title-subtitle {
+  margin: 0.25rem 0 0;
+  color: #aaa;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  opacity: 1;
+}
+.title-start-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  gap: 0.45rem;
+  margin: 1.25rem 0 0;
+  padding: 0.7rem 0.9rem;
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.14);
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+.title-start-btn:hover {
+  background: rgba(255,255,255,0.14);
+  border-color: rgba(255,255,255,0.28);
+}
+.title-start-btn .material-symbols-outlined {
+  color: #aaa;
+  font-size: 1.35rem;
+}
+.title-start-btn:focus-visible {
+  outline: 2px solid #ddd;
+  outline-offset: 3px;
+}
+
+@media (max-width: 520px) {
+  .selector-content {
+    width: min(100% - 2rem, 28rem);
+    padding: 1.5rem 0;
+  }
+  .selector-brand-logo { width: 3.25rem; height: 3.25rem; }
+  .selector-brand-copy h1 { font-size: 1.7rem; }
+  .selector-brand-copy p { font-size: 0.68rem; }
+  .selector-separator { margin-top: 1.4rem; }
+  .title-content { width: min(100% - 2rem, 28rem); }
+  .title-brand-icon { flex-basis: 3.25rem; font-size: 2.6rem; }
+  #title-text { font-size: 1.4rem; }
+  #title-subtitle { font-size: 0.68rem; }
+}

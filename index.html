@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>büengine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playwrite+HR+Lijeva:wght@100..400&amp;display=swap" rel="stylesheet">
   <link rel="preload" href="assets/fonts/material-symbols-outlined.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="css/material-symbols.css">
   <link rel="stylesheet" href="css/style.css">
@@ -18,18 +21,45 @@
     <!-- UI overlay layer: title, pause, dialogues, choices -->
     <div id="ui-layer">
       <div id="game-selector" class="overlay hidden">
-        <div class="overlay-content">
-          <h1>büengine</h1>
-          <p>Select a game</p>
+        <div class="overlay-content selector-content">
+          <header class="selector-brand">
+            <img class="selector-brand-logo" src="assets/images/seal.png" alt="">
+            <div class="selector-brand-copy">
+              <h1>büengine</h1>
+              <p>2D point'n'click storyteller</p>
+            </div>
+          </header>
+
+          <div class="selector-separator"><span>Enter the editor</span></div>
+
+          <button id="editor-entry" class="game-entry" type="button">
+            <span class="game-entry-icon material-symbols-outlined" aria-hidden="true">edit_square</span>
+            <span class="game-entry-copy">
+              <span class="game-entry-title">büengine editor</span>
+              <span class="game-entry-subtitle">Open the level editor.</span>
+            </span>
+          </button>
+
+          <div class="selector-separator"><span>Or try these games</span></div>
+          <p class="selector-intro">Below are some great games developed by our prized büengineers.</p>
           <div id="game-list"></div>
         </div>
       </div>
 
       <div id="title-screen" class="overlay hidden">
-        <div class="overlay-content">
-          <h1 id="title-text"></h1>
-          <p id="title-subtitle"></p>
-          <button id="title-start-btn" class="btn">Start</button>
+        <div class="overlay-content title-content">
+          <header class="title-brand">
+            <span class="title-brand-icon material-symbols-outlined" aria-hidden="true">stadia_controller</span>
+            <div class="title-brand-copy">
+              <h1 id="title-text"></h1>
+              <p id="title-subtitle"></p>
+            </div>
+          </header>
+
+          <button id="title-start-btn" class="btn title-start-btn" type="button">
+            <span class="material-symbols-outlined" aria-hidden="true">play_arrow</span>
+            <span>Start</span>
+          </button>
         </div>
       </div>
 
