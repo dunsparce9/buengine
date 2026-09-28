@@ -11,6 +11,11 @@ import { openOptionsModal, createDefaultObjectOption } from './options-editor.js
 import { openSequencesModal } from './sequence-editor.js';
 import { selectScript } from './file-panel.js';
 import { createSectionHeader } from './section-header.js';
+import {
+  addEditablePropGroup,
+  addCompactEditablePropGroup,
+  buildFieldRow,
+} from './field-rows.js';
 
 let _assetInfoRequestId = 0;
 
@@ -90,7 +95,7 @@ function renderGameProps(data) {
     { key: 'title',      value: data.title      ?? '', onChange: v => { data.title = v; markDirty('_game'); } },
     { key: 'subtitle',   value: data.subtitle   ?? '', onChange: v => { data.subtitle = v; markDirty('_game'); } },
     { key: 'startScene', value: data.startScene ?? '', onChange: v => { data.startScene = v; markDirty('_game'); } },
-  ]);
+  ], dom.propsContent, createGroupTitle);
 
   if (data.scenes) {
     addPropGroup('Scenes', data.scenes.map((s, i) => [`[${i}]`, s]));
@@ -104,6 +109,7 @@ function renderSceneProps(data) {
     {
       key: 'id',
       value: data.id ?? '',
+      event: 'change',
       onChange: (value, input) => updateSceneId(data, sceneId, value, input),
     },
     {
@@ -124,7 +130,7 @@ function renderSceneProps(data) {
         hooks.renderViewport();
       },
     },
-  ]);
+  ], dom.propsContent, createGroupTitle);
 
   const grid = data.grid ||= { cols: 16, rows: 9 };
   addCompactEditablePropGroup('Grid', [
@@ -144,7 +150,7 @@ function renderSceneProps(data) {
       min: 1,
       onChange: value => updateSceneGrid(data, sceneId, 'rows', value),
     },
-  ]);
+  ], dom.propsContent, createGroupTitle);
 
   const objects = data.objects;
   addPropGroup(`Objects (${objects?.length ?? 0})`,
@@ -167,7 +173,7 @@ function renderSceneProps(data) {
     );
   }
 
-  const sequences = data.sequences || data.definitions || {};
+  const sequences = data.sequences || {};
   const names = Object.keys(sequences);
   addSequencesGroup(data, names);
 }
@@ -248,25 +254,13 @@ function renderObjectProps(obj) {
   }
 
   // ── Identity fields ──
-  {
-    const group = document.createElement('div');
-    group.className = 'prop-group';
-    const heading = createGroupTitle('Object');
-    group.appendChild(heading);
-
-    // id — editable with uniqueness validation
+  addEditablePropGroup('Object', [
     {
-      const row = document.createElement('div');
-      row.className = 'prop-row';
-      const label = document.createElement('span');
-      label.className = 'prop-key';
-      label.textContent = 'id';
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'prop-input';
-      input.value = obj.id || '';
-      input.addEventListener('change', () => {
-        const v = input.value.trim().replace(/\s+/g, '_');
+      key: 'id',
+      value: obj.id || '',
+      event: 'change',
+      onChange: (value, input) => {
+        const v = value.trim().replace(/\s+/g, '_');
         if (!v) { input.value = obj.id; return; }
         const others = (data.objects ?? []).filter(item => item !== obj);
         if (others.some(item => item.id === v)) {
@@ -279,33 +273,18 @@ function renderObjectProps(obj) {
         state.selectedObjectId = v;
         markDirty(sceneId);
         hooks.renderViewport();
-      });
-      row.append(label, input);
-      group.appendChild(row);
-    }
-
-    // label — editable
+      },
+    },
     {
-      const row = document.createElement('div');
-      row.className = 'prop-row';
-      const label = document.createElement('span');
-      label.className = 'prop-key';
-      label.textContent = 'label';
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'prop-input';
-      input.value = obj.label || '';
-      input.addEventListener('input', () => {
-        obj.label = input.value || undefined;
+      key: 'label',
+      value: obj.label || '',
+      onChange: value => {
+        obj.label = value || undefined;
         markDirty(sceneId);
         hooks.renderViewport();
-      });
-      row.append(label, input);
-      group.appendChild(row);
-    }
-
-    dom.propsContent.appendChild(group);
-  }
+      },
+    },
+  ], dom.propsContent, createGroupTitle);
 
   // ── Position ──
   addCompactEditablePropGroup('Position', [
@@ -313,144 +292,73 @@ function renderObjectProps(obj) {
     { key: 'y', value: obj.y, type: 'number', step: 1, min: 0, onChange: v => setObjectProp('y', v) },
     { key: 'w', value: obj.w, type: 'number', step: 1, min: 1, onChange: v => setObjectProp('w', v) },
     { key: 'h', value: obj.h, type: 'number', step: 1, min: 1, onChange: v => setObjectProp('h', v) },
-  ]);
+  ], dom.propsContent, createGroupTitle);
 
   // ── Texture — combo box ──
-  {
-    const group = document.createElement('div');
-    group.className = 'prop-group';
-    const heading = createGroupTitle('Texture');
-    group.appendChild(heading);
-
-    const row = document.createElement('div');
-    row.className = 'prop-row';
-    const label = document.createElement('span');
-    label.className = 'prop-key';
-    label.textContent = 'src';
-
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'prop-input';
-    input.setAttribute('list', 'texture-datalist');
-    input.value = obj.texture || '';
-    input.placeholder = '(none)';
-    input.addEventListener('input', () => {
-      obj.texture = input.value || undefined;
-      markDirty(sceneId);
-      hooks.renderViewport();
-    });
-
-    // Populate datalist with known images
-    let datalist = document.getElementById('texture-datalist');
-    if (!datalist) {
-      datalist = document.createElement('datalist');
-      datalist.id = 'texture-datalist';
-      document.body.appendChild(datalist);
-    }
-    datalist.innerHTML = '';
-    for (const p of collectImagePaths()) {
-      const opt = document.createElement('option');
-      opt.value = p;
-      datalist.appendChild(opt);
-    }
-
-    row.append(label, input);
-    group.appendChild(row);
-    dom.propsContent.appendChild(group);
-  }
+  addEditablePropGroup('Texture', [
+    {
+      key: 'src',
+      value: obj.texture || '',
+      type: 'datalist',
+      listId: 'texture-datalist',
+      options: collectImagePaths(),
+      placeholder: '(none)',
+      onChange: value => {
+        obj.texture = value || undefined;
+        markDirty(sceneId);
+        hooks.renderViewport();
+      },
+    },
+  ], dom.propsContent, createGroupTitle);
 
   // ── Cursor — select list ──
+  addEditablePropGroup('Cursor', [
+    {
+      key: 'cursor',
+      value: obj.cursor || '',
+      type: 'select',
+      // Empty value means "no cursor override" (default).
+      options: [{ value: '', label: '(default)' }, ...STANDARD_CURSORS],
+      event: 'change',
+      onChange: value => {
+        obj.cursor = value || undefined;
+        markDirty(sceneId);
+      },
+    },
+  ], dom.propsContent, createGroupTitle);
+
+  // ── Visibility + highlight (no group heading, as before) ──
   {
     const group = document.createElement('div');
     group.className = 'prop-group';
-    const heading = document.createElement('div');
-    heading.className = 'prop-group-title';
-    heading.textContent = 'Cursor';
-    group.appendChild(heading);
-
-    const row = document.createElement('div');
-    row.className = 'prop-row';
-    const label = document.createElement('span');
-    label.className = 'prop-key';
-    label.textContent = 'cursor';
-
-    const sel = document.createElement('select');
-    sel.className = 'prop-input prop-select';
-
-    // "(default)" option means no cursor override
-    const defOpt = document.createElement('option');
-    defOpt.value = '';
-    defOpt.textContent = '(default)';
-    sel.appendChild(defOpt);
-
-    for (const c of STANDARD_CURSORS) {
-      const o = document.createElement('option');
-      o.value = c;
-      o.textContent = c;
-      if (c === (obj.cursor || '')) o.selected = true;
-      sel.appendChild(o);
-    }
-    sel.addEventListener('change', () => {
-      obj.cursor = sel.value || undefined;
-      markDirty(sceneId);
-    });
-
-    row.append(label, sel);
-    group.appendChild(row);
-    dom.propsContent.appendChild(group);
-  }
-
-  // ── Visibility ──
-  {
-    const group = document.createElement('div');
-    group.className = 'prop-group';
-    const row = document.createElement('div');
-    row.className = 'prop-row';
-    const label = document.createElement('span');
-    label.className = 'prop-key';
-    label.textContent = 'visible';
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.className = 'prop-checkbox';
-    input.checked = obj.visible !== false;
-    input.addEventListener('change', () => {
-      if (input.checked) {
-        delete obj.visible;
-      } else {
-        obj.visible = false;
-      }
-      markDirty(sceneId);
-      hooks.renderViewport();
-    });
-    row.append(label, input);
-    group.appendChild(row);
-    dom.propsContent.appendChild(group);
-  }
-
-  // ── Highlight ──
-  {
-    const group = document.createElement('div');
-    group.className = 'prop-group';
-    const row = document.createElement('div');
-    row.className = 'prop-row';
-    const label = document.createElement('span');
-    label.className = 'prop-key';
-    label.textContent = 'highlight';
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.className = 'prop-checkbox';
-    input.checked = obj.highlight !== false;
-    input.addEventListener('change', () => {
-      if (input.checked) {
-        delete obj.highlight;
-      } else {
-        obj.highlight = false;
-      }
-      markDirty(sceneId);
-      hooks.renderViewport();
-    });
-    row.append(label, input);
-    group.appendChild(row);
+    group.appendChild(buildFieldRow({
+      key: 'visible',
+      value: obj.visible !== false,
+      type: 'checkbox',
+      onChange: checked => {
+        if (checked) {
+          delete obj.visible;
+        } else {
+          obj.visible = false;
+        }
+        markDirty(sceneId);
+        hooks.renderViewport();
+      },
+    }));
+    group.appendChild(buildFieldRow({
+      key: 'highlight',
+      value: obj.highlight !== false,
+      type: 'checkbox',
+      onChange: checked => {
+        if (checked) {
+          delete obj.highlight;
+        } else {
+          obj.highlight = false;
+        }
+        markDirty(sceneId);
+        hooks.renderViewport();
+      },
+    }));
     dom.propsContent.appendChild(group);
   }
 
@@ -823,7 +731,7 @@ function addSequencesGroup(data, names) {
   }
 
   for (const name of names) {
-    const actions = (data.sequences || data.definitions)[name];
+    const actions = data.sequences[name];
     const row = document.createElement('div');
     row.className = 'prop-row';
 
@@ -854,69 +762,3 @@ function addSequencesGroup(data, names) {
   dom.propsContent.appendChild(group);
 }
 
-function addEditablePropGroup(title, fields) {
-  const group = document.createElement('div');
-  group.className = 'prop-group';
-
-  const heading = createGroupTitle(title);
-  group.appendChild(heading);
-
-  for (const { key, value, type, step, min, max, onChange } of fields) {
-    const row = document.createElement('div');
-    row.className = 'prop-row';
-
-    const label = document.createElement('span');
-    label.className = 'prop-key';
-    label.textContent = key;
-
-    const input = document.createElement('input');
-    input.type = type || 'text';
-    input.className = 'prop-input';
-    input.value = value;
-    if (step != null) input.step = step;
-    if (min  != null) input.min  = min;
-    if (max  != null) input.max  = max;
-    input.addEventListener('input', () => onChange(input.value, input));
-
-    row.appendChild(label);
-    row.appendChild(input);
-    group.appendChild(row);
-  }
-
-  dom.propsContent.appendChild(group);
-}
-
-function addCompactEditablePropGroup(title, fields) {
-  const group = document.createElement('div');
-  group.className = 'prop-group';
-
-  const heading = createGroupTitle(title);
-  group.appendChild(heading);
-
-  const row = document.createElement('div');
-  row.className = 'prop-compact-grid';
-
-  for (const { key, value, type, step, min, max, onChange } of fields) {
-    const cell = document.createElement('label');
-    cell.className = 'prop-compact-cell';
-
-    const label = document.createElement('span');
-    label.className = 'prop-compact-key';
-    label.textContent = key;
-
-    const input = document.createElement('input');
-    input.type = type || 'text';
-    input.className = 'prop-input prop-compact-input';
-    input.value = value;
-    if (step != null) input.step = step;
-    if (min  != null) input.min  = min;
-    if (max  != null) input.max  = max;
-    input.addEventListener('input', () => onChange(input.value));
-
-    cell.append(label, input);
-    row.appendChild(cell);
-  }
-
-  group.appendChild(row);
-  dom.propsContent.appendChild(group);
-}

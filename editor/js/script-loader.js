@@ -1,12 +1,17 @@
 /**
  * Fetches and caches JSON script files from a local folder
  * via the File System Access API.
+ *
+ * normalizeSceneSequences() below is the single normalization point for
+ * the legacy `definitions` → `sequences` migration: every load path runs
+ * through it, so all other modules must use `.sequences` directly and not
+ * re-implement a `|| definitions` fallback.
  */
 
 import { state } from './state.js';
 import { readFileText, collectAllPaths } from './fs-provider.js';
 
-function normalizeSceneSequences(data) {
+export function normalizeSceneSequences(data) {
   if (!data || Array.isArray(data) || typeof data !== 'object') return data;
   if (data.sequences || !data.definitions) return data;
   data.sequences = data.definitions;

@@ -48,13 +48,17 @@ editor/
     file-panel.js         ← left file tree panel + selection, DnD, context menu
     viewport.js           ← centre scene preview + object overlays
     properties.js         ← right property inspector panel
+    field-rows.js         ← shared property-inspector field-row builder
+                              (text/number/checkbox/select/datalist; used by
+                              properties.js, items-viewer.js, object inspector)
     context-menu.js       ← shared context menu component
     action-editor.js      ← stable public entry for AE
     action-editor/
       index.js            ← AE public implementation
       state.js            ← editor registry + drag state
       utils.js            ← nested value helpers + cleanup
-      renderers.js        ← read-only action card renderers/summaries
+      renderers.js        ← read-only action card renderers (summaries/badges
+                              delegated to js/action-schema.js, not defined here)
       forms.js            ← schema-driven field editors + nested action editors
       drag.js             ← cross-window drag/reorder controller
     items-viewer.js       ← items/items.json editor UI
@@ -66,11 +70,11 @@ editor/
 
 ### Shared contract with runtime
 - `../../js/action-schema.js` is the canonical action registry for both the engine and the editor.
-- AE should derive labels, icons, colors, defaults, and editable fields from that shared schema.
+- AE should derive labels, icons, colors, defaults, summaries, badges, and editable fields from that shared schema.
 - If an action type is added or changed, update:
   1. `js/action-runner.js` in the runtime
-  2. `js/action-schema.js` shared metadata
-  3. Any editor-specific rendering/editing logic in `editor/js/action-editor.js`
+  2. `js/action-schema.js` shared metadata (including `summary`/`badges`)
+  3. Any editor-specific rendering/editing logic in `editor/js/action-editor.js` (rich card bodies and nested editors only — summaries/badges follow the schema automatically)
 
 ### File System
 
@@ -167,7 +171,7 @@ When editing AE-related code:
 | Script discovery | `script-loader.js` | `discoverScripts()` — reads `_game.json`, loads all scenes |
 | Scene preview | `viewport.js` | `renderViewport()` — background + dashed object outlines |
 | Property inspector | `properties.js` | `renderProperties()` → delegates to game / scene / object / asset / items renderers |
-| Editable fields | `properties.js` | `addEditablePropGroup()` — direct-bind `<input>` to in-memory data |
+| Editable fields | `field-rows.js` | `addEditablePropGroup()` — shared text/number/checkbox/select/datalist rows binding `<input>` to in-memory data |
 | Action Editor | `action-editor/` | `openActionEditor()` — floating action list editor for arrays |
 | Items editor | `items-viewer.js` | `renderItemsProperties()` — inventory item editing |
 | Export JSON | `app/archive.js` | `exportCurrentJson()` — Blob download of current script |

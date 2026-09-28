@@ -90,7 +90,7 @@ function collectObjectGotos(obj, out) {
 }
 
 function getSceneSequences(data) {
-  return data?.sequences || data?.definitions || {};
+  return data?.sequences || {};
 }
 
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp)$/i;

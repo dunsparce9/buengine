@@ -1,8 +1,17 @@
 import { escapeHtml } from '../state.js';
+import {
+  summarizeAction as schemaSummarizeAction,
+  getBadges as schemaGetBadges,
+} from '../../../js/action-schema.js';
 import { cloneAction, notifyEditorChange } from './utils.js';
 
+// Single source of truth for summaries/badges lives in js/action-schema.js.
+// Re-exported here so existing `renderers.js` import sites keep working.
+export const summarizeAction = schemaSummarizeAction;
+export const getBadges = schemaGetBadges;
+
 function getSceneSequences(viewCtx = {}) {
-  return viewCtx.sceneData?.sequences || viewCtx.sceneData?.definitions || null;
+  return viewCtx.sceneData?.sequences || null;
 }
 
 function renderRudimentaryMarkdown(text) {
@@ -764,7 +773,7 @@ export function createActionRenderers(openActionEditor, {
 }
 
 export function renderCollapsedSummary(action, type, shortenText, viewCtx = {}) {
-  const summaryText = summarizeAction(action, type, shortenText);
+  const summaryText = schemaSummarizeAction(action, type, shortenText);
   let onClick = null;
   let title = '';
 
@@ -811,62 +820,4 @@ export function renderCollapsedSummary(action, type, shortenText, viewCtx = {}) 
     });
   }
   return el;
-}
-
-export function getBadges(action, type) {
-  const badges = [];
-  if (type === 'say' && action.delay) badges.push(`delay ${action.delay}s`);
-  if (type === 'say' && action.typewriterSpeed != null) badges.push(`type ${action.typewriterSpeed}ms`);
-  if (type === 'effect' && action.effect?.blocking) badges.push('blocking');
-  if (type === 'playsound') {
-    const data = action.playsound;
-    if (data?.loop) badges.push('loop');
-    if (data?.blocking) badges.push('blocking');
-  }
-  if (type === 'stopsound' && action.stopsound?.blocking) badges.push('blocking');
-  if (type === 'show' && action.show?.effect?.blocking) badges.push('blocking');
-  if (type === 'hide' && action.hide?.effect?.blocking) badges.push('blocking');
-  return badges;
-}
-
-export function summarizeAction(action, type, shortenText) {
-  switch (type) {
-    case 'say': return shortenText(action.say || '(empty dialogue)');
-    case 'choice': {
-      const count = action.choice?.options?.length || 0;
-      const prompt = shortenText(action.choice?.prompt || '');
-      return prompt ? `${prompt} | ${count} option(s)` : `${count} option(s)`;
-    }
-    case 'goto': return action.goto || '(scene)';
-    case 'set': {
-      const keys = Object.keys(action.set || {});
-      return keys.length ? keys.join(', ') : 'No flags';
-    }
-    case 'if': return `${action.if || '(condition)'} | then ${action.then?.length || 0} | else ${action.else?.length || 0}`;
-    case 'loop': {
-      const loopActions = Array.isArray(action.do) ? action.do : (Array.isArray(action.then) ? action.then : []);
-      return `${action.loop || '(condition)'} | do ${loopActions.length}`;
-    }
-    case 'wait': return `${action.wait ?? 0} ms`;
-    case 'emit': return action.emit || '(event)';
-    case 'run': return action.run || '(sequence)';
-    case 'fork':
-      if (typeof action.fork === 'string') return action.fork;
-      if (typeof action.fork?.run === 'string') return action.fork.run;
-      if (Array.isArray(action.fork?.actions)) return `${action.fork.actions.length} background action(s)`;
-      return 'Background actions';
-    case 'exit': return 'Stop here';
-    case 'show': return action.show?.id || action.show?.texture || String(action.show || '(target)');
-    case 'text': {
-      const id = action.text?.id;
-      const text = shortenText(action.text?.text || '(empty text)');
-      return id ? `${id} | ${text}` : text;
-    }
-    case 'hide': return action.hide?.id || String(action.hide || '(target)');
-    case 'effect': return `${action.effect?.type || 'effect'}${action.effect?.seconds != null ? ` ${action.effect.seconds}s` : ''}`;
-    case 'playsound': return action.playsound?.id || action.playsound?.path || '(sound)';
-    case 'stopsound': return action.stopsound?.id || '(sound)';
-    case 'item': return `${action.item?.id || '(item)'} x ${action.item?.qty ?? 1}`;
-    default: return shortenText(JSON.stringify(action));
-  }
 }

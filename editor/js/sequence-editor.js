@@ -64,7 +64,6 @@ export function openSequencesModal({
 
 function ensureSequencesObject(sceneData) {
   if (sceneData.sequences && typeof sceneData.sequences === 'object') return sceneData.sequences;
-  if (sceneData.definitions && typeof sceneData.definitions === 'object') return sceneData.definitions;
   sceneData.sequences = {};
   return sceneData.sequences;
 }
