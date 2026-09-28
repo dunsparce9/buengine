@@ -4,15 +4,17 @@
 
 import { state, dom, hooks, escapeHtml, markDirty, collectImagePaths, scriptPathFromId } from './state.js';
 import { openActionEditor } from './action-editor.js';
-import { findNode } from './fs-provider.js';
-import { getFileExtension, getFileKind, isPreviewableMedia } from './file-types.js';
 import { renderItemsProperties } from './items-viewer.js';
 import { openOptionsModal, createDefaultObjectOption } from './options-editor.js';
 import { openSequencesModal } from './sequence-editor.js';
-import { selectScript } from './file-panel.js';
+import { renderAssetProps } from './media-info.js';
+import { makeActionViewerContext, makeActionEditorOpts } from './action-context.js';
 import { createSectionHeader } from './section-header.js';
-
-let _assetInfoRequestId = 0;
+import {
+  addEditablePropGroup,
+  addCompactEditablePropGroup,
+  buildFieldRow,
+} from './field-rows.js';
 
 const SECTION_ICONS = {
   'Game manifest': 'sports_esports',
@@ -23,20 +25,10 @@ const SECTION_ICONS = {
   'Position': 'open_with',
   'Texture': 'image',
   'Cursor': 'mouse',
-  'File': 'draft',
-  'Info': 'info',
   'Sequences': 'code',
   'onEnter': 'login',
   'Options': 'tune',
 };
-
-
-function focusSceneInEditor(sceneId) {
-  if (!sceneId) return;
-  const target = state.scripts[sceneId];
-  if (!target || Array.isArray(target) || sceneId === '_game') return;
-  selectScript(sceneId);
-}
 
 function createGroupTitle(title, options) {
   return createSectionHeader(title, {
@@ -90,7 +82,7 @@ function renderGameProps(data) {
     { key: 'title',      value: data.title      ?? '', onChange: v => { data.title = v; markDirty('_game'); } },
     { key: 'subtitle',   value: data.subtitle   ?? '', onChange: v => { data.subtitle = v; markDirty('_game'); } },
     { key: 'startScene', value: data.startScene ?? '', onChange: v => { data.startScene = v; markDirty('_game'); } },
-  ]);
+  ], dom.propsContent, createGroupTitle);
 
   if (data.scenes) {
     addPropGroup('Scenes', data.scenes.map((s, i) => [`[${i}]`, s]));
@@ -104,6 +96,7 @@ function renderSceneProps(data) {
     {
       key: 'id',
       value: data.id ?? '',
+      event: 'change',
       onChange: (value, input) => updateSceneId(data, sceneId, value, input),
     },
     {
@@ -124,7 +117,7 @@ function renderSceneProps(data) {
         hooks.renderViewport();
       },
     },
-  ]);
+  ], dom.propsContent, createGroupTitle);
 
   const grid = data.grid ||= { cols: 16, rows: 9 };
   addCompactEditablePropGroup('Grid', [
@@ -144,7 +137,7 @@ function renderSceneProps(data) {
       min: 1,
       onChange: value => updateSceneGrid(data, sceneId, 'rows', value),
     },
-  ]);
+  ], dom.propsContent, createGroupTitle);
 
   const objects = data.objects;
   addPropGroup(`Objects (${objects?.length ?? 0})`,
@@ -154,20 +147,16 @@ function renderSceneProps(data) {
   {
     if (!data.onEnter) data.onEnter = [];
     addActionLinkGroup('onEnter', [['actions', data.onEnter.length]],
-      () => openActionEditor(`${data.id} — onEnter`, data.onEnter, {
-        onChange: () => {
+      () => openActionEditor(`${data.id} — onEnter`, data.onEnter,
+        makeActionEditorOpts(data, () => {
           markDirty(data.id);
           hooks.renderProperties();
-        },
-        sceneId: data.id,
-        sceneData: data,
-        markDirty,
-        focusScene: focusSceneInEditor,
-      })
+        })
+      )
     );
   }
 
-  const sequences = data.sequences || data.definitions || {};
+  const sequences = data.sequences || {};
   const names = Object.keys(sequences);
   addSequencesGroup(data, names);
 }
@@ -248,25 +237,13 @@ function renderObjectProps(obj) {
   }
 
   // ── Identity fields ──
-  {
-    const group = document.createElement('div');
-    group.className = 'prop-group';
-    const heading = createGroupTitle('Object');
-    group.appendChild(heading);
-
-    // id — editable with uniqueness validation
+  addEditablePropGroup('Object', [
     {
-      const row = document.createElement('div');
-      row.className = 'prop-row';
-      const label = document.createElement('span');
-      label.className = 'prop-key';
-      label.textContent = 'id';
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'prop-input';
-      input.value = obj.id || '';
-      input.addEventListener('change', () => {
-        const v = input.value.trim().replace(/\s+/g, '_');
+      key: 'id',
+      value: obj.id || '',
+      event: 'change',
+      onChange: (value, input) => {
+        const v = value.trim().replace(/\s+/g, '_');
         if (!v) { input.value = obj.id; return; }
         const others = (data.objects ?? []).filter(item => item !== obj);
         if (others.some(item => item.id === v)) {
@@ -279,33 +256,18 @@ function renderObjectProps(obj) {
         state.selectedObjectId = v;
         markDirty(sceneId);
         hooks.renderViewport();
-      });
-      row.append(label, input);
-      group.appendChild(row);
-    }
-
-    // label — editable
+      },
+    },
     {
-      const row = document.createElement('div');
-      row.className = 'prop-row';
-      const label = document.createElement('span');
-      label.className = 'prop-key';
-      label.textContent = 'label';
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'prop-input';
-      input.value = obj.label || '';
-      input.addEventListener('input', () => {
-        obj.label = input.value || undefined;
+      key: 'label',
+      value: obj.label || '',
+      onChange: value => {
+        obj.label = value || undefined;
         markDirty(sceneId);
         hooks.renderViewport();
-      });
-      row.append(label, input);
-      group.appendChild(row);
-    }
-
-    dom.propsContent.appendChild(group);
-  }
+      },
+    },
+  ], dom.propsContent, createGroupTitle);
 
   // ── Position ──
   addCompactEditablePropGroup('Position', [
@@ -313,144 +275,73 @@ function renderObjectProps(obj) {
     { key: 'y', value: obj.y, type: 'number', step: 1, min: 0, onChange: v => setObjectProp('y', v) },
     { key: 'w', value: obj.w, type: 'number', step: 1, min: 1, onChange: v => setObjectProp('w', v) },
     { key: 'h', value: obj.h, type: 'number', step: 1, min: 1, onChange: v => setObjectProp('h', v) },
-  ]);
+  ], dom.propsContent, createGroupTitle);
 
   // ── Texture — combo box ──
-  {
-    const group = document.createElement('div');
-    group.className = 'prop-group';
-    const heading = createGroupTitle('Texture');
-    group.appendChild(heading);
-
-    const row = document.createElement('div');
-    row.className = 'prop-row';
-    const label = document.createElement('span');
-    label.className = 'prop-key';
-    label.textContent = 'src';
-
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'prop-input';
-    input.setAttribute('list', 'texture-datalist');
-    input.value = obj.texture || '';
-    input.placeholder = '(none)';
-    input.addEventListener('input', () => {
-      obj.texture = input.value || undefined;
-      markDirty(sceneId);
-      hooks.renderViewport();
-    });
-
-    // Populate datalist with known images
-    let datalist = document.getElementById('texture-datalist');
-    if (!datalist) {
-      datalist = document.createElement('datalist');
-      datalist.id = 'texture-datalist';
-      document.body.appendChild(datalist);
-    }
-    datalist.innerHTML = '';
-    for (const p of collectImagePaths()) {
-      const opt = document.createElement('option');
-      opt.value = p;
-      datalist.appendChild(opt);
-    }
-
-    row.append(label, input);
-    group.appendChild(row);
-    dom.propsContent.appendChild(group);
-  }
+  addEditablePropGroup('Texture', [
+    {
+      key: 'src',
+      value: obj.texture || '',
+      type: 'datalist',
+      listId: 'texture-datalist',
+      options: collectImagePaths(),
+      placeholder: '(none)',
+      onChange: value => {
+        obj.texture = value || undefined;
+        markDirty(sceneId);
+        hooks.renderViewport();
+      },
+    },
+  ], dom.propsContent, createGroupTitle);
 
   // ── Cursor — select list ──
+  addEditablePropGroup('Cursor', [
+    {
+      key: 'cursor',
+      value: obj.cursor || '',
+      type: 'select',
+      // Empty value means "no cursor override" (default).
+      options: [{ value: '', label: '(default)' }, ...STANDARD_CURSORS],
+      event: 'change',
+      onChange: value => {
+        obj.cursor = value || undefined;
+        markDirty(sceneId);
+      },
+    },
+  ], dom.propsContent, createGroupTitle);
+
+  // ── Visibility + highlight (no group heading, as before) ──
   {
     const group = document.createElement('div');
     group.className = 'prop-group';
-    const heading = document.createElement('div');
-    heading.className = 'prop-group-title';
-    heading.textContent = 'Cursor';
-    group.appendChild(heading);
-
-    const row = document.createElement('div');
-    row.className = 'prop-row';
-    const label = document.createElement('span');
-    label.className = 'prop-key';
-    label.textContent = 'cursor';
-
-    const sel = document.createElement('select');
-    sel.className = 'prop-input prop-select';
-
-    // "(default)" option means no cursor override
-    const defOpt = document.createElement('option');
-    defOpt.value = '';
-    defOpt.textContent = '(default)';
-    sel.appendChild(defOpt);
-
-    for (const c of STANDARD_CURSORS) {
-      const o = document.createElement('option');
-      o.value = c;
-      o.textContent = c;
-      if (c === (obj.cursor || '')) o.selected = true;
-      sel.appendChild(o);
-    }
-    sel.addEventListener('change', () => {
-      obj.cursor = sel.value || undefined;
-      markDirty(sceneId);
-    });
-
-    row.append(label, sel);
-    group.appendChild(row);
-    dom.propsContent.appendChild(group);
-  }
-
-  // ── Visibility ──
-  {
-    const group = document.createElement('div');
-    group.className = 'prop-group';
-    const row = document.createElement('div');
-    row.className = 'prop-row';
-    const label = document.createElement('span');
-    label.className = 'prop-key';
-    label.textContent = 'visible';
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.className = 'prop-checkbox';
-    input.checked = obj.visible !== false;
-    input.addEventListener('change', () => {
-      if (input.checked) {
-        delete obj.visible;
-      } else {
-        obj.visible = false;
-      }
-      markDirty(sceneId);
-      hooks.renderViewport();
-    });
-    row.append(label, input);
-    group.appendChild(row);
-    dom.propsContent.appendChild(group);
-  }
-
-  // ── Highlight ──
-  {
-    const group = document.createElement('div');
-    group.className = 'prop-group';
-    const row = document.createElement('div');
-    row.className = 'prop-row';
-    const label = document.createElement('span');
-    label.className = 'prop-key';
-    label.textContent = 'highlight';
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.className = 'prop-checkbox';
-    input.checked = obj.highlight !== false;
-    input.addEventListener('change', () => {
-      if (input.checked) {
-        delete obj.highlight;
-      } else {
-        obj.highlight = false;
-      }
-      markDirty(sceneId);
-      hooks.renderViewport();
-    });
-    row.append(label, input);
-    group.appendChild(row);
+    group.appendChild(buildFieldRow({
+      key: 'visible',
+      value: obj.visible !== false,
+      type: 'checkbox',
+      onChange: checked => {
+        if (checked) {
+          delete obj.visible;
+        } else {
+          obj.visible = false;
+        }
+        markDirty(sceneId);
+        hooks.renderViewport();
+      },
+    }));
+    group.appendChild(buildFieldRow({
+      key: 'highlight',
+      value: obj.highlight !== false,
+      type: 'checkbox',
+      onChange: checked => {
+        if (checked) {
+          delete obj.highlight;
+        } else {
+          obj.highlight = false;
+        }
+        markDirty(sceneId);
+        hooks.renderViewport();
+      },
+    }));
     dom.propsContent.appendChild(group);
   }
 
@@ -465,12 +356,7 @@ function renderObjectProps(obj) {
         subtitle: obj.label || obj.id,
         modalKey: `${sceneId}:${obj.id}:options`,
         ownerLabel: obj.label || obj.id,
-        actionViewerContext: {
-          sceneId,
-          sceneData: data,
-          markDirty,
-          focusScene: focusSceneInEditor,
-        },
+        actionViewerContext: makeActionViewerContext(data),
         createDefaultOption: createDefaultObjectOption,
       });
     };
@@ -482,191 +368,10 @@ function renderObjectProps(obj) {
       openActionEditor(
         `${obj.label || obj.id} — ${option.text || `Option ${optionIndex + 1}`}`,
         option.actions,
-        {
-          onChange: () => { markDirty(sceneId); hooks.renderProperties(); },
-          sceneId,
-          sceneData: data,
-          markDirty,
-          focusScene: focusSceneInEditor,
-        }
+        makeActionEditorOpts(data, () => { markDirty(sceneId); hooks.renderProperties(); })
       );
     });
   }
-}
-
-function renderAssetProps(path) {
-  const kind = getFileKind(path);
-  const name = path.split('/').pop() || path;
-  const preview = isPreviewableMedia(path) ? 'Yes' : 'No';
-
-  addPropGroup('File', [
-    ['name', name],
-    ['path', path],
-    ['type', kind],
-    ['extension', getFileExtension(path) || '—'],
-    ['preview', preview],
-  ]);
-
-  const detailsGroup = createAsyncPropGroup('Info', 'Loading file info...');
-  dom.propsContent.appendChild(detailsGroup.group);
-  loadAssetInfo(path, kind, detailsGroup);
-}
-
-async function loadAssetInfo(path, kind, detailsGroup) {
-  const requestId = ++_assetInfoRequestId;
-
-  try {
-    const file = await readSelectedFile(path);
-    if (!file || requestId !== _assetInfoRequestId) return;
-    if (state.selectedPath !== path || state.selectedId) return;
-
-    const rows = [
-      ['size', formatBytes(file.size)],
-      ['mime', file.type || inferMime(path)],
-      ['modified', formatDate(file.lastModified)],
-    ];
-
-    if (kind === 'image') {
-      const meta = await readImageInfo(file, path);
-      if (requestId !== _assetInfoRequestId || state.selectedPath !== path || state.selectedId) return;
-      if (meta) rows.push(['dimensions', `${meta.width} × ${meta.height}`]);
-    } else if (kind === 'audio' || kind === 'video') {
-      const meta = await readMediaInfo(file, kind);
-      if (requestId !== _assetInfoRequestId || state.selectedPath !== path || state.selectedId) return;
-      if (meta) {
-        rows.push(['duration', formatDuration(meta.duration)]);
-        if (kind === 'video' && meta.width && meta.height) {
-          rows.push(['dimensions', `${meta.width} × ${meta.height}`]);
-        }
-      }
-    }
-
-    setAsyncPropRows(detailsGroup, rows);
-  } catch (err) {
-    if (requestId !== _assetInfoRequestId) return;
-    setAsyncPropMessage(detailsGroup, `Unable to read file info: ${err.message}`);
-  }
-}
-
-async function readSelectedFile(path) {
-  const node = findNode(path);
-  if (!node || node.type !== 'file') return null;
-  return await node.handle.getFile();
-}
-
-function readImageInfo(file, path) {
-  return new Promise((resolve) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve({ width: img.naturalWidth, height: img.naturalHeight });
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      resolve(null);
-    };
-    img.src = url;
-    img.alt = path;
-  });
-}
-
-function readMediaInfo(file, kind) {
-  return new Promise((resolve) => {
-    const url = URL.createObjectURL(file);
-    const el = document.createElement(kind === 'video' ? 'video' : 'audio');
-    const done = (value) => {
-      URL.revokeObjectURL(url);
-      resolve(value);
-    };
-    el.preload = 'metadata';
-    el.onloadedmetadata = () => done({
-      duration: el.duration,
-      width: 'videoWidth' in el ? el.videoWidth : 0,
-      height: 'videoHeight' in el ? el.videoHeight : 0,
-    });
-    el.onerror = () => done(null);
-    el.src = url;
-  });
-}
-
-function createAsyncPropGroup(title, message) {
-  const group = document.createElement('div');
-  group.className = 'prop-group';
-
-  const heading = createGroupTitle(title);
-
-  const body = document.createElement('div');
-  body.className = 'prop-async-body';
-  body.textContent = message;
-
-  group.append(heading, body);
-  return { group, body };
-}
-
-function setAsyncPropRows(target, rows) {
-  target.body.innerHTML = '';
-  for (const [key, val] of rows) {
-    const row = document.createElement('div');
-    row.className = 'prop-row';
-    row.innerHTML =
-      `<span class="prop-key">${escapeHtml(String(key))}</span>` +
-      `<span class="prop-val">${escapeHtml(String(val))}</span>`;
-    target.body.appendChild(row);
-  }
-}
-
-function setAsyncPropMessage(target, message) {
-  target.body.textContent = message;
-}
-
-function formatBytes(bytes) {
-  if (!Number.isFinite(bytes) || bytes < 0) return '—';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-}
-
-function formatDate(value) {
-  if (!value) return '—';
-  return new Date(value).toLocaleString();
-}
-
-function formatDuration(seconds) {
-  if (!Number.isFinite(seconds)) return '—';
-  const total = Math.max(0, Math.round(seconds));
-  const mins = Math.floor(total / 60);
-  const secs = total % 60;
-  const hours = Math.floor(mins / 60);
-  if (hours > 0) {
-    return `${hours}:${String(mins % 60).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  }
-  return `${mins}:${String(secs).padStart(2, '0')}`;
-}
-
-function inferMime(path) {
-  const ext = getFileExtension(path);
-  const map = {
-    png: 'image/png',
-    jpg: 'image/jpeg',
-    jpeg: 'image/jpeg',
-    gif: 'image/gif',
-    webp: 'image/webp',
-    svg: 'image/svg+xml',
-    bmp: 'image/bmp',
-    opus: 'audio/ogg',
-    mp3: 'audio/mpeg',
-    ogg: 'audio/ogg',
-    wav: 'audio/wav',
-    flac: 'audio/flac',
-    m4a: 'audio/mp4',
-    aac: 'audio/aac',
-    webm: 'video/webm',
-    mp4: 'video/mp4',
-    mov: 'video/quicktime',
-  };
-  return map[ext] || '—';
 }
 
 /* ── Property group helpers ────────────────────── */
@@ -802,12 +507,7 @@ function addSequencesGroup(data, names) {
     sceneData: data,
     scriptId: data.id,
     modalKey: `${data.id}:sequences`,
-    actionViewerContext: {
-      sceneId: data.id,
-      sceneData: data,
-      markDirty,
-      focusScene: focusSceneInEditor,
-    },
+    actionViewerContext: makeActionViewerContext(data),
   });
 
   const heading = createGroupTitle(`Sequences (${names.length})`, { onClick: openSequencesManager });
@@ -823,7 +523,7 @@ function addSequencesGroup(data, names) {
   }
 
   for (const name of names) {
-    const actions = (data.sequences || data.definitions)[name];
+    const actions = data.sequences[name];
     const row = document.createElement('div');
     row.className = 'prop-row';
 
@@ -835,16 +535,12 @@ function addSequencesGroup(data, names) {
     link.className = 'prop-action-link';
     link.textContent = `${actions.length} action(s)`;
     link.addEventListener('click', () =>
-      openActionEditor(`${data.id} — ${name}`, actions, {
-        onChange: () => {
+      openActionEditor(`${data.id} — ${name}`, actions,
+        makeActionEditorOpts(data, () => {
           markDirty(data.id);
           hooks.renderProperties();
-        },
-        sceneId: data.id,
-        sceneData: data,
-        markDirty,
-        focusScene: focusSceneInEditor,
-      })
+        })
+      )
     );
 
     row.append(keyEl, link);
@@ -854,69 +550,3 @@ function addSequencesGroup(data, names) {
   dom.propsContent.appendChild(group);
 }
 
-function addEditablePropGroup(title, fields) {
-  const group = document.createElement('div');
-  group.className = 'prop-group';
-
-  const heading = createGroupTitle(title);
-  group.appendChild(heading);
-
-  for (const { key, value, type, step, min, max, onChange } of fields) {
-    const row = document.createElement('div');
-    row.className = 'prop-row';
-
-    const label = document.createElement('span');
-    label.className = 'prop-key';
-    label.textContent = key;
-
-    const input = document.createElement('input');
-    input.type = type || 'text';
-    input.className = 'prop-input';
-    input.value = value;
-    if (step != null) input.step = step;
-    if (min  != null) input.min  = min;
-    if (max  != null) input.max  = max;
-    input.addEventListener('input', () => onChange(input.value, input));
-
-    row.appendChild(label);
-    row.appendChild(input);
-    group.appendChild(row);
-  }
-
-  dom.propsContent.appendChild(group);
-}
-
-function addCompactEditablePropGroup(title, fields) {
-  const group = document.createElement('div');
-  group.className = 'prop-group';
-
-  const heading = createGroupTitle(title);
-  group.appendChild(heading);
-
-  const row = document.createElement('div');
-  row.className = 'prop-compact-grid';
-
-  for (const { key, value, type, step, min, max, onChange } of fields) {
-    const cell = document.createElement('label');
-    cell.className = 'prop-compact-cell';
-
-    const label = document.createElement('span');
-    label.className = 'prop-compact-key';
-    label.textContent = key;
-
-    const input = document.createElement('input');
-    input.type = type || 'text';
-    input.className = 'prop-input prop-compact-input';
-    input.value = value;
-    if (step != null) input.step = step;
-    if (min  != null) input.min  = min;
-    if (max  != null) input.max  = max;
-    input.addEventListener('input', () => onChange(input.value));
-
-    cell.append(label, input);
-    row.appendChild(cell);
-  }
-
-  group.appendChild(row);
-  dom.propsContent.appendChild(group);
-}

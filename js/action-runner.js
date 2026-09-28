@@ -6,7 +6,7 @@
  * ("Action commands"). Keep that documentation in sync with the runner and
  * avoid maintaining a second full command list here.
  */
-import { detectType, getActionMeta } from './action-schema.js';
+import { detectType, getActionMeta, ACTION_TYPES } from './action-schema.js';
 
 /** Max iterations of a single `loop` statement before assuming an infinite loop. */
 const MAX_LOOP_ITERATIONS = 10000;
@@ -24,6 +24,7 @@ export class ActionRunner {
     this.bus = bus;
     this.state = state;
     this.inventory = inventory;
+    this._assertSchemaMethods();
     this._aborted = false;
     this._exited = false;
     this._gotoFired = false;
@@ -130,6 +131,33 @@ export class ActionRunner {
   }
 
   /* ── private helpers ──────────────────────────── */
+
+  /**
+   * Boot-time assertion: every `engine.method` named by the shared schema
+   * must exist on this runner, and every `engine.kind` must be a known
+   * dispatch kind. Renaming a runner method without updating the schema
+   * (or vice versa) fails fast here instead of silently no-op'ing.
+   */
+  _assertSchemaMethods() {
+    const knownKinds = new Set([
+      'await', 'call', 'goto', 'branch', 'loop',
+      'emit', 'run-sequence', 'fork', 'exit', 'noop',
+    ]);
+    for (const [type, meta] of Object.entries(ACTION_TYPES)) {
+      const engine = meta?.engine;
+      if (!engine) continue;
+      if (!knownKinds.has(engine.kind)) {
+        throw new Error(
+          `ActionRunner: unknown engine.kind "${engine.kind}" for action type "${type}" in action-schema.js`
+        );
+      }
+      if (engine.method && typeof this[engine.method] !== 'function') {
+        throw new Error(
+          `ActionRunner: missing method "${engine.method}" for action type "${type}" (declared in action-schema.js)`
+        );
+      }
+    }
+  }
 
   async _dispatchAction(type, action, frames) {
     const engine = getActionMeta(type).engine;

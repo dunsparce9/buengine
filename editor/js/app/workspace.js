@@ -1,5 +1,5 @@
-import { state, hooks, scriptPathFromId } from '../state.js';
-import { discoverScripts } from '../script-loader.js';
+import { state, hooks, scriptPathFromId, collectImagePaths } from '../state.js';
+import { discoverScripts } from '../script-store.js';
 import { openFolder, openFolderHandle, ensureHandlePermission, writeFile, deleteEntry, buildTree, clearAssetCache, cacheAssetURLs } from '../fs-provider.js';
 import { promptForConfirmation } from '../confirm-dialog.js';
 import { renderFileList, selectScript, selectPath, expandFoldersForPath } from '../file-panel.js';
@@ -79,22 +79,10 @@ async function loadWorkspaceFromHandle(handle, { remember = false, treeReady = f
     showToast(`Failed to load: ${err.message}`, 'error');
   }
 
-  const imagePaths = [];
-  for (const data of Object.values(state.scripts)) {
-    if (Array.isArray(data)) {
-      for (const item of data) {
-        if (item.icon) imagePaths.push(item.icon);
-      }
-      continue;
-    }
-    if (data.background) imagePaths.push(data.background);
-    const objects = data.objects;
-    if (!Array.isArray(objects)) continue;
-    for (const obj of objects) {
-      if (obj.texture) imagePaths.push(obj.texture);
-    }
-  }
-  await cacheAssetURLs(imagePaths);
+  // Pre-warm asset URLs for every referenced image (backgrounds, object
+  // textures, show.texture overlays, item icons) via the single
+  // state.collectImagePaths implementation.
+  await cacheAssetURLs(collectImagePaths());
 
   updateWindowTitle();
   updateMenuVisibility();
@@ -133,6 +121,31 @@ function pathExists(path) {
 
 hooks.openFolder = handleOpenFolder;
 
+/**
+ * Write one script id to disk, handling pending scene-id renames.
+ * Returns 'renamed' when the old file was removed too, true on a plain
+ * save, false on failure (toast already shown). Pure save logic shared by
+ * saveCurrentFile/saveAllFiles (review phase 5, item 22).
+ */
+async function saveOne(id) {
+  const data = state.scripts[id];
+  if (!data) return false;
+  const path = scriptPathFromId(id);
+  const renamedFrom = state.pendingScriptRenames.get(id);
+  try {
+    await writeFile(path, JSON.stringify(data, null, 2) + '\n');
+    if (renamedFrom && renamedFrom !== path) {
+      await deleteEntry(renamedFrom);
+      state.pendingScriptRenames.delete(id);
+      return 'renamed';
+    }
+    return true;
+  } catch (err) {
+    showToast(`Failed to save ${path}: ${err.message}`, 'error');
+    return false;
+  }
+}
+
 export async function saveCurrentFile() {
   if (!state.rootHandle) {
     showToast('No folder open (File → Open Folder)', 'error');
@@ -146,24 +159,13 @@ export async function saveCurrentFile() {
     return;
   }
 
-  const data = state.scripts[id];
-  const json = JSON.stringify(data, null, 2) + '\n';
   const path = scriptPathFromId(id);
-  const renamedFrom = state.pendingScriptRenames.get(id);
-
-  try {
-    await writeFile(path, json);
-    if (renamedFrom && renamedFrom !== path) {
-      await deleteEntry(renamedFrom);
-      state.pendingScriptRenames.delete(id);
-      await buildTree();
-    }
-    state.dirtySet.delete(id);
-    renderFileList();
-    showToast(`Saved ${path}`);
-  } catch (err) {
-    showToast(`Save failed: ${err.message}`, 'error');
-  }
+  const result = await saveOne(id);
+  if (!result) return;
+  if (result === 'renamed') await buildTree();
+  state.dirtySet.delete(id);
+  renderFileList();
+  showToast(`Saved ${path}`);
 }
 
 export async function saveAllFiles() {
@@ -179,23 +181,11 @@ export async function saveAllFiles() {
   let saved = 0;
   let renamedAny = false;
   for (const id of [...state.dirtySet]) {
-    const data = state.scripts[id];
-    if (!data) continue;
-    const json = JSON.stringify(data, null, 2) + '\n';
-    const path = scriptPathFromId(id);
-    const renamedFrom = state.pendingScriptRenames.get(id);
-    try {
-      await writeFile(path, json);
-      if (renamedFrom && renamedFrom !== path) {
-        await deleteEntry(renamedFrom);
-        state.pendingScriptRenames.delete(id);
-        renamedAny = true;
-      }
-      state.dirtySet.delete(id);
-      saved++;
-    } catch (err) {
-      showToast(`Failed to save ${path}: ${err.message}`, 'error');
-    }
+    const result = await saveOne(id);
+    if (!result) continue;
+    if (result === 'renamed') renamedAny = true;
+    state.dirtySet.delete(id);
+    saved++;
   }
 
   if (renamedAny) await buildTree();

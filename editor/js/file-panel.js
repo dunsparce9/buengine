@@ -2,7 +2,7 @@
  * Left-side file panel — folder tree view with drag/drop and context menu.
  */
 
-import { state, dom, hooks, escapeHtml } from './state.js';
+import { state, dom, hooks } from './state.js';
 import { showContextMenu } from './context-menu.js';
 import { createFloatingWindow } from './floating-window.js';
 import { promptForConfirmation } from './confirm-dialog.js';
@@ -65,14 +65,31 @@ export function renderFileList() {
   }
 }
 
-export function selectScript(id) {
-  state.selectedId = id;
+/**
+ * Single selection cascade (review phase 5, item 22).
+ *
+ * `selectScript(id)`, `selectPath(path)` and the internal file-node click
+ * all funnel through here so the selectedId/selectedPath/object/item reset
+ * and the render cascade can't diverge again. Pass whichever side is known;
+ * the other is derived. When both are given they are used as-is.
+ */
+export function applySelection({ id = undefined, path = undefined } = {}) {
+  let nextId = id;
+  let nextPath = path;
+
+  if (nextPath !== undefined && nextId === undefined) {
+    const sid = scriptIdFromPath(nextPath);
+    nextId = sid && (state.scripts[sid] || sid === '_game') ? sid : null;
+  } else if (nextId !== undefined && nextPath === undefined) {
+    if (nextId === '_game') nextPath = '_game.json';
+    else if (nextId) nextPath = `${nextId}.json`;
+    else nextPath = null;
+  }
+
+  state.selectedId = nextId ?? null;
+  state.selectedPath = nextPath ?? null;
   state.selectedObjectId = null;
   state.selectedItem = null;
-  // Sync selectedPath
-  if (id === '_game') state.selectedPath = '_game.json';
-  else if (id) state.selectedPath = `${id}.json`;
-  else state.selectedPath = null;
   hooks.updateWindowTitle();
   renderFileList();
   hooks.renderViewport();
@@ -80,24 +97,12 @@ export function selectScript(id) {
   persistCurrentSelection();
 }
 
+export function selectScript(id) {
+  applySelection({ id });
+}
+
 export function selectPath(path) {
-  state.selectedPath = path;
-  // If it's a JSON, also set selectedId for viewport/properties
-  const sid = scriptIdFromPath(path);
-  if (sid && state.scripts[sid]) {
-    state.selectedId = sid;
-  } else if (sid === '_game') {
-    state.selectedId = '_game';
-  } else {
-    state.selectedId = null;
-  }
-  state.selectedObjectId = null;
-  state.selectedItem = null;
-  hooks.updateWindowTitle();
-  renderFileList();
-  hooks.renderViewport();
-  hooks.renderProperties();
-  persistCurrentSelection();
+  applySelection({ path });
 }
 
 export function expandFoldersForPath(path) {
@@ -236,22 +241,7 @@ function renderFileNode(node, parent, depth) {
 }
 
 function selectFileNode(node) {
-  const sid = scriptIdFromPath(node.path);
-  if (sid !== null && state.scripts[sid]) {
-    state.selectedId = sid;
-  } else if (node.name === '_game.json') {
-    state.selectedId = '_game';
-  } else {
-    state.selectedId = null;
-  }
-  state.selectedPath = node.path;
-  state.selectedObjectId = null;
-  state.selectedItem = null;
-  hooks.updateWindowTitle();
-  renderFileList();
-  hooks.renderViewport();
-  hooks.renderProperties();
-  persistCurrentSelection();
+  applySelection({ path: node.path });
 }
 
 function persistCurrentSelection() {

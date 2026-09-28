@@ -1,5 +1,5 @@
 import { state } from '../state.js';
-import { discoverScripts } from '../script-loader.js';
+import { discoverScripts } from '../script-store.js';
 import { renderFileList } from '../file-panel.js';
 import { buildTree, writeFileBinary, readFileBinary, collectAllPaths } from '../fs-provider.js';
 import { createZip, readZip } from '../zip-utils.js';

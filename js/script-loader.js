@@ -5,6 +5,19 @@
  * When the page is opened with ?preview, loads override data
  * from localStorage (set by the editor) instead of fetching files.
  */
+/**
+ * Migrate the legacy `definitions` key to canonical `sequences` in place.
+ * Single normalization point for scene data — callers must use `.sequences`
+ * and not re-implement the `|| definitions` fallback.
+ */
+export function normalizeSceneSequences(data) {
+  if (!data || Array.isArray(data) || typeof data !== 'object') return data;
+  if (data.sequences || !data.definitions) return data;
+  data.sequences = data.definitions;
+  delete data.definitions;
+  return data;
+}
+
 export class ScriptLoader {
   constructor(basePath = '') {
     this.basePath = basePath;
@@ -23,7 +36,7 @@ export class ScriptLoader {
           const overrides = JSON.parse(raw);
           this._previewOverrides = new Map(Object.entries(overrides));
           for (const [id, data] of this._previewOverrides) {
-            this._cache.set(id, data);
+            this._cache.set(id, normalizeSceneSequences(data));
           }
         }
       } catch { /* ignore corrupt data */ }
@@ -51,7 +64,7 @@ export class ScriptLoader {
     // Re-apply editor preview overrides that were wiped by clear()
     if (this._previewOverrides) {
       for (const [id, data] of this._previewOverrides) {
-        this._cache.set(id, data);
+        this._cache.set(id, normalizeSceneSequences(data));
       }
     }
   }
@@ -85,7 +98,7 @@ export class ScriptLoader {
     const url = `${prefix}${encodedId}.json`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Script not found: ${url} (${res.status})`);
-    const data = await res.json();
+    const data = normalizeSceneSequences(await res.json());
     this._cache.set(id, data);
     return data;
   }

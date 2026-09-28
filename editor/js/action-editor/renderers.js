@@ -1,8 +1,18 @@
 import { escapeHtml } from '../state.js';
+import {
+  summarizeAction as schemaSummarizeAction,
+  getBadges as schemaGetBadges,
+} from '../../../js/action-schema.js';
 import { cloneAction, notifyEditorChange } from './utils.js';
+import { beginSimpleReorderDrag } from './drag.js';
+
+// Single source of truth for summaries/badges lives in js/action-schema.js.
+// Re-exported here so existing `renderers.js` import sites keep working.
+export const summarizeAction = schemaSummarizeAction;
+export const getBadges = schemaGetBadges;
 
 function getSceneSequences(viewCtx = {}) {
-  return viewCtx.sceneData?.sequences || viewCtx.sceneData?.definitions || null;
+  return viewCtx.sceneData?.sequences || null;
 }
 
 function renderRudimentaryMarkdown(text) {
@@ -27,9 +37,6 @@ export function createActionRenderers(openActionEditor, {
   pickActionType,
   createDefaultAction,
 }) {
-  let choiceDragState = null;
-  let choiceDragAutoScrollRaf = 0;
-
   function preventMouseFocus(button) {
     button.addEventListener('mousedown', (event) => {
       event.preventDefault();
@@ -320,165 +327,27 @@ export function createActionRenderers(openActionEditor, {
   }
 
   function beginChoiceOptionDrag(event, optionEl, optionHeader, choice, optionIdx, viewCtx = {}) {
-    if (event.button !== 0) return;
     const optionsContainer = optionEl.parentNode;
     if (!optionsContainer) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-    cancelChoiceOptionDrag();
-
-    const headerRect = optionHeader.getBoundingClientRect();
-    choiceDragState = {
-      choice,
-      sourceIdx: optionIdx,
+    // Same-container reorder via the shared drag engine (see drag.js);
+    // the drop handler splices the option into place and rebuilds.
+    beginSimpleReorderDrag(event, {
       sourceEl: optionEl,
+      headerEl: optionHeader,
       container: optionsContainer,
-      dropIdx: optionIdx,
-      indicator: null,
-      previewEl: createChoiceOptionDragPreview(optionHeader, headerRect),
-      clientX: event.clientX,
-      clientY: event.clientY,
-      previewOffsetX: event.clientX - headerRect.left,
-      previewOffsetY: event.clientY - headerRect.top,
-      scrollHost: optionEl.closest('.fw-body'),
-      viewCtx,
-    };
-
-    optionEl.classList.add('ae-dragging', 'ae-drag-source-hidden');
-    document.body.style.cursor = 'grabbing';
-    document.body.style.userSelect = 'none';
-    document.addEventListener('mousemove', onChoiceOptionDragMove);
-    document.addEventListener('mouseup', onChoiceOptionDragEnd);
-    updateChoiceOptionDragTarget(event.clientX, event.clientY);
-    scheduleChoiceOptionDragAutoScroll();
-  }
-
-  function onChoiceOptionDragMove(event) {
-    if (!choiceDragState) return;
-    choiceDragState.clientX = event.clientX;
-    choiceDragState.clientY = event.clientY;
-    updateChoiceOptionDragTarget(event.clientX, event.clientY);
-  }
-
-  function onChoiceOptionDragEnd() {
-    if (!choiceDragState) return;
-    const { choice, sourceIdx, dropIdx, viewCtx } = choiceDragState;
-    cancelChoiceOptionDrag();
-    if (!Number.isInteger(dropIdx) || dropIdx === sourceIdx || dropIdx === sourceIdx + 1) return;
-
-    const options = ensureChoiceOptions(choice);
-    const [moved] = options.splice(sourceIdx, 1);
-    let insertIdx = dropIdx;
-    if (sourceIdx < insertIdx) insertIdx--;
-    options.splice(insertIdx, 0, moved);
-    commitInlineEdit(viewCtx);
-  }
-
-  function cancelChoiceOptionDrag() {
-    if (!choiceDragState) return;
-    if (choiceDragState.sourceEl) {
-      choiceDragState.sourceEl.classList.remove('ae-dragging', 'ae-drag-source-hidden');
-    }
-    if (choiceDragState.previewEl?.parentNode) choiceDragState.previewEl.remove();
-    if (choiceDragState.indicator?.parentNode) choiceDragState.indicator.remove();
-
-    document.removeEventListener('mousemove', onChoiceOptionDragMove);
-    document.removeEventListener('mouseup', onChoiceOptionDragEnd);
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
-
-    if (choiceDragAutoScrollRaf) {
-      cancelAnimationFrame(choiceDragAutoScrollRaf);
-      choiceDragAutoScrollRaf = 0;
-    }
-
-    choiceDragState = null;
-  }
-
-  function updateChoiceOptionDragTarget(clientX, clientY) {
-    if (!choiceDragState) return;
-    updateChoiceOptionDragPreviewPosition(clientX, clientY);
-
-    const pointEl = document.elementFromPoint(clientX, clientY);
-    const container = pointEl?.closest('.ae-choice-options');
-    if (!container || container !== choiceDragState.container) return;
-
-    const blocks = Array.from(container.children).filter((child) =>
-      child.classList?.contains('ae-choice-option') && child !== choiceDragState.sourceEl
-    );
-
-    let dropIdx = choiceDragState.choice.options.length;
-    for (const block of blocks) {
-      const rect = block.getBoundingClientRect();
-      const blockIdx = parseInt(block.dataset.choiceIndex, 10);
-      if (!Number.isInteger(blockIdx)) continue;
-      if (clientY < rect.top + rect.height / 2) {
-        dropIdx = blockIdx;
-        break;
-      }
-      dropIdx = blockIdx + 1;
-    }
-
-    choiceDragState.dropIdx = dropIdx;
-    showChoiceOptionDragIndicator(container, dropIdx);
-  }
-
-  function showChoiceOptionDragIndicator(container, dropIdx) {
-    if (!choiceDragState) return;
-    if (!choiceDragState.indicator) {
-      choiceDragState.indicator = document.createElement('div');
-      choiceDragState.indicator.className = 'ae-drop-indicator';
-    }
-
-    const blocks = Array.from(container.children).filter((child) =>
-      child.classList?.contains('ae-choice-option') && child !== choiceDragState.sourceEl
-    );
-    const beforeNode = blocks.find((block) => parseInt(block.dataset.choiceIndex, 10) >= dropIdx) || null;
-    container.insertBefore(choiceDragState.indicator, beforeNode);
-  }
-
-  function createChoiceOptionDragPreview(header, rect) {
-    const preview = header.cloneNode(true);
-    preview.classList.add('ae-drag-preview');
-    preview.style.width = `${Math.ceil(rect.width)}px`;
-    document.body.appendChild(preview);
-    return preview;
-  }
-
-  function updateChoiceOptionDragPreviewPosition(clientX, clientY) {
-    if (!choiceDragState?.previewEl) return;
-    choiceDragState.previewEl.style.left = `${Math.round(clientX - choiceDragState.previewOffsetX)}px`;
-    choiceDragState.previewEl.style.top = `${Math.round(clientY - choiceDragState.previewOffsetY)}px`;
-  }
-
-  function scheduleChoiceOptionDragAutoScroll() {
-    if (choiceDragAutoScrollRaf) return;
-
-    const step = () => {
-      choiceDragAutoScrollRaf = 0;
-      if (!choiceDragState) return;
-
-      const host = choiceDragState.scrollHost;
-      if (host) {
-        const rect = host.getBoundingClientRect();
-        const zone = Math.max(36, Math.min(72, rect.height * 0.18));
-        let delta = 0;
-        if (choiceDragState.clientY < rect.top + zone) {
-          delta = -Math.ceil((rect.top + zone - choiceDragState.clientY) / 8);
-        } else if (choiceDragState.clientY > rect.bottom - zone) {
-          delta = Math.ceil((choiceDragState.clientY - (rect.bottom - zone)) / 8);
-        }
-        if (delta !== 0) {
-          host.scrollTop += delta;
-          updateChoiceOptionDragTarget(choiceDragState.clientX, choiceDragState.clientY);
-        }
-      }
-
-      if (choiceDragState) scheduleChoiceOptionDragAutoScroll();
-    };
-
-    choiceDragAutoScrollRaf = requestAnimationFrame(step);
+      sourceIdx: optionIdx,
+      getCount: () => ensureChoiceOptions(choice).length,
+      rowSelector: '.ae-choice-option',
+      indexAttr: 'choiceIndex',
+      onDrop: (sourceIdx, dropIdx) => {
+        const options = ensureChoiceOptions(choice);
+        const [moved] = options.splice(sourceIdx, 1);
+        let insertIdx = dropIdx;
+        if (sourceIdx < insertIdx) insertIdx--;
+        options.splice(insertIdx, 0, moved);
+        commitInlineEdit(viewCtx);
+      },
+    });
   }
 
   function renderSet(setObj) {
@@ -764,7 +633,7 @@ export function createActionRenderers(openActionEditor, {
 }
 
 export function renderCollapsedSummary(action, type, shortenText, viewCtx = {}) {
-  const summaryText = summarizeAction(action, type, shortenText);
+  const summaryText = schemaSummarizeAction(action, type, shortenText);
   let onClick = null;
   let title = '';
 
@@ -811,62 +680,4 @@ export function renderCollapsedSummary(action, type, shortenText, viewCtx = {}) 
     });
   }
   return el;
-}
-
-export function getBadges(action, type) {
-  const badges = [];
-  if (type === 'say' && action.delay) badges.push(`delay ${action.delay}s`);
-  if (type === 'say' && action.typewriterSpeed != null) badges.push(`type ${action.typewriterSpeed}ms`);
-  if (type === 'effect' && action.effect?.blocking) badges.push('blocking');
-  if (type === 'playsound') {
-    const data = action.playsound;
-    if (data?.loop) badges.push('loop');
-    if (data?.blocking) badges.push('blocking');
-  }
-  if (type === 'stopsound' && action.stopsound?.blocking) badges.push('blocking');
-  if (type === 'show' && action.show?.effect?.blocking) badges.push('blocking');
-  if (type === 'hide' && action.hide?.effect?.blocking) badges.push('blocking');
-  return badges;
-}
-
-export function summarizeAction(action, type, shortenText) {
-  switch (type) {
-    case 'say': return shortenText(action.say || '(empty dialogue)');
-    case 'choice': {
-      const count = action.choice?.options?.length || 0;
-      const prompt = shortenText(action.choice?.prompt || '');
-      return prompt ? `${prompt} | ${count} option(s)` : `${count} option(s)`;
-    }
-    case 'goto': return action.goto || '(scene)';
-    case 'set': {
-      const keys = Object.keys(action.set || {});
-      return keys.length ? keys.join(', ') : 'No flags';
-    }
-    case 'if': return `${action.if || '(condition)'} | then ${action.then?.length || 0} | else ${action.else?.length || 0}`;
-    case 'loop': {
-      const loopActions = Array.isArray(action.do) ? action.do : (Array.isArray(action.then) ? action.then : []);
-      return `${action.loop || '(condition)'} | do ${loopActions.length}`;
-    }
-    case 'wait': return `${action.wait ?? 0} ms`;
-    case 'emit': return action.emit || '(event)';
-    case 'run': return action.run || '(sequence)';
-    case 'fork':
-      if (typeof action.fork === 'string') return action.fork;
-      if (typeof action.fork?.run === 'string') return action.fork.run;
-      if (Array.isArray(action.fork?.actions)) return `${action.fork.actions.length} background action(s)`;
-      return 'Background actions';
-    case 'exit': return 'Stop here';
-    case 'show': return action.show?.id || action.show?.texture || String(action.show || '(target)');
-    case 'text': {
-      const id = action.text?.id;
-      const text = shortenText(action.text?.text || '(empty text)');
-      return id ? `${id} | ${text}` : text;
-    }
-    case 'hide': return action.hide?.id || String(action.hide || '(target)');
-    case 'effect': return `${action.effect?.type || 'effect'}${action.effect?.seconds != null ? ` ${action.effect.seconds}s` : ''}`;
-    case 'playsound': return action.playsound?.id || action.playsound?.path || '(sound)';
-    case 'stopsound': return action.stopsound?.id || '(sound)';
-    case 'item': return `${action.item?.id || '(item)'} x ${action.item?.qty ?? 1}`;
-    default: return shortenText(JSON.stringify(action));
-  }
 }

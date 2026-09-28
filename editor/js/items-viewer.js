@@ -7,15 +7,18 @@ import {
   hooks,
   escapeHtml,
   markDirty,
+} from './state.js';
+import {
   addItemDefinition,
   deleteItemDefinition,
   uniqueItemId,
-} from './state.js';
+} from './items-actions.js';
 import { resolveAssetURLSync } from './fs-provider.js';
 import { showContextMenu } from './context-menu.js';
 import { openOptionsModal } from './options-editor.js';
 import { openActionEditor } from './action-editor.js';
 import { createSectionHeader } from './section-header.js';
+import { addEditablePropGroup } from './field-rows.js';
 
 const ITEM_SECTION_ICONS = {
   'Items': 'inventory_2',
@@ -291,7 +294,7 @@ function renderSelectedItemEditor(item, items, container) {
         hooks.renderViewport();
       },
     },
-  ], container);
+  ], container, createGroupTitle);
 
   addEditablePropGroup('Flags', [
     {
@@ -314,7 +317,7 @@ function renderSelectedItemEditor(item, items, container) {
         hooks.renderViewport();
       },
     },
-  ], container);
+  ], container, createGroupTitle);
 
   renderReadonlyOptions(item, container, scriptId);
 }
@@ -377,48 +380,6 @@ function renderReadonlyOptions(item, container, scriptId) {
 
     meta.append(icon, separator, link);
     row.append(key, meta);
-    group.appendChild(row);
-  }
-
-  container.appendChild(group);
-}
-
-function addEditablePropGroup(title, fields, container) {
-  const group = document.createElement('div');
-  group.className = 'prop-group';
-
-  const heading = createGroupTitle(title);
-  group.appendChild(heading);
-
-  for (const field of fields) {
-    const row = document.createElement('label');
-    row.className = 'prop-row';
-
-    const key = document.createElement('span');
-    key.className = 'prop-key';
-    key.textContent = field.key;
-
-    let input;
-    if (field.type === 'checkbox') {
-      input = document.createElement('input');
-      input.type = 'checkbox';
-      input.className = 'prop-checkbox';
-      input.checked = Boolean(field.value);
-      input.addEventListener('change', () => field.onChange?.(input.checked, input));
-    } else {
-      input = document.createElement('input');
-      input.type = field.type || 'text';
-      input.className = 'prop-input';
-      input.value = field.value ?? '';
-      if (field.placeholder) input.placeholder = field.placeholder;
-      const eventName = field.event || 'change';
-      input.addEventListener(eventName, () => field.onChange?.(input.value, input));
-      if (eventName !== 'input') {
-        input.addEventListener('input', () => input.classList.remove('prop-input-error'));
-      }
-    }
-
-    row.append(key, input);
     group.appendChild(row);
   }
 

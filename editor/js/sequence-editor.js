@@ -1,16 +1,20 @@
 /**
  * Scene sequences editor.
+ *
+ * Thin domain adapter over the parameterized `list-editor.js` (review
+ * phase 5): window lifecycle, toolbar, table skeleton and the actions pill
+ * live in one place; only sequence-name handling stays here.
  */
 
-import { hooks, markDirty } from './state.js';
-import { createFloatingWindow } from './floating-window.js';
-import { createEditorToolbar } from './editor-toolbar.js';
 import { openActionEditor } from './action-editor.js';
-import { showContextMenu } from './context-menu.js';
 import { promptForConfirmation } from './confirm-dialog.js';
-
-/** @type {Map<string, { fw: ReturnType<typeof createFloatingWindow>, state: object }>} */
-const _openWindows = new Map();
+import {
+  openListModal,
+  createActionsPill,
+  notifyListChange,
+  showNewRowMenu,
+  showRowMenu,
+} from './list-editor.js';
 
 export function openSequencesModal({
   sceneData,
@@ -19,225 +23,117 @@ export function openSequencesModal({
   onChange = null,
   actionViewerContext = {},
 }) {
-  const existing = _openWindows.get(modalKey);
-  if (existing && !existing.fw.el.classList.contains('hidden')) {
-    existing.state.sceneData = sceneData;
-    existing.state.scriptId = scriptId;
-    existing.state.onChange = onChange;
-    existing.state.actionViewerContext = actionViewerContext;
-    existing.fw.setSubtitle(sceneData?.id || scriptId || '');
-    existing.fw.open();
-    existing.fw.requestAttention();
-    return existing.fw;
-  }
-
-  const fw = createFloatingWindow({
+  return openListModal({
+    modalKey,
     title: 'Sequences',
     subtitle: sceneData?.id || scriptId || '',
     icon: 'code',
-    iconClass: 'material-symbols-outlined',
-    width: 500,
-    height: 400,
-    resizable: true,
-  });
-
-  fw.body.classList.add('options-editor-body');
-
-  const windowState = {
-    fw,
-    collapsed: false,
-    sceneData,
-    scriptId,
-    onChange,
-    actionViewerContext,
-    rebuild() {
-      buildSequencesContent(fw.body, windowState);
+    initialState: { sceneData, scriptId, onChange, actionViewerContext },
+    onReuse: (st, next) => {
+      st.sceneData = next.sceneData;
+      st.scriptId = next.scriptId;
+      st.onChange = next.onChange;
+      st.actionViewerContext = next.actionViewerContext;
     },
-  };
-
-  _openWindows.set(modalKey, { fw, state: windowState });
-  fw.onClose(() => _openWindows.delete(modalKey));
-  windowState.rebuild();
-  fw.open();
-  return fw;
+    getSubtitle: (st) => st.sceneData?.id || st.scriptId || '',
+    columns: [
+      { label: 'Name', className: 'sequences-th-name' },
+      { label: 'Actions' },
+    ],
+    getRows: (st) => Object.keys(ensureSequencesObject(st.sceneData)),
+    buildRowCells: (tr, { modalState: st, row: name }) =>
+      buildSequenceRowCells(tr, st, name),
+    renderEmpty: (content, st) => {
+      const empty = document.createElement('div');
+      empty.className = 'items-viewer-empty';
+      if (st.collapsed) {
+        empty.textContent = 'No sequences defined.';
+      } else {
+        empty.innerHTML = 'Sequences are a shared list of actions, reusable across objects or items.<br>Right-click (or click Add) to create a sequence.';
+      }
+      content.appendChild(empty);
+    },
+    onEmptyContextMenu: (x, y, st) =>
+      showNewRowMenu(x, y, 'New sequence', () => createNewSequence(st)),
+    onRowContextMenu: (x, y, st, name) =>
+      showRowMenu(x, y, 'New sequence', () => createNewSequence(st), () => confirmDeleteSequence(st, name)),
+    onAdd: (st) => createNewSequence(st),
+    addTitle: 'Add sequence',
+    collapseTitleCollapsed: 'Expand sequences',
+    collapseTitleExpanded: 'Collapse sequences',
+  });
 }
 
 function ensureSequencesObject(sceneData) {
   if (sceneData.sequences && typeof sceneData.sequences === 'object') return sceneData.sequences;
-  if (sceneData.definitions && typeof sceneData.definitions === 'object') return sceneData.definitions;
   sceneData.sequences = {};
   return sceneData.sequences;
 }
 
-function notifyChange(scriptId, onChange) {
-  markDirty(scriptId);
-  hooks.renderViewport();
-  hooks.renderProperties();
-  onChange?.();
+function buildSequenceRowCells(tr, st, name) {
+  const sequences = ensureSequencesObject(st.sceneData);
+  const actions = Array.isArray(sequences[name]) ? sequences[name] : (sequences[name] = []);
+
+  const tdName = document.createElement('td');
+  tdName.className = 'sequences-td-name';
+  if (st.collapsed) {
+    const textValue = document.createElement('span');
+    textValue.className = 'items-options-compact-text';
+    textValue.textContent = name;
+    tdName.appendChild(textValue);
+  } else {
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'items-options-input';
+    nameInput.value = name;
+    nameInput.placeholder = 'Sequence name';
+    nameInput.addEventListener('change', () => renameSequence(st, name, nameInput));
+    tdName.appendChild(nameInput);
+  }
+  tr.appendChild(tdName);
+
+  const tdActions = document.createElement('td');
+  tdActions.className = 'items-opt-td-actions';
+  if (st.collapsed) {
+    const count = document.createElement('span');
+    count.className = 'items-options-compact-actions';
+    count.textContent = `${actions.length} action${actions.length === 1 ? '' : 's'}`;
+    tdActions.appendChild(count);
+  } else {
+    tdActions.appendChild(createSequenceActionsPill({
+      sceneId: st.sceneData.id,
+      name,
+      actions,
+      scriptId: st.scriptId,
+      onChange: st.onChange,
+      actionViewerContext: st.actionViewerContext,
+    }));
+  }
+  tr.appendChild(tdActions);
 }
 
-function buildSequencesContent(container, ctx) {
-  const sequences = ensureSequencesObject(ctx.sceneData);
-  const names = Object.keys(sequences);
-
-  container.innerHTML = '';
-  container.oncontextmenu = null;
-
-  const toolbar = createEditorToolbar({
-    collapsed: ctx.collapsed,
-    onToggleCollapse: () => {
-      ctx.collapsed = !ctx.collapsed;
-      ctx.rebuild();
-    },
-    addLabel: 'Add',
-    addTitle: 'Add sequence',
-    addAriaLabel: 'Add sequence',
-    onAdd: () => createNewSequence(ctx),
-    collapseTitleCollapsed: 'Expand sequences',
-    collapseTitleExpanded: 'Collapse sequences',
-    extraClassName: 'options-editor-toolbar',
-  });
-  container.appendChild(toolbar);
-
-  const content = document.createElement('div');
-  content.className = 'options-editor-content';
-  container.appendChild(content);
-
-  content.oncontextmenu = ctx.collapsed
-    ? null
-    : (e) => {
-        const row = e.target.closest('.items-options-row');
-        if (row) return;
-        e.preventDefault();
-        showSequencesEmptyContextMenu(e.clientX, e.clientY, ctx);
-      };
-
-  const table = document.createElement('table');
-  table.className = `items-options-table${ctx.collapsed ? ' items-options-table-compact' : ''}`;
-
-  const thead = document.createElement('thead');
-  thead.innerHTML =
-    '<tr>' +
-    '<th class="sequences-th-name">Name</th>' +
-    '<th>Actions</th>' +
-    '</tr>';
-  table.appendChild(thead);
-
-  const tbody = document.createElement('tbody');
-  for (let i = 0; i < names.length; i++) {
-    const name = names[i];
-    const actions = Array.isArray(sequences[name]) ? sequences[name] : (sequences[name] = []);
-
-    const tr = document.createElement('tr');
-    tr.className = 'items-options-row';
-    if (!ctx.collapsed) {
-      tr.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        showSequenceRowContextMenu(e.clientX, e.clientY, ctx, name);
-      });
-    }
-
-    const tdName = document.createElement('td');
-    tdName.className = 'sequences-td-name';
-    if (ctx.collapsed) {
-      const textValue = document.createElement('span');
-      textValue.className = 'items-options-compact-text';
-      textValue.textContent = name;
-      tdName.appendChild(textValue);
-    } else {
-      const nameInput = document.createElement('input');
-      nameInput.type = 'text';
-      nameInput.className = 'items-options-input';
-      nameInput.value = name;
-      nameInput.placeholder = 'Sequence name';
-      nameInput.addEventListener('change', () => renameSequence(ctx, name, nameInput));
-      tdName.appendChild(nameInput);
-    }
-    tr.appendChild(tdName);
-
-    const tdActions = document.createElement('td');
-    tdActions.className = 'items-opt-td-actions';
-    if (ctx.collapsed) {
-      const count = document.createElement('span');
-      count.className = 'items-options-compact-actions';
-      count.textContent = `${actions.length} action${actions.length === 1 ? '' : 's'}`;
-      tdActions.appendChild(count);
-    } else {
-      tdActions.appendChild(createActionsPill({
-        sceneId: ctx.sceneData.id,
-        name,
-        actions,
-        scriptId: ctx.scriptId,
-        onChange: ctx.onChange,
-        actionViewerContext: ctx.actionViewerContext,
-      }));
-    }
-    tr.appendChild(tdActions);
-
-    tbody.appendChild(tr);
-  }
-
-  table.appendChild(tbody);
-  content.appendChild(table);
-
-  if (!names.length) {
-    const empty = document.createElement('div');
-    empty.className = 'items-viewer-empty';
-    if (ctx.collapsed) {
-      empty.textContent = 'No sequences defined.';
-    } else {
-      empty.innerHTML = 'Sequences are a shared list of actions, reusable across objects or items.<br>Right-click (or click Add) to create a sequence.';
-    }
-    content.appendChild(empty);
-  }
-}
-
-function createActionsPill({ sceneId, name, actions, scriptId, onChange, actionViewerContext }) {
-  const pill = document.createElement('button');
-  pill.type = 'button';
-  pill.className = 'ae-mini-btn items-actions-pill';
-  const renderPill = () => {
-    pill.innerHTML = '<span class="material-symbols-outlined">list_alt</span> ' + actions.length;
-    pill.title = `${actions.length} action(s)`;
-  };
-  renderPill();
-  pill.addEventListener('click', () => {
+function createSequenceActionsPill({ sceneId, name, actions, scriptId, onChange, actionViewerContext }) {
+  return createActionsPill(actions.length, (renderPill) => {
     openActionEditor(`${sceneId} — ${name}`, actions, {
       ...actionViewerContext,
       onChange: () => {
-        renderPill();
-        notifyChange(scriptId, onChange);
+        renderPill(actions.length);
+        notifyListChange(scriptId, onChange);
       },
     });
   });
-  return pill;
 }
 
-function showSequencesEmptyContextMenu(x, y, ctx) {
-  showContextMenu(x, y, [
-    { icon: 'add_box', label: 'New sequence', onClick: () => createNewSequence(ctx) },
-  ]);
-}
-
-function showSequenceRowContextMenu(x, y, ctx, name) {
-  showContextMenu(x, y, [
-    { icon: 'add_box', label: 'New sequence', onClick: () => createNewSequence(ctx) },
-    { separator: true },
-    { icon: 'delete', label: 'Delete', danger: true, onClick: () => confirmDeleteSequence(ctx, name) },
-  ]);
-}
-
-function createNewSequence(ctx) {
-  const sequences = ensureSequencesObject(ctx.sceneData);
+function createNewSequence(st) {
+  const sequences = ensureSequencesObject(st.sceneData);
   const name = getNextSequenceName(sequences);
   sequences[name] = [];
-  notifyChange(ctx.scriptId, ctx.onChange);
-  ctx.rebuild();
+  notifyListChange(st.scriptId, st.onChange);
+  st.rebuild();
 }
 
-function renameSequence(ctx, prevName, input) {
-  const sequences = ensureSequencesObject(ctx.sceneData);
+function renameSequence(st, prevName, input) {
+  const sequences = ensureSequencesObject(st.sceneData);
   const nextName = String(input.value || '').trim().replace(/\s+/g, '_');
   if (!nextName) {
     input.value = prevName;
@@ -255,12 +151,12 @@ function renameSequence(ctx, prevName, input) {
   sequences[nextName] = actions;
   input.classList.remove('prop-input-error');
   input.value = nextName;
-  notifyChange(ctx.scriptId, ctx.onChange);
-  ctx.rebuild();
+  notifyListChange(st.scriptId, st.onChange);
+  st.rebuild();
 }
 
-async function confirmDeleteSequence(ctx, name) {
-  const sequences = ensureSequencesObject(ctx.sceneData);
+async function confirmDeleteSequence(st, name) {
+  const sequences = ensureSequencesObject(st.sceneData);
   const actions = Array.isArray(sequences[name]) ? sequences[name] : [];
   if (actions.length > 0) {
     const confirmed = await promptForConfirmation({
@@ -272,14 +168,14 @@ async function confirmDeleteSequence(ctx, name) {
     if (!confirmed) return;
   }
 
-  deleteSequence(ctx, name);
+  deleteSequence(st, name);
 }
 
-function deleteSequence(ctx, name) {
-  const sequences = ensureSequencesObject(ctx.sceneData);
+function deleteSequence(st, name) {
+  const sequences = ensureSequencesObject(st.sceneData);
   delete sequences[name];
-  notifyChange(ctx.scriptId, ctx.onChange);
-  ctx.rebuild();
+  notifyListChange(st.scriptId, st.onChange);
+  st.rebuild();
 }
 
 function getNextSequenceName(sequences) {

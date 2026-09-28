@@ -137,5 +137,5 @@ The editor has its own separate instructions at `editor/AGENTS.md`. Refer to thi
 2. **Prefer events over imports** — use `bus.emit()` / `bus.on()` for cross-module communication.
 3. New UI components should follow the pattern: constructor takes `bus`, queries its own DOM elements, subscribes to relevant events.
 4. Editor-only code lives under `editor/` and should not be bolted into runtime modules unless the feature is genuinely shared.
-5. Shared action metadata belongs in `js/action-schema.js`; do not fork separate action registries for engine vs editor.
+5. Shared action metadata belongs in `js/action-schema.js`; do not fork separate action registries for engine vs editor. Summaries and header badges are derived there too (`summarizeAction`/`getBadges`) — the editor delegates instead of keeping parallel switches.
 6. Update this file (`buegame/AGENTS.md`) after significant **engine-side** changes if necessary. **If editor-side, remember editor has its own `editor/AGENTS.md`!**
