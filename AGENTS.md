@@ -107,6 +107,10 @@ Actions are objects in an array. Supported commands:
 
 **Condition semantics & safety guards:** Unset flags read as numeric `0` everywhere. Plain truthiness checks (`"if": "flag"`) treat unset or `0` as false. In comparisons (`==`, `!=`, `>`, `>=`, `<`, `<=`) operands are coerced with `Number()`, so booleans become `1`/`0` (`true == 1` is true); only when *both* sides are non-numeric strings do they compare lexicographically, and if either side coerces to `NaN` the comparison is false. Two guards prevent hangs: a `loop` whose condition never flips throws an Error after **10,000 iterations**, and frame nesting reaching **64 frames** (e.g. runaway recursive `{ "run": ... }`) throws an Error about recursive sequence expansion — both name the scene/condition where they fired.
 
+### Object hover actions
+
+Scene objects can define `onHover[]`, an action array using the same commands as options (e.g. `"onHover": [{ "run": "door_hint" }]`). It fires once per mouse entry, including on objects without labels. Hover uses the main runner and is ignored while it is busy or a scene transition is in progress; ignored entries are not queued. It supports `"this"` without incrementing `{sceneId}.{id}.clicks`. Leaving the object does not cancel its actions. Options remain click/menu interactions.
+
 ### Inventory system
 
 Configured per-game in `_game.json`:

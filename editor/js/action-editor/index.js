@@ -436,19 +436,36 @@ function pickActionType(parentFw) {
       subtitle: 'Add action...',
       icon: 'add_circle',
       iconClass: 'material-symbols-outlined',
-      width: 420,
-      height: 480,
+      width: 720,
+      height: 560,
       resizable: false,
       modal: true,
       closeOnBackdrop: true,
       parent: parentFw,
     });
 
+    fw.el.classList.add('ae-type-picker');
     const list = document.createElement('div');
     list.className = 'ae-type-list';
+    const groups = new Map();
 
     for (const [type, meta] of Object.entries(ACTION_TYPES)) {
+      if (meta.hiddenFromPicker) continue;
+      const category = meta.category || 'Other';
+      let group = groups.get(category);
+      if (!group) {
+        const section = document.createElement('section');
+        section.className = 'ae-type-category';
+        const heading = document.createElement('h3');
+        heading.className = 'ae-type-category-title';
+        heading.textContent = category;
+        group = document.createElement('div');
+        group.className = 'ae-type-grid';
+        section.append(heading, group);
+        groups.set(category, group);
+      }
       const row = document.createElement('button');
+      row.type = 'button';
       row.className = 'ae-type-row';
       row.style.setProperty('--ae-accent', meta.color);
 
@@ -456,6 +473,7 @@ function pickActionType(parentFw) {
       icon.className = 'ae-type-row-icon material-symbols-outlined';
       icon.style.color = meta.color;
       icon.textContent = meta.icon;
+      icon.setAttribute('aria-hidden', 'true');
 
       const label = document.createElement('span');
       label.className = 'ae-type-row-label';
@@ -465,15 +483,19 @@ function pickActionType(parentFw) {
       quip.className = 'ae-type-row-quip';
       quip.textContent = meta.quip;
 
-      row.append(icon, label, quip);
+      const copy = document.createElement('span');
+      copy.className = 'ae-type-row-copy';
+      copy.append(label, quip);
+      row.append(icon, copy);
       row.addEventListener('click', () => {
         if (resolved) return;
         resolved = true;
         fw.destroy();
         resolve(type);
       });
-      list.appendChild(row);
+      group.appendChild(row);
     }
+    for (const group of groups.values()) list.appendChild(group.parentElement);
 
     fw.body.style.padding = '12px';
     fw.body.appendChild(list);

@@ -264,6 +264,24 @@
       "y": 9,
       "w": 3,
       "h": 3,
+      "onHover": [
+        {
+          "animate": {
+            "id": "this",
+            "to": { "scale": 1.08 },
+            "seconds": 0.15,
+            "blocking": true
+          }
+        },
+        {
+          "animate": {
+            "id": "this",
+            "to": { "scale": 1 },
+            "seconds": 0.15,
+            "blocking": true
+          }
+        }
+      ],
       "options": [
         {
           "text": "Observe",

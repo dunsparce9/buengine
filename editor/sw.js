@@ -1,4 +1,4 @@
-const CACHE_NAME = 'buengine-editor-v12';
+const CACHE_NAME = 'buengine-editor-v14';
 const CORE_ASSETS = [
   './',
   './assets/icon.svg',
@@ -68,7 +68,9 @@ self.addEventListener('message', (event) => {
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(
+      CORE_ASSETS.map((path) => new Request(path, { cache: 'reload' }))
+    ))
   );
   self.skipWaiting();
 });
@@ -95,7 +97,8 @@ async function cacheResponse(request, response) {
 
 async function networkFirst(request) {
   try {
-    const response = await fetch(request);
+    // Revalidate HTTP-cached assets too, so CSS and modules update together.
+    const response = await fetch(request, { cache: 'no-cache' });
     return cacheResponse(request, response);
   } catch {
     const cached = await caches.match(request);

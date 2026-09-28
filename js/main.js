@@ -85,6 +85,7 @@ function collectGotos(actions, out) {
 function collectObjectGotos(obj, out) {
   if (!obj || typeof obj !== 'object') return;
   if (Array.isArray(obj.actions)) collectGotos(obj.actions, out);
+  collectGotos(obj.onHover, out);
   if (Array.isArray(obj.options)) {
     for (const option of obj.options) collectGotos(option?.actions, out);
   }
@@ -188,7 +189,7 @@ function trackObjectClick(obj) {
 }
 
 /** All player interactions share the runner and the same interruption policy. */
-async function runPlayerActions(actions, { object = null, interrupt = false } = {}) {
+async function runPlayerActions(actions, { object = null, interrupt = false, trackClick = true } = {}) {
   if (transitionInProgress || !currentSceneData) return;
   if (runner.running && (!interrupt || !actions?.length)) return;
   const serial = ++interactionSerial;
@@ -196,7 +197,7 @@ async function runPlayerActions(actions, { object = null, interrupt = false } = 
   if (runner.running) await runner.abort();
   if (serial !== interactionSerial || epoch !== sceneEpoch || transitionInProgress) return;
 
-  if (object) trackObjectClick(object);
+  if (object && trackClick) trackObjectClick(object);
   if (!Array.isArray(actions)) return;
   runner.currentObjectId = object?.id || null;
   try {
@@ -214,6 +215,10 @@ function runObjectInteraction(obj, optionIndex = 0, interrupt = false) {
 }
 
 /* ── Player interactions ────────────────────────── */
+bus.on('object:hover', obj => {
+  if (!Array.isArray(obj.onHover) || !obj.onHover.length) return;
+  runPlayerActions(obj.onHover, { object: obj, trackClick: false }).catch(reportEngineError);
+});
 bus.on('object:click', obj => {
   Promise.resolve(runObjectInteraction(obj)).catch(reportEngineError);
 });

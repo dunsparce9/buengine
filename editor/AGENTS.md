@@ -162,6 +162,8 @@ AE is the editor's action array UI with stable entry `editor/js/action-editor.js
 - Shared AE field rows use a two-column grid with wrapping labels and controls aligned to the right edge, including numeric fields, checkboxes and color pickers. This layout also applies to Say and the other action forms.
 - Supports dragging actions between compatible open AE windows
 - Uses shared schema metadata from `js/shared/action-schema.js` for action cards and form generation
+- The Add popup groups actions by shared schema `category`, with full-width bold muted uppercase headings and three-column action grids. Each button shows a large icon beside the name and a muted, non-italic description below it.
+- Actions marked `hiddenFromPicker` in the shared schema are omitted from the Add popup. Emit uses this flag because it is an internal event hook; existing Emit actions remain visible and editable, and runtime support is retained.
 
 When editing AE-related code:
 - Keep summaries, badges, and editor forms aligned with the shared schema
@@ -222,4 +224,5 @@ When editing AE-related code:
 9. **Dirty-state discipline** — any edit that changes persistent data should mark the relevant script dirty so Save / Save All remain trustworthy.
 10. **AE changes are high-impact** — if you change action editing behavior, check nested arrays, drag/drop, and schema-derived field rendering, not just the top-level happy path.
 11. **Offline dependencies** — `tools/generate-sw-precache.mjs` includes editor files and the shared `js/shared/action-schema.js` / `js/shared/script-data.js` modules. Update its shared list when introducing another cross-app import.
+    The service worker revalidates HTTP-cached responses on network requests and bypasses the HTTP cache when installing its precache. Bump `CACHE_NAME` for releases that need a fresh precache.
 12. **Agent documentation updates** - Update this file (`editor/AGENTS.md`) after significant or otherwise notable changes, as deemed necessary.

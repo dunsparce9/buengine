@@ -44,6 +44,7 @@ export function walkScriptActions(data, visit) {
   for (const actions of Object.values(data.sequences || {})) walkActions(actions, visit);
   for (const entity of Array.isArray(data) ? data : (data.objects || [])) {
     walkActions(entity.actions, visit);
+    walkActions(entity.onHover, visit);
     for (const option of entity.options || []) walkActions(option.actions, visit);
   }
 }

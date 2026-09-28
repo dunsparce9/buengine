@@ -157,6 +157,9 @@ export class SceneRenderer {
           });
         }
 
+        div.addEventListener('mouseenter', () => {
+          this.bus.emit('object:hover', obj);
+        });
         div.addEventListener('click', () => {
           this.bus.emit('object:click', obj);
         });
@@ -179,8 +182,11 @@ export class SceneRenderer {
   _positionTooltip(el) {
     const sceneRect = this.el.getBoundingClientRect();
     const rect = el.getBoundingClientRect();
-    this._tooltip.style.left = `${rect.left - sceneRect.left + rect.width / 2}px`;
-    this._tooltip.style.top = `${rect.top - sceneRect.top}px`;
+    // DOM rects include the container's scale; tooltip offsets use scene-local units.
+    // Percentages keep the anchor on the displayed object, including its transforms.
+    if (!sceneRect.width || !sceneRect.height) return;
+    this._tooltip.style.left = `${(rect.left - sceneRect.left + rect.width / 2) / sceneRect.width * 100}%`;
+    this._tooltip.style.top = `${(rect.top - sceneRect.top) / sceneRect.height * 100}%`;
   }
 
   /** Runtime geometry is separate from cached JSON, which stays reusable on re-entry. */

@@ -604,18 +604,40 @@ button.ae-chip:hover {
 
 /* ── Action viewer: type picker list ───────────── */
 
+.ae-type-picker {
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+}
+
 .ae-type-list {
   display: flex;
   flex-direction: column;
+  gap: 8px;
+}
+
+.ae-type-category-title {
+  margin: 0 0 6px;
+  color: #a89984;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.ae-type-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
 
 .ae-type-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  padding: 9px 12px;
+  min-width: 0;
+  min-height: 42px;
+  padding: 6px 8px;
   border: 1px solid #3c3836;
   border-radius: 6px;
   border-left: 3px solid var(--ae-accent, #7c6f64);
@@ -625,31 +647,37 @@ button.ae-chip:hover {
   text-align: left;
 }
 
-.ae-type-row:hover {
+.ae-type-row:hover,
+.ae-type-row:focus-visible {
   background: #282828;
   border-color: var(--ae-accent, #7c6f64);
   box-shadow: 0 0 0 1px var(--ae-accent, #7c6f64);
 }
 
 .ae-type-row-icon {
-  font-size: 20px;
+  font-size: 26px;
   flex-shrink: 0;
 }
 
+.ae-type-row-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 .ae-type-row-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: #ebdbb2;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .ae-type-row-quip {
-  margin-left: auto;
-  font-size: 12px;
+  font-size: 11px;
   color: #ae9c8c;
-  font-style: italic;
-  white-space: nowrap;
+  font-style: normal;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 /* ── Action viewer: drag-and-drop ──────────────── */

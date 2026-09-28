@@ -7,6 +7,8 @@
  *   - color:    accent colour (for editor UI)
  *   - label:    human-readable name
  *   - quip:     short editor-facing description
+ *   - category: editor action picker group
+ *   - hiddenFromPicker: omit from the editor Add popup (existing actions stay editable)
  *   - fields:   array of field descriptors (for editor forms / validation)
  *   - defaults: template object returned by createDefaultAction()
  *   - summary:  (action, shorten) => one-line collapsed summary text
@@ -31,6 +33,7 @@ export const UNKNOWN_ACTION_META = {
 
 export const ACTION_TYPES = {
   say: {
+    category: 'Dialogue & Navigation',
     icon: 'chat_bubble',
     color: '#83a598',
     label: 'Say',
@@ -53,6 +56,7 @@ export const ACTION_TYPES = {
   },
 
   choice: {
+    category: 'Dialogue & Navigation',
     icon: 'account_tree',
     color: '#d3869b',
     label: 'Choice',
@@ -70,6 +74,7 @@ export const ACTION_TYPES = {
   },
 
   goto: {
+    category: 'Dialogue & Navigation',
     icon: 'exit_to_app',
     color: '#8ec07c',
     label: 'Go to',
@@ -83,6 +88,7 @@ export const ACTION_TYPES = {
   },
 
   set: {
+    category: 'Logic & Flags',
     icon: 'flag',
     color: '#fabd2f',
     label: 'Set flag',
@@ -97,6 +103,7 @@ export const ACTION_TYPES = {
   },
 
   if: {
+    category: 'Logic & Flags',
     icon: 'call_split',
     color: '#fe8019',
     label: 'If',
@@ -110,6 +117,7 @@ export const ACTION_TYPES = {
   },
 
   loop: {
+    category: 'Logic & Flags',
     icon: 'repeat',
     color: '#b16286',
     label: 'Loop',
@@ -126,6 +134,7 @@ export const ACTION_TYPES = {
   },
 
   wait: {
+    category: 'Sequences & Timing',
     icon: 'hourglass_empty',
     color: '#a89984',
     label: 'Wait',
@@ -139,6 +148,8 @@ export const ACTION_TYPES = {
   },
 
   emit: {
+    hiddenFromPicker: true,
+    category: 'Inventory & Events',
     icon: 'cell_tower',
     color: '#b8bb26',
     label: 'Emit',
@@ -152,6 +163,7 @@ export const ACTION_TYPES = {
   },
 
   run: {
+    category: 'Sequences & Timing',
     icon: 'play_circle',
     color: '#83a598',
     label: 'Run',
@@ -165,6 +177,7 @@ export const ACTION_TYPES = {
   },
 
   fork: {
+    category: 'Sequences & Timing',
     icon: 'fork_right',
     color: '#8ec07c',
     label: 'Fork',
@@ -183,6 +196,7 @@ export const ACTION_TYPES = {
   },
 
   exit: {
+    category: 'Sequences & Timing',
     icon: 'block',
     color: '#fb4934',
     label: 'Exit',
@@ -196,6 +210,7 @@ export const ACTION_TYPES = {
   },
 
   show: {
+    category: 'Visuals',
     icon: 'visibility',
     color: '#d3869b',
     label: 'Show',
@@ -215,6 +230,7 @@ export const ACTION_TYPES = {
   },
 
   text: {
+    category: 'Visuals',
     icon: 'title',
     color: '#fabd2f',
     label: 'Text',
@@ -243,6 +259,7 @@ export const ACTION_TYPES = {
   },
 
   hide: {
+    category: 'Visuals',
     icon: 'visibility_off',
     color: '#928374',
     label: 'Hide',
@@ -259,10 +276,11 @@ export const ACTION_TYPES = {
   },
 
   animate: {
+    category: 'Visuals',
     icon: 'animation',
     color: '#8ec07c',
     label: 'Animate',
-    quip: 'move, transform, or fade objects and scenes',
+    quip: 'move, transform, or fade',
     tabs: [
       { group: 'Move', icon: 'open_with' },
       { group: 'Rotate', icon: 'rotate_right' },
@@ -301,6 +319,7 @@ export const ACTION_TYPES = {
   },
 
   playsound: {
+    category: 'Sound',
     icon: 'volume_up',
     color: '#83a598',
     label: 'Play sound',
@@ -324,6 +343,7 @@ export const ACTION_TYPES = {
   },
 
   stopsound: {
+    category: 'Sound',
     icon: 'volume_off',
     color: '#928374',
     label: 'Stop sound',
@@ -339,6 +359,7 @@ export const ACTION_TYPES = {
   },
 
   item: {
+    category: 'Inventory & Events',
     icon: 'inventory_2',
     color: '#d79921',
     label: 'Item',
