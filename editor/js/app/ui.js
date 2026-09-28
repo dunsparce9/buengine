@@ -43,6 +43,9 @@ export function hasUnsavedChanges() {
 }
 
 export function updateMenuVisibility() {
+  const hasWorkspace = Boolean(state.rootHandle);
+  document.getElementById('editor-welcome').hidden = hasWorkspace;
+  document.getElementById('editor-layout').hidden = !hasWorkspace;
   const loaded = hasLoadedGame();
   for (const el of document.querySelectorAll('[data-requires-game]')) {
     el.hidden = !loaded;

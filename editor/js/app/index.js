@@ -52,6 +52,11 @@ initMenu({
 });
 
 document.getElementById('run-btn').addEventListener('click', runInNewTab);
+document.getElementById('welcome-open-folder').addEventListener('click', handleOpenFolder);
+document.getElementById('welcome-recent-projects').addEventListener('click', (event) => {
+  const button = event.target.closest('button[data-recent-id]');
+  if (button) dispatchOpenRecentFolder(button);
+});
 setupPWAInstall();
 
 function isEditableTarget(target) {

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'buengine-editor-v14';
+const CACHE_NAME = 'buengine-editor-v15';
 const CORE_ASSETS = [
   './',
   './assets/icon.svg',
@@ -15,6 +15,7 @@ const CORE_ASSETS = [
   './css/toast.css',
   './css/toolbars.css',
   './css/viewport.css',
+  './css/welcome.css',
   './index.html',
   './js/action-editor.js',
   './js/action-editor/drag.js',
@@ -56,6 +57,7 @@ const CORE_ASSETS = [
   './js/ui/resize.js',
   './js/ui/section-header.js',
   './manifest.webmanifest',
+  '../assets/images/seal.png',
   '../js/shared/action-schema.js',
   '../js/shared/script-data.js',
 ];

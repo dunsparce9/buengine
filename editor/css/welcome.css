@@ -1,0 +1,131 @@
+#editor-welcome {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(100vh - 30px);
+  overflow-y: auto;
+  padding: 32px 24px;
+}
+
+.welcome-content {
+  width: min(384px, 100%);
+  margin: auto;
+}
+
+.welcome-brand {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto 48px;
+  padding-bottom: 14px;
+}
+
+.welcome-logo-wrap {
+  position: relative;
+  flex: none;
+  width: 60px;
+}
+
+.welcome-logo-pencil {
+  position: absolute;
+  right: 0;
+  bottom: -4px;
+  font-size: 18px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.welcome-brand-logo {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.welcome-brand h1 {
+  font-family: 'Playwrite HR Lijeva', cursive;
+  font-size: clamp(24px, 6vw, 32px);
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.welcome-badge {
+  position: absolute;
+  right: 0px;
+  bottom: -2px;
+  padding: 2px 5px;
+  border: 1px solid #fe8019;
+  border-radius: 3px;
+  background: rgba(254, 128, 25, 0.1);
+  color: #fe8019;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.welcome-projects h2 {
+  margin-bottom: 12px;
+  color: #a89984;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+#welcome-recent-projects {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+}
+
+.welcome-project-button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #3c3836;
+  border-radius: 5px;
+  background: #1d2021;
+  color: #ebdbb2;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.welcome-project-button span:last-child {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.welcome-project-button .material-symbols-outlined {
+  flex: none;
+  color: #a89984;
+}
+
+.welcome-project-button:hover {
+  background: #3c3836;
+  border-color: #fe8019;
+}
+
+.welcome-project-button:focus-visible {
+  outline: 2px solid #fe8019;
+  outline-offset: 2px;
+}
+
+.welcome-empty {
+  padding: 14px;
+  color: #928374;
+  font-size: 13px;
+}
+
+.welcome-open-folder {
+  margin-top: 20px;
+  color: #fe8019;
+}
+
+.welcome-open-folder .material-symbols-outlined {
+  color: inherit;
+}

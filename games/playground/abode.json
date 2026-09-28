@@ -108,6 +108,38 @@
           "volume": 0.1
         }
       }
+    ],
+    "pick_up_seal": [
+      {
+        "set": {
+          "seal_picked_up": 1
+        }
+      },
+      {
+        "item": {
+          "id": "seal",
+          "qty": 1
+        }
+      },
+      {
+        "animate": {
+          "target": "object",
+          "id": "seal",
+          "to": {
+            "rotation": 45,
+            "opacity": 0,
+            "scale": 0
+          },
+          "seconds": 0.6,
+          "easing": "ease-in",
+          "blocking": true
+        }
+      },
+      {
+        "hide": {
+          "id": "seal"
+        }
+      }
     ]
   },
   "objects": [
@@ -268,7 +300,9 @@
         {
           "animate": {
             "id": "this",
-            "to": { "scale": 1.08 },
+            "to": {
+              "scale": 1.08
+            },
             "seconds": 0.15,
             "blocking": true
           }
@@ -276,7 +310,9 @@
         {
           "animate": {
             "id": "this",
-            "to": { "scale": 1 },
+            "to": {
+              "scale": 1
+            },
             "seconds": 0.15,
             "blocking": true
           }
@@ -339,30 +375,26 @@
                           {
                             "say": "what",
                             "speaker": "Narrator"
-                          },
-                          {
-                            "set": {
-                              "seal_picked_up": 1
-                            }
                           }
                         ],
                         "else": []
                       },
                       {
-                        "item": {
-                          "id": "seal",
-                          "qty": 1
-                        }
-                      },
-                      {
-                        "hide": {
-                          "id": "this"
-                        }
+                        "run": "pick_up_seal"
                       }
                     ]
                   }
                 ]
               }
+            }
+          ]
+        },
+        {
+          "text": "Pick up",
+          "icon": "🤏",
+          "actions": [
+            {
+              "run": "pick_up_seal"
             }
           ]
         }
@@ -430,8 +462,12 @@
     {
       "animate": {
         "target": "scene",
-        "from": { "opacity": 0 },
-        "to": { "opacity": 1 },
+        "from": {
+          "opacity": 0
+        },
+        "to": {
+          "opacity": 1
+        },
         "easing": "ease",
         "seconds": 1,
         "blocking": false

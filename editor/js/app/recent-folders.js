@@ -53,9 +53,11 @@ function sortRecentFolders(entries) {
 function renderRecentFoldersMenu() {
   const panel = document.getElementById('menu-file-recent');
   const entry = document.getElementById('recent-folders-entry');
-  if (!panel || !entry) return;
+  const projects = document.getElementById('welcome-recent-projects');
+  if (!panel || !entry || !projects) return;
 
   panel.textContent = '';
+  projects.textContent = '';
   entry.hidden = false;
 
   if (!recentFolders.length) {
@@ -63,6 +65,10 @@ function renderRecentFoldersMenu() {
     empty.className = 'menu-action menu-action-empty';
     empty.textContent = 'No recent folders';
     panel.appendChild(empty);
+    const welcomeEmpty = document.createElement('li');
+    welcomeEmpty.className = 'welcome-empty';
+    welcomeEmpty.textContent = 'No recent projects';
+    projects.appendChild(welcomeEmpty);
     return;
   }
 
@@ -81,6 +87,14 @@ function renderRecentFoldersMenu() {
 
     button.append(icon, label);
     panel.appendChild(button);
+
+    const project = document.createElement('li');
+    const projectButton = button.cloneNode(true);
+    projectButton.type = 'button';
+    projectButton.className = 'welcome-project-button';
+    projectButton.querySelector('.material-symbols-outlined').setAttribute('aria-hidden', 'true');
+    project.appendChild(projectButton);
+    projects.appendChild(project);
   }
 }
 

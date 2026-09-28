@@ -21,6 +21,7 @@ editor/
   css/
     base.css              ← tokens, global resets, shared primitives
     layout.css            ← three-pane shell and sizing
+    welcome.css           ← centered branding and recent projects before a folder opens
     editor.css            ← `@import` aggregator for the other stylesheets (no rules of its own)
     toolbars.css          ← editor toolbar styling
     file-panel.css        ← file tree visuals
@@ -113,6 +114,7 @@ Modules avoid circular imports by using a `hooks` object (in `core/state.js`) fo
 ```
 
 - **Left panel** (`#file-panel` / `#file-list`) — folder tree with expand/collapse, drag-to-move, drag-from-OS, right-click context menu.
+- **Welcome state** (`#editor-welcome`) — shown while `state.rootHandle` is unset, with the landing-page seal/font, orange EDITOR badge, Open Folder button, and Recent projects. `updateMenuVisibility()` swaps it with the three-pane layout; `app/recent-folders.js` renders both recent lists from the same records and both use its reopening handler.
 - **Viewport** (`#viewport-scene`) — sized dynamically to preserve the scene grid aspect ratio; shows background image and object outlines.
 - **Right panel** (`#props-panel` / `#props-content`) — property inspector. It edits `_game.json`, scene/object fields, inventory items, and opens AE for action arrays plus option-management modals for items/objects.
 - **Resize handles** — two draggable column dividers between panels (CSS vars `--left-w`, `--right-w`).

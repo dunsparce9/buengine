@@ -6,6 +6,9 @@
   <meta name="theme-color" content="#1d2021">
   <title>büengine editor</title>
   <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playwrite+HR+Lijeva:wght@100..400&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/material-symbols.css">
   <link rel="stylesheet" href="css/editor.css">
 </head>
@@ -58,8 +61,31 @@
     <button class="menu-run-btn" id="run-btn" title="Run in new tab" data-requires-game hidden><span class="material-symbols-outlined">play_arrow</span>Run</button>
   </div>
 
+  <div id="editor-welcome">
+    <div class="welcome-content">
+      <header class="welcome-brand">
+        <span class="welcome-logo-wrap">
+          <img src="../assets/images/seal.png" alt="" class="welcome-brand-logo">
+          <span class="welcome-logo-pencil" aria-hidden="true">✏️</span>
+        </span>
+        <h1>büengine</h1>
+        <span class="welcome-badge">EDITOR</span>
+      </header>
+      <section class="welcome-projects" aria-labelledby="welcome-projects-title">
+        <h2 id="welcome-projects-title">Recent projects</h2>
+        <ul id="welcome-recent-projects">
+          <li class="welcome-empty">No recent projects</li>
+        </ul>
+      </section>
+      <button type="button" id="welcome-open-folder" class="welcome-project-button welcome-open-folder">
+        <span class="material-symbols-outlined" aria-hidden="true">folder_open</span>
+        <span>Open Folder&hellip;</span>
+      </button>
+    </div>
+  </div>
+
   <!-- ── Main layout ──────────────────────────── -->
-  <div id="editor-layout">
+  <div id="editor-layout" hidden>
 
     <!-- Left panel: file tree -->
     <div id="file-panel">
