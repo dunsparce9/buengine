@@ -44,29 +44,13 @@ export class Inventory {
   }
 
   /**
-   * Load item definitions from the game's items/items.json.
-   * @param {string} basePath  e.g. "games/playground"
-   */
-  async loadDefinitions(basePath) {
-    this._defs.clear();
-    if (!this.enabled) return;
-    try {
-      const res = await fetch(`${basePath}/items/items.json`);
-      if (!res.ok) return;
-      const defs = await res.json();
-      for (const def of defs) {
-        this._defs.set(def.id, def);
-      }
-    } catch { /* no item definitions — that's fine */ }
-  }
-
-  /**
    * Load item definitions from an already-parsed array (used in editor preview).
    * @param {object[]} defs
    */
   loadDefinitionsFromData(defs) {
     this._defs.clear();
-    if (!this.enabled || !Array.isArray(defs)) return;
+    if (!this.enabled) return;
+    if (!Array.isArray(defs)) throw new Error('Item definitions must be an array');
     for (const def of defs) {
       this._defs.set(def.id, def);
     }

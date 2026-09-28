@@ -16,7 +16,8 @@ import {
 import { resolveAssetURLSync } from './fs-provider.js';
 import { showContextMenu } from './context-menu.js';
 import { openOptionsModal } from './options-editor.js';
-import { openActionEditor } from './action-editor.js';
+import { openActionField } from './action-editor.js';
+import { closeWindowsFor } from './floating-window.js';
 import { createSectionHeader } from './section-header.js';
 import { addEditablePropGroup } from './field-rows.js';
 
@@ -265,6 +266,7 @@ function renderSelectedItemEditor(item, items, container) {
           return;
         }
         input.classList.remove('prop-input-error');
+        closeWindowsFor(item);
         item.id = nextId;
         state.selectedItem = nextId;
         input.value = nextId;
@@ -364,10 +366,9 @@ function renderReadonlyOptions(item, container, scriptId) {
     link.className = 'prop-action-link';
     link.textContent = `${Array.isArray(opt.actions) ? opt.actions.length : 0} action(s)`;
     link.addEventListener('click', () => {
-      const actions = Array.isArray(opt.actions) ? opt.actions : (opt.actions = []);
-      openActionEditor(
+      openActionField(
         `${ownerLabel} — ${opt.text || 'Option ' + (i + 1)}`,
-        actions,
+        opt, 'actions',
         {
           onChange: () => {
             markDirty(scriptId);

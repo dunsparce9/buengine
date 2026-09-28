@@ -2,10 +2,12 @@
  * Right-side property inspector panel.
  */
 
-import { state, dom, hooks, escapeHtml, markDirty, collectImagePaths, scriptPathFromId } from './state.js';
-import { openActionEditor } from './action-editor.js';
+import { state, dom, hooks, escapeHtml, markDirty, collectImagePaths } from './state.js';
+import { openActionField } from './action-editor.js';
+import { renameScene } from './scene-actions.js';
+import { closeWindowsFor } from './floating-window.js';
 import { renderItemsProperties } from './items-viewer.js';
-import { openOptionsModal, createDefaultObjectOption } from './options-editor.js';
+import { openOptionsModal, createDefaultObjectOption, getOptionsPreview } from './options-editor.js';
 import { openSequencesModal } from './sequence-editor.js';
 import { renderAssetProps } from './media-info.js';
 import { makeActionViewerContext, makeActionEditorOpts } from './action-context.js';
@@ -119,7 +121,7 @@ function renderSceneProps(data) {
     },
   ], dom.propsContent, createGroupTitle);
 
-  const grid = data.grid ||= { cols: 16, rows: 9 };
+  const grid = data.grid || { cols: 16, rows: 9 };
   addCompactEditablePropGroup('Grid', [
     {
       key: 'cols',
@@ -145,11 +147,10 @@ function renderSceneProps(data) {
   );
 
   {
-    if (!data.onEnter) data.onEnter = [];
-    addActionLinkGroup('onEnter', [['actions', data.onEnter.length]],
-      () => openActionEditor(`${data.id} — onEnter`, data.onEnter,
+    addActionLinkGroup('onEnter', [['actions', data.onEnter?.length || 0]],
+      () => openActionField(`${data.id} — onEnter`, data, 'onEnter',
         makeActionEditorOpts(data, () => {
-          markDirty(data.id);
+          markDirty(sceneId);
           hooks.renderProperties();
         })
       )
@@ -161,7 +162,7 @@ function renderSceneProps(data) {
   addSequencesGroup(data, names);
 }
 
-function updateSceneId(data, currentSceneId, raw, input) {
+async function updateSceneId(data, currentSceneId, raw, input) {
   const nextId = raw.trim().replace(/\s+/g, '_');
   const prevId = data.id || currentSceneId;
 
@@ -171,41 +172,17 @@ function updateSceneId(data, currentSceneId, raw, input) {
     return;
   }
 
-  const collision = Object.keys(state.scripts).some(id => id !== currentSceneId && !id.includes('/') && id === nextId);
-  if (nextId === '_game' || collision) {
+  if (nextId === prevId && nextId === currentSceneId) return;
+  input.disabled = true;
+  try {
+    await renameScene(currentSceneId, nextId);
+  } catch (err) {
+    input.value = prevId;
     input.classList.add('prop-input-error');
-    return;
+    hooks.toast?.(`Rename failed: ${err.message}`, 'error');
+  } finally {
+    input.disabled = false;
   }
-
-  input.classList.remove('prop-input-error');
-  if (nextId === currentSceneId) {
-    data.id = nextId;
-    input.value = nextId;
-    return;
-  }
-
-  const originalPath = state.pendingScriptRenames.get(currentSceneId) || scriptPathFromId(currentSceneId);
-  state.pendingScriptRenames.delete(currentSceneId);
-  state.pendingScriptRenames.set(nextId, originalPath);
-
-  delete state.scripts[currentSceneId];
-  state.scripts[nextId] = data;
-
-  if (state.dirtySet.delete(currentSceneId)) {
-    state.dirtySet.add(nextId);
-  } else {
-    markDirty(nextId);
-  }
-
-  data.id = nextId;
-  state.selectedId = nextId;
-  state.selectedPath = scriptPathFromId(nextId);
-  input.value = nextId;
-
-  hooks.updateWindowTitle();
-  hooks.renderFileList();
-  hooks.renderViewport();
-  hooks.renderProperties();
 }
 
 function updateSceneGrid(data, sceneId, axis, raw) {
@@ -251,6 +228,7 @@ function renderObjectProps(obj) {
           return;
         }
         input.classList.remove('prop-input-error');
+        closeWindowsFor(obj);
         obj.id = v;
         input.value = v;
         state.selectedObjectId = v;
@@ -347,7 +325,7 @@ function renderObjectProps(obj) {
 
   // ── Actions ──
   {
-    const options = getObjectOptionsPreview(obj);
+    const options = getOptionsPreview(obj);
     const openOptionsManager = () => {
       openOptionsModal({
         target: obj,
@@ -361,14 +339,15 @@ function renderObjectProps(obj) {
       });
     };
     addOptionsLinkGroup('Options', options, openOptionsManager, (optionIndex) => {
-      const liveOptions = ensureObjectOptions(obj, sceneId);
-      const option = liveOptions[optionIndex];
+      const option = options[optionIndex];
       if (!option) return;
-      if (!Array.isArray(option.actions)) option.actions = [];
-      openActionEditor(
+      openActionField(
         `${obj.label || obj.id} — ${option.text || `Option ${optionIndex + 1}`}`,
-        option.actions,
-        makeActionEditorOpts(data, () => { markDirty(sceneId); hooks.renderProperties(); })
+        option, 'actions',
+        makeActionEditorOpts(data, () => {
+          if (!Array.isArray(obj.options)) { obj.options = options; delete obj.actions; }
+          markDirty(sceneId); hooks.renderProperties();
+        })
       );
     });
   }
@@ -468,44 +447,14 @@ function addOptionsLinkGroup(title, options, onManage, onOpenOptionActions) {
   dom.propsContent.appendChild(group);
 }
 
-function getObjectOptionsPreview(obj) {
-  if (Array.isArray(obj.options)) return obj.options;
-  if (Array.isArray(obj.actions)) {
-    return [{
-      ...createDefaultObjectOption(),
-      actions: obj.actions,
-    }];
-  }
-  return [];
-}
-
-function ensureObjectOptions(obj, sceneId) {
-  if (Array.isArray(obj.options)) return obj.options;
-  if (Array.isArray(obj.actions)) {
-    obj.options = [{
-      ...createDefaultObjectOption(),
-      actions: obj.actions,
-    }];
-    delete obj.actions;
-    markDirty(sceneId);
-    hooks.renderViewport();
-    hooks.renderProperties();
-    return obj.options;
-  }
-  obj.options = [createDefaultObjectOption()];
-  markDirty(sceneId);
-  hooks.renderViewport();
-  hooks.renderProperties();
-  return obj.options;
-}
-
 function addSequencesGroup(data, names) {
+  const scriptId = state.selectedId;
   const group = document.createElement('div');
   group.className = 'prop-group';
 
   const openSequencesManager = () => openSequencesModal({
     sceneData: data,
-    scriptId: data.id,
+    scriptId,
     modalKey: `${data.id}:sequences`,
     actionViewerContext: makeActionViewerContext(data),
   });
@@ -533,11 +482,11 @@ function addSequencesGroup(data, names) {
 
     const link = document.createElement('span');
     link.className = 'prop-action-link';
-    link.textContent = `${actions.length} action(s)`;
+    link.textContent = `${actions?.length || 0} action(s)`;
     link.addEventListener('click', () =>
-      openActionEditor(`${data.id} — ${name}`, actions,
+      openActionField(`${data.id} — ${name}`, data.sequences, name,
         makeActionEditorOpts(data, () => {
-          markDirty(data.id);
+          markDirty(scriptId);
           hooks.renderProperties();
         })
       )

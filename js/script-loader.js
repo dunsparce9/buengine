@@ -1,22 +1,12 @@
 /**
- * Loads JSON scene/script files from the scripts/ directory.
+ * Loads JSON scene/script files from the selected game directory.
  * Caches loaded scripts so each file is fetched only once.
  *
  * When the page is opened with ?preview, loads override data
  * from localStorage (set by the editor) instead of fetching files.
  */
-/**
- * Migrate the legacy `definitions` key to canonical `sequences` in place.
- * Single normalization point for scene data — callers must use `.sequences`
- * and not re-implement the `|| definitions` fallback.
- */
-export function normalizeSceneSequences(data) {
-  if (!data || Array.isArray(data) || typeof data !== 'object') return data;
-  if (data.sequences || !data.definitions) return data;
-  data.sequences = data.definitions;
-  delete data.definitions;
-  return data;
-}
+import { normalizeSceneSequences } from './script-data.js';
+export { normalizeSceneSequences } from './script-data.js';
 
 export class ScriptLoader {
   constructor(basePath = '') {
@@ -60,36 +50,22 @@ export class ScriptLoader {
   /** Update the base path (e.g. when a different game is selected). */
   setBasePath(path) {
     this.basePath = path;
-    this._cache.clear();
-    // Re-apply editor preview overrides that were wiped by clear()
-    if (this._previewOverrides) {
-      for (const [id, data] of this._previewOverrides) {
-        this._cache.set(id, normalizeSceneSequences(data));
-      }
-    }
+    // A fresh cache also isolates fetches still completing for the previous game.
+    this._cache = new Map(this._previewOverrides || []);
   }
 
-  /**
-   * Resolve a relative asset path against the current base.
-   * In preview mode, checks the asset blob URL map first.
-   * @param {string} relativePath
-   * @returns {string}
-   */
-  resolvePath(relativePath) {
-    if (this._assetMap && relativePath && this._assetMap.has(relativePath)) {
-      return this._assetMap.get(relativePath);
-    }
-    if (!this.basePath || !relativePath) return relativePath;
-    return `${this.basePath}/${relativePath}`;
-  }
+  /** Whether a script is already available (including preview overrides). */
+  has(id) { return this._cache.has(id); }
 
   /**
    * Load a script by ID (filename without extension).
    * @param {string} id  e.g. "intro" → {basePath}/intro.json
-   * @returns {Promise<object>}
+   * @param {{ optional?: boolean }} [opts] Missing optional scripts return null.
+   * @returns {Promise<object|null>}
    */
-  async load(id) {
-    if (this._cache.has(id)) return this._cache.get(id);
+  async load(id, { optional = false } = {}) {
+    const cache = this._cache;
+    if (cache.has(id)) return cache.get(id);
 
     const prefix = this.basePath ? `${this.basePath}/` : '';
     // Encode each path segment separately so nested ids like "items/items.json"
@@ -97,9 +73,10 @@ export class ScriptLoader {
     const encodedId = id.split('/').map(encodeURIComponent).join('/');
     const url = `${prefix}${encodedId}.json`;
     const res = await fetch(url);
+    if (optional && res.status === 404) return null;
     if (!res.ok) throw new Error(`Script not found: ${url} (${res.status})`);
     const data = normalizeSceneSequences(await res.json());
-    this._cache.set(id, data);
+    cache.set(id, data);
     return data;
   }
 }

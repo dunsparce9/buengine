@@ -10,13 +10,18 @@
  * Returns a Blob.
  */
 export function createZip(files) {
+  if (files.length >= 0xFFFF) throw new Error('Too many files for a standard ZIP');
   const entries = [];
   let offset = 0;
 
   // Build local file headers + data
   const localParts = [];
   for (const { path, data } of files) {
+    validatePath(path);
     const nameBytes = new TextEncoder().encode(path);
+    if (nameBytes.length > 0xFFFF || data.length >= 0xFFFFFFFF) {
+      throw new Error(`File exceeds standard ZIP limits: ${path}`);
+    }
     const crc = crc32(data);
 
     // Local file header (30 + name length)
@@ -24,7 +29,7 @@ export function createZip(files) {
     const hv = new DataView(header);
     hv.setUint32(0, 0x04034b50, true);   // signature
     hv.setUint16(4, 20, true);            // version needed
-    hv.setUint16(6, 0, true);             // flags
+    hv.setUint16(6, 0x0800, true);        // UTF-8 filenames
     hv.setUint16(8, 0, true);             // compression: STORE
     hv.setUint16(10, 0, true);            // mod time
     hv.setUint16(12, 0, true);            // mod date
@@ -37,6 +42,7 @@ export function createZip(files) {
     entries.push({ nameBytes, crc, size: data.length, offset });
     localParts.push(new Uint8Array(header), nameBytes, data);
     offset += 30 + nameBytes.length + data.length;
+    if (offset >= 0xFFFFFFFF) throw new Error('Archive exceeds standard ZIP limits');
   }
 
   // Central directory
@@ -48,7 +54,7 @@ export function createZip(files) {
     cv.setUint32(0, 0x02014b50, true);   // signature
     cv.setUint16(4, 20, true);            // version made by
     cv.setUint16(6, 20, true);            // version needed
-    cv.setUint16(8, 0, true);             // flags
+    cv.setUint16(8, 0x0800, true);        // UTF-8 filenames
     cv.setUint16(10, 0, true);            // compression: STORE
     cv.setUint16(12, 0, true);            // mod time
     cv.setUint16(14, 0, true);            // mod date
@@ -66,6 +72,7 @@ export function createZip(files) {
     centralParts.push(new Uint8Array(cd), nameBytes);
     centralSize += 46 + nameBytes.length;
   }
+  if (offset + centralSize >= 0xFFFFFFFF) throw new Error('Archive exceeds standard ZIP limits');
 
   // End of central directory
   const eocd = new ArrayBuffer(22);
@@ -91,11 +98,16 @@ export function createZip(files) {
 export function readZip(buffer) {
   const view = new DataView(buffer);
   const bytes = new Uint8Array(buffer);
+  const requireBytes = (offset, length, limit = bytes.length) => {
+    if (offset < 0 || length < 0 || offset + length > limit) {
+      throw new Error('Invalid ZIP: truncated or overlapping entry');
+    }
+  };
 
   // Find End of Central Directory (search backwards)
   let eocdOffset = -1;
-  for (let i = buffer.byteLength - 22; i >= 0; i--) {
-    if (view.getUint32(i, true) === 0x06054b50) {
+  for (let i = buffer.byteLength - 22; i >= Math.max(0, buffer.byteLength - 22 - 0xFFFF); i--) {
+    if (view.getUint32(i, true) === 0x06054b50 && i + 22 + view.getUint16(i + 20, true) === bytes.length) {
       eocdOffset = i;
       break;
     }
@@ -103,28 +115,72 @@ export function readZip(buffer) {
   if (eocdOffset < 0) throw new Error('Invalid ZIP: EOCD not found');
 
   const cdOffset = view.getUint32(eocdOffset + 16, true);
+  const cdSize = view.getUint32(eocdOffset + 12, true);
   const entryCount = view.getUint16(eocdOffset + 10, true);
+  if (view.getUint16(eocdOffset + 4, true) || view.getUint16(eocdOffset + 6, true)
+      || view.getUint16(eocdOffset + 8, true) !== entryCount) {
+    throw new Error('Unsupported ZIP: split archives');
+  }
+  if (entryCount === 0xFFFF || cdSize === 0xFFFFFFFF || cdOffset === 0xFFFFFFFF) {
+    throw new Error('Unsupported ZIP: ZIP64 archives');
+  }
+  if (cdOffset + cdSize !== eocdOffset) throw new Error('Invalid ZIP: central directory size');
+  requireBytes(cdOffset, cdSize, eocdOffset);
 
   const files = [];
+  const paths = new Set();
+  const ranges = [];
   let pos = cdOffset;
 
   for (let i = 0; i < entryCount; i++) {
-    if (view.getUint32(pos, true) !== 0x02014b50) break;
+    requireBytes(pos, 46, eocdOffset);
+    if (view.getUint32(pos, true) !== 0x02014b50) throw new Error('Invalid ZIP: central directory entry');
 
     const nameLen = view.getUint16(pos + 28, true);
     const extraLen = view.getUint16(pos + 30, true);
     const commentLen = view.getUint16(pos + 32, true);
     const localOffset = view.getUint32(pos + 42, true);
+    const flags = view.getUint16(pos + 8, true);
+    const method = view.getUint16(pos + 10, true);
+    const compSize = view.getUint32(pos + 20, true);
+    const size = view.getUint32(pos + 24, true);
+    const crc = view.getUint32(pos + 16, true);
+    requireBytes(pos, 46 + nameLen + extraLen + commentLen, eocdOffset);
 
     const nameBytes = bytes.slice(pos + 46, pos + 46 + nameLen);
-    const path = new TextDecoder().decode(nameBytes);
+    const path = new TextDecoder('utf-8', { fatal: true }).decode(nameBytes);
+    validatePath(path);
+    if (paths.has(path)) throw new Error(`Invalid ZIP: duplicate path ${path}`);
+    paths.add(path);
+    if (method !== 0) throw new Error(`Unsupported ZIP compression for ${path}: use an uncompressed (STORE) ZIP`);
+    if (flags & ~0x0808) throw new Error(`Unsupported ZIP flags for ${path} (encrypted or nonstandard entry)`);
+    if (compSize === 0xFFFFFFFF || localOffset === 0xFFFFFFFF || view.getUint16(pos + 34, true)) {
+      throw new Error('Unsupported ZIP: ZIP64 or split entry');
+    }
+    if (compSize !== size) throw new Error(`Invalid ZIP: STORE size mismatch for ${path}`);
+    if (path.endsWith('/') && size !== 0) throw new Error(`Invalid ZIP: directory contains data (${path})`);
 
     // Read data from local file header
+    requireBytes(localOffset, 30, cdOffset);
+    if (view.getUint32(localOffset, true) !== 0x04034b50
+        || view.getUint16(localOffset + 6, true) !== flags
+        || view.getUint16(localOffset + 8, true) !== method) {
+      throw new Error(`Invalid ZIP: local header mismatch for ${path}`);
+    }
     const localNameLen = view.getUint16(localOffset + 26, true);
     const localExtraLen = view.getUint16(localOffset + 28, true);
-    const compSize = view.getUint32(localOffset + 18, true);
     const dataStart = localOffset + 30 + localNameLen + localExtraLen;
+    requireBytes(localOffset, 30 + localNameLen + localExtraLen + compSize, cdOffset);
+    const localName = bytes.subarray(localOffset + 30, localOffset + 30 + localNameLen);
+    if (localName.length !== nameBytes.length || localName.some((byte, j) => byte !== nameBytes[j])
+        || (!(flags & 8) && (view.getUint32(localOffset + 14, true) !== crc
+          || view.getUint32(localOffset + 18, true) !== compSize
+          || view.getUint32(localOffset + 22, true) !== size))) {
+      throw new Error(`Invalid ZIP: local entry mismatch for ${path}`);
+    }
+    ranges.push([localOffset, dataStart + compSize]);
     const data = bytes.slice(dataStart, dataStart + compSize);
+    if (crc32(data) !== crc) throw new Error(`Invalid ZIP: checksum mismatch for ${path}`);
 
     // Skip directory entries
     if (!path.endsWith('/')) {
@@ -133,8 +189,33 @@ export function readZip(buffer) {
 
     pos += 46 + nameLen + extraLen + commentLen;
   }
+  if (pos !== eocdOffset) throw new Error('Invalid ZIP: entry count does not match central directory');
+  ranges.sort((a, b) => a[0] - b[0]);
+  for (let i = 1; i < ranges.length; i++) {
+    if (ranges[i][0] < ranges[i - 1][1]) throw new Error('Invalid ZIP: overlapping files');
+  }
+  const filePaths = new Set(files.map((file) => file.path));
+  for (const path of paths) {
+    if (path.endsWith('/') && filePaths.has(path.slice(0, -1))) {
+      throw new Error(`Invalid ZIP: file and folder conflict for ${path}`);
+    }
+    const parts = path.replace(/\/$/, '').split('/');
+    parts.pop();
+    while (parts.length) {
+      if (filePaths.has(parts.join('/'))) throw new Error(`Invalid ZIP: file and folder conflict for ${path}`);
+      parts.pop();
+    }
+  }
 
   return files;
+}
+
+function validatePath(path) {
+  const parts = path.replace(/\/$/, '').split('/');
+  if (!path || path.includes('\\') || path.includes(':') || path.includes('\0')
+      || parts.some((part) => !part || part === '.' || part === '..')) {
+    throw new Error(`Invalid ZIP path: ${path}`);
+  }
 }
 
 /* ── CRC-32 ────────────────────────────────────── */

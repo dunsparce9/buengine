@@ -4,7 +4,9 @@
 
 import { state, dom, hooks } from './state.js';
 import { showContextMenu } from './context-menu.js';
-import { createFloatingWindow } from './floating-window.js';
+import { createFloatingWindow, closeWindowsFor } from './floating-window.js';
+import { renameScene } from './scene-actions.js';
+import { loadScript } from './script-store.js';
 import { promptForConfirmation } from './confirm-dialog.js';
 import { getFileExtension } from './file-types.js';
 import { rememberRecentFolderSelection } from './app/recent-folders.js';
@@ -48,9 +50,57 @@ function isJsonFile(name) {
 }
 
 function scriptIdFromPath(path) {
+  for (const [id, originalPath] of state.pendingScriptRenames) {
+    if (originalPath === path) return id;
+  }
   // "intro.json" → "intro", "items/items.json" → "items/items"
   if (!path.endsWith('.json')) return null;
   return path.replace(/\.json$/, '');
+}
+
+function pathOwns(parent, path) {
+  return path === parent || path.startsWith(`${parent}/`);
+}
+
+function captureWorkspace() {
+  return { root: state.rootHandle, scripts: state.scripts };
+}
+
+function isCurrentWorkspace(workspace) {
+  return state.rootHandle === workspace.root && state.scripts === workspace.scripts;
+}
+
+function assertSavedPath(path) {
+  for (const id of state.dirtySet) {
+    const diskPath = state.pendingScriptRenames.get(id) || `${id}.json`;
+    if (pathOwns(path, diskPath)) throw new Error('Save changes in this file or folder before moving or renaming it.');
+  }
+}
+
+function invalidatePath(path, workspace) {
+  if (workspace && !isCurrentWorkspace(workspace)) return;
+  for (const [id, data] of Object.entries(state.scripts)) {
+    const diskPath = state.pendingScriptRenames.get(id) || `${id}.json`;
+    if (!pathOwns(path, diskPath)) continue;
+    closeWindowsFor(data);
+    delete state.scripts[id];
+    state.dirtySet.delete(id);
+    state.pendingScriptRenames.delete(id);
+    if (id === '_game') state.manifest = null;
+  }
+  if (state.selectedPath && pathOwns(path, state.selectedPath)) applySelection({ path: null });
+  const cache = new Map(state.assetURLCache);
+  for (const [assetPath, url] of cache) {
+    if (!pathOwns(path, assetPath)) continue;
+    URL.revokeObjectURL(url);
+    cache.delete(assetPath);
+  }
+  state.assetURLCache = cache;
+  state.scripts = { ...state.scripts };
+  if (workspace) workspace.scripts = state.scripts;
+  hooks.updateWindowTitle();
+  hooks.renderViewport();
+  hooks.renderProperties();
 }
 
 /* ── Public API ────────────────────────────────── */
@@ -240,7 +290,14 @@ function renderFileNode(node, parent, depth) {
   parent.appendChild(li);
 }
 
-function selectFileNode(node) {
+async function selectFileNode(node) {
+  const workspace = captureWorkspace();
+  const id = scriptIdFromPath(node.path);
+  if (id) {
+    try { await loadScript(id); }
+    catch (err) { hooks.toast?.(`Could not open JSON: ${err.message}`, 'error'); return; }
+    if (!isCurrentWorkspace(workspace)) return;
+  }
   applySelection({ path: node.path });
 }
 
@@ -275,12 +332,24 @@ function setupDropTarget(el, folderPath) {
       const srcName = srcPath.split('/').pop();
       const destPath = folderPath ? `${folderPath}/${srcName}` : srcName;
       if (srcPath === destPath) return;
+      const workspace = captureWorkspace();
       try {
-        await moveEntry(srcPath, destPath);
-        await buildTree();
+        assertSavedPath(srcPath);
+        const selected = state.selectedPath && pathOwns(srcPath, state.selectedPath) ? state.selectedPath : null;
+        await moveEntry(srcPath, destPath, workspace.root);
+        if (!isCurrentWorkspace(workspace)) return;
+        invalidatePath(srcPath, workspace);
+        await buildTree(workspace.root);
+        if (!isCurrentWorkspace(workspace)) return;
+        if (selected) {
+          const moved = findNode(destPath + selected.slice(srcPath.length));
+          if (moved?.type === 'file') await selectFileNode(moved);
+        }
+        if (!isCurrentWorkspace(workspace)) return;
         renderFileList();
         hooks.toast?.(`Moved ${srcName}`);
       } catch (err) {
+        if (!isCurrentWorkspace(workspace)) return;
         hooks.toast?.(`Move failed: ${err.message}`, 'error');
       }
       return;
@@ -293,20 +362,28 @@ function setupDropTarget(el, folderPath) {
   });
 }
 
-async function handleExternalDrop(files, targetFolder) {
+async function handleExternalDrop(files, targetFolder, workspace = captureWorkspace()) {
   let count = 0;
   for (const file of files) {
     const destPath = targetFolder ? `${targetFolder}/${file.name}` : file.name;
     try {
+      if (!isCurrentWorkspace(workspace)) return;
+      assertSavedPath(destPath);
       const buf = await file.arrayBuffer();
-      await writeFileBinary(destPath, buf);
+      if (!isCurrentWorkspace(workspace)) return;
+      assertSavedPath(destPath);
+      await writeFileBinary(destPath, buf, workspace.root);
+      if (!isCurrentWorkspace(workspace)) return;
+      invalidatePath(destPath, workspace);
       count++;
     } catch (err) {
+      if (!isCurrentWorkspace(workspace)) return;
       hooks.toast?.(`Failed to add ${file.name}: ${err.message}`, 'error');
     }
   }
   if (count) {
-    await buildTree();
+    await buildTree(workspace.root);
+    if (!isCurrentWorkspace(workspace)) return;
     renderFileList();
     hooks.toast?.(`Added ${count} file(s)`);
   }
@@ -388,6 +465,7 @@ function showFileContextMenu(x, y, node) {
 /* ── Context menu actions ──────────────────────── */
 
 async function promptNewFile(folderPath) {
+  const workspace = captureWorkspace();
   const input = await promptForName({
     title: 'New File',
     icon: 'note_add',
@@ -395,18 +473,22 @@ async function promptNewFile(folderPath) {
     value: 'untitled.json',
     confirmLabel: 'Create',
   });
-  if (!input) return;
+  if (!input || !isCurrentWorkspace(workspace)) return;
   const name = normalizeNewFileName(input);
   if (!name) return;
   const path = folderPath ? `${folderPath}/${name}` : name;
   try {
+    if (findNode(path)) throw new Error(`Already exists: ${path}`);
     const content = name.endsWith('.json') ? '{\n}\n' : '';
     const encoder = new TextEncoder();
-    await writeFileBinary(path, encoder.encode(content));
-    await buildTree();
+    await writeFileBinary(path, encoder.encode(content), workspace.root);
+    if (!isCurrentWorkspace(workspace)) return;
+    await buildTree(workspace.root);
+    if (!isCurrentWorkspace(workspace)) return;
     renderFileList();
     hooks.toast?.(`Created ${name}`);
   } catch (err) {
+    if (!isCurrentWorkspace(workspace)) return;
     hooks.toast?.(`Failed: ${err.message}`, 'error');
   }
 }
@@ -418,6 +500,7 @@ function normalizeNewFileName(input) {
 }
 
 async function promptNewFolder(parentPath) {
+  const workspace = captureWorkspace();
   const name = await promptForName({
     title: 'New Folder',
     icon: 'create_new_folder',
@@ -425,22 +508,26 @@ async function promptNewFolder(parentPath) {
     value: '',
     confirmLabel: 'Create',
   });
-  if (!name) return;
+  if (!name || !isCurrentWorkspace(workspace)) return;
   const trimmedName = name.trim();
   if (!trimmedName) return;
   const path = parentPath ? `${parentPath}/${trimmedName}` : trimmedName;
   try {
-    await createDir(path);
-    await buildTree();
+    await createDir(path, workspace.root);
+    if (!isCurrentWorkspace(workspace)) return;
+    await buildTree(workspace.root);
+    if (!isCurrentWorkspace(workspace)) return;
     state.expandedFolders.add(path);
     renderFileList();
     hooks.toast?.(`Created folder ${trimmedName}`);
   } catch (err) {
+    if (!isCurrentWorkspace(workspace)) return;
     hooks.toast?.(`Failed: ${err.message}`, 'error');
   }
 }
 
 async function promptRename(node) {
+  const workspace = captureWorkspace();
   const newName = await promptForName({
     title: node.type === 'dir' ? 'Rename Folder' : 'Rename File',
     icon: 'drive_file_rename_outline',
@@ -451,15 +538,32 @@ async function promptRename(node) {
   const trimmedName = newName?.trim();
   if (!trimmedName || trimmedName === node.name) return;
   try {
-    const newPath = await renameEntry(node.path, trimmedName);
-    await buildTree();
-    if (state.selectedPath === node.path) {
-      state.selectedPath = newPath;
-      hooks.updateWindowTitle();
+    if (!isCurrentWorkspace(workspace)) return;
+    const id = scriptIdFromPath(node.path);
+    const data = id && state.scripts[id];
+    if (data && id !== '_game' && !node.path.includes('/') && !Array.isArray(data)) {
+      if (!trimmedName.endsWith('.json')) throw new Error('Scene files must keep the .json extension.');
+      await renameScene(id, trimmedName.slice(0, -5));
+      if (!isCurrentWorkspace(workspace)) return;
+      hooks.toast?.('Scene renamed. Save to apply the file and link changes.');
+      return;
     }
+    assertSavedPath(node.path);
+    const selected = state.selectedPath && pathOwns(node.path, state.selectedPath) ? state.selectedPath : null;
+    const newPath = await renameEntry(node.path, trimmedName, workspace.root);
+    if (!isCurrentWorkspace(workspace)) return;
+    invalidatePath(node.path, workspace);
+    await buildTree(workspace.root);
+    if (!isCurrentWorkspace(workspace)) return;
+    if (selected) {
+      const renamed = findNode(newPath + selected.slice(node.path.length));
+      if (renamed?.type === 'file') await selectFileNode(renamed);
+    }
+    if (!isCurrentWorkspace(workspace)) return;
     renderFileList();
     hooks.toast?.(`Renamed to ${trimmedName}`);
   } catch (err) {
+    if (!isCurrentWorkspace(workspace)) return;
     hooks.toast?.(`Rename failed: ${err.message}`, 'error');
   }
 }
@@ -515,6 +619,7 @@ function promptForName({ title, icon, label, value = '', confirmLabel = 'OK' }) 
     fw.onClose(() => {
       if (resolved) return;
       resolved = true;
+      fw.destroy();
       resolve(null);
     });
 
@@ -536,6 +641,7 @@ function promptForName({ title, icon, label, value = '', confirmLabel = 'OK' }) 
 }
 
 async function confirmDelete(node) {
+  const workspace = captureWorkspace();
   const label = node.type === 'dir' ? `folder "${node.name}" and all its contents` : `"${node.name}"`;
   const confirmed = await promptForConfirmation({
     title: node.type === 'dir' ? 'Delete Folder' : 'Delete File',
@@ -543,20 +649,24 @@ async function confirmDelete(node) {
     message: `Delete ${label}?`,
     confirmLabel: 'Delete',
   });
-  if (!confirmed) return;
+  if (!confirmed || !isCurrentWorkspace(workspace)) return;
   try {
-    await deleteEntry(node.path);
+    await deleteEntry(node.path, workspace.root);
+    if (!isCurrentWorkspace(workspace)) return;
+    invalidatePath(node.path, workspace);
     if (state.selectedPath === node.path) {
       state.selectedPath = null;
       state.selectedId = null;
       hooks.updateWindowTitle();
     }
-    await buildTree();
+    await buildTree(workspace.root);
+    if (!isCurrentWorkspace(workspace)) return;
     renderFileList();
     hooks.renderViewport();
     hooks.renderProperties();
     hooks.toast?.(`Deleted ${node.name}`);
   } catch (err) {
+    if (!isCurrentWorkspace(workspace)) return;
     hooks.toast?.(`Delete failed: ${err.message}`, 'error');
   }
 }
@@ -583,13 +693,14 @@ async function downloadFile(node) {
 }
 
 async function pasteFileInto(folderPath) {
+  const workspace = captureWorkspace();
   // Use a file input as a paste mechanism
   const input = document.createElement('input');
   input.type = 'file';
   input.multiple = true;
   input.addEventListener('change', async () => {
-    if (!input.files.length) return;
-    await handleExternalDrop(input.files, folderPath);
+    if (!input.files.length || !isCurrentWorkspace(workspace)) return;
+    await handleExternalDrop(input.files, folderPath, workspace);
   });
   input.click();
 }

@@ -21,9 +21,9 @@ const _openModals = new Map();
 
 export function notifyListChange(scriptId, onChange) {
   markDirty(scriptId);
+  onChange?.();
   hooks.renderViewport();
   hooks.renderProperties();
-  onChange?.();
 }
 
 /**
@@ -119,6 +119,7 @@ export function openListModal({
     width: 500,
     height: 400,
     resizable: true,
+    owner: initialState.target || initialState.sceneData,
   });
 
   fw.body.classList.add('options-editor-body');
@@ -133,7 +134,10 @@ export function openListModal({
   };
 
   _openModals.set(modalKey, { fw, state: modalState });
-  fw.onClose(() => _openModals.delete(modalKey));
+  fw.onClose(() => {
+    _openModals.delete(modalKey);
+    fw.destroy();
+  });
   modalState.rebuild();
   fw.open();
   return fw;

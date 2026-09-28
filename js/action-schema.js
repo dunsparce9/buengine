@@ -7,14 +7,12 @@
  *   - color:    accent colour (for editor UI)
  *   - label:    human-readable name
  *   - quip:     short editor-facing description
- *   - engine:   execution metadata used by ActionRunner dispatch
  *   - fields:   array of field descriptors (for editor forms / validation)
  *   - defaults: template object returned by createDefaultAction()
  *   - summary:  (action, shorten) => one-line collapsed summary text
  *   - badges:   (action) => string[] header badges (e.g. "blocking", "loop")
  *
- * Engine imports: detectType, ACTION_TYPES, getActionMeta (for dispatch +
- *   boot-time method assertion)
+ * Engine imports: detectType (shared command detection order)
  * Editor imports: ACTION_TYPES, detectType, createDefaultAction, getActionMeta,
  *   summarizeAction, getBadges
  */
@@ -24,7 +22,6 @@ export const UNKNOWN_ACTION_META = {
   color: '#7c6f64',
   label: 'Unknown',
   quip: 'do something useful',
-  engine: { kind: 'noop' },
   fields: [],
 };
 
@@ -36,7 +33,6 @@ export const ACTION_TYPES = {
     color: '#83a598',
     label: 'Say',
     quip: 'show a dialogue box',
-    engine: { kind: 'await', method: '_say', arg: 'action' },
     fields: [
       { key: 'say',     label: 'Text',      type: 'textarea', required: true },
       { key: 'speaker', label: 'Speaker',   type: 'string' },
@@ -59,7 +55,6 @@ export const ACTION_TYPES = {
     color: '#d3869b',
     label: 'Choice',
     quip: 'offer a branching choice',
-    engine: { kind: 'await', method: '_choice', arg: 'choice' },
     fields: [
       { key: 'choice.prompt', label: 'Prompt', type: 'string' },
     ],
@@ -77,7 +72,6 @@ export const ACTION_TYPES = {
     color: '#8ec07c',
     label: 'Go to',
     quip: 'jump to another scene',
-    engine: { kind: 'goto', arg: 'goto' },
     fields: [
       { key: 'goto', label: 'Scene ID', type: 'string', required: true },
     ],
@@ -91,7 +85,6 @@ export const ACTION_TYPES = {
     color: '#fabd2f',
     label: 'Set flag',
     quip: 'flip or count flags',
-    engine: { kind: 'call', method: '_applySet', arg: 'set' },
     fields: [],
     defaults: { set: {} },
     summary: (action) => {
@@ -106,7 +99,6 @@ export const ACTION_TYPES = {
     color: '#fe8019',
     label: 'If',
     quip: 'branch on a condition',
-    engine: { kind: 'branch', condition: 'if', trueActions: 'then', falseActions: 'else' },
     fields: [
       { key: 'if', label: 'Condition', type: 'string', required: true },
     ],
@@ -120,7 +112,6 @@ export const ACTION_TYPES = {
     color: '#b16286',
     label: 'Loop',
     quip: 'repeat while a condition holds',
-    engine: { kind: 'loop', condition: 'loop' },
     fields: [
       { key: 'loop', label: 'Condition', type: 'string', required: true },
     ],
@@ -137,7 +128,6 @@ export const ACTION_TYPES = {
     color: '#a89984',
     label: 'Wait',
     quip: 'pause for a moment',
-    engine: { kind: 'await', method: '_delay', arg: 'wait' },
     fields: [
       { key: 'wait', label: 'Duration (ms)', type: 'number', required: true, step: 100 },
     ],
@@ -151,7 +141,6 @@ export const ACTION_TYPES = {
     color: '#b8bb26',
     label: 'Emit',
     quip: 'broadcast an event',
-    engine: { kind: 'emit', event: 'emit', payload: 'payload' },
     fields: [
       { key: 'emit', label: 'Event name', type: 'string', required: true },
     ],
@@ -165,7 +154,6 @@ export const ACTION_TYPES = {
     color: '#83a598',
     label: 'Run',
     quip: 'run a sequence',
-    engine: { kind: 'run-sequence', arg: 'run' },
     fields: [
       { key: 'run', label: 'Sequence', type: 'string', required: true },
     ],
@@ -179,7 +167,6 @@ export const ACTION_TYPES = {
     color: '#8ec07c',
     label: 'Fork',
     quip: 'start a background sequence',
-    engine: { kind: 'fork', arg: 'fork' },
     fields: [
       { key: 'fork.run', label: 'Sequence', type: 'string', required: true },
     ],
@@ -198,7 +185,6 @@ export const ACTION_TYPES = {
     color: '#fb4934',
     label: 'Exit',
     quip: 'stop this action chain',
-    engine: { kind: 'exit' },
     fields: [
       { key: 'exit', label: 'Exit', type: 'boolean', fixed: true },
     ],
@@ -212,7 +198,6 @@ export const ACTION_TYPES = {
     color: '#d3869b',
     label: 'Show',
     quip: 'reveal something on screen',
-    engine: { kind: 'await', method: '_show', arg: 'show' },
     fields: [
       { key: 'show.id',              label: 'ID',              type: 'string', required: true },
       { key: 'show.texture',         label: 'Texture',         type: 'string' },
@@ -232,7 +217,6 @@ export const ACTION_TYPES = {
     color: '#fabd2f',
     label: 'Text',
     quip: 'place text on screen',
-    engine: { kind: 'await', method: '_text', arg: 'text' },
     fields: [
       { key: 'text.id',                    label: 'ID',                type: 'string', required: true },
       { key: 'text.text',                  label: 'Text',              type: 'textarea', required: true },
@@ -261,7 +245,6 @@ export const ACTION_TYPES = {
     color: '#928374',
     label: 'Hide',
     quip: 'make something disappear',
-    engine: { kind: 'await', method: '_hide', arg: 'hide' },
     fields: [
       { key: 'hide.id',              label: 'ID',              type: 'string', required: true },
       { key: 'hide.effect.type',     label: 'Effect type',     type: 'select', options: ['', 'fade-in', 'fade-out'] },
@@ -278,7 +261,6 @@ export const ACTION_TYPES = {
     color: '#b8bb26',
     label: 'Effect',
     quip: 'fade the whole scene',
-    engine: { kind: 'await', method: '_effect', arg: 'effect' },
     fields: [
       { key: 'effect.type',     label: 'Type',         type: 'select', options: ['', 'fade-in', 'fade-out'], required: true },
       { key: 'effect.seconds',  label: 'Duration (s)', type: 'number', step: 0.5 },
@@ -294,7 +276,6 @@ export const ACTION_TYPES = {
     color: '#83a598',
     label: 'Play sound',
     quip: 'start a sound cue',
-    engine: { kind: 'await', method: '_playsound', arg: 'playsound' },
     fields: [
       { key: 'playsound.id',       label: 'ID',       type: 'string', required: true },
       { key: 'playsound.path',     label: 'Path',     type: 'string' },
@@ -318,7 +299,6 @@ export const ACTION_TYPES = {
     color: '#928374',
     label: 'Stop sound',
     quip: 'cut the current sound',
-    engine: { kind: 'await', method: '_stopsound', arg: 'stopsound' },
     fields: [
       { key: 'stopsound.id',       label: 'ID',       type: 'string', required: true },
       { key: 'stopsound.fade',     label: 'Fade (s)', type: 'number', step: 0.5 },
@@ -334,7 +314,6 @@ export const ACTION_TYPES = {
     color: '#d79921',
     label: 'Item',
     quip: 'manage items',
-    engine: { kind: 'call', method: '_applyItem', arg: 'item' },
     fields: [
       { key: 'item.id',  label: 'Item ID',  type: 'string', required: true },
       { key: 'item.qty', label: 'Quantity',  type: 'number', step: 1 },
@@ -345,8 +324,7 @@ export const ACTION_TYPES = {
   },
 };
 
-/* ── Detection order (Object.keys insertion order; ActionRunner dispatches
- * via the schema's `engine` metadata, not an if/else chain) ── */
+/* ── Detection order (registry insertion order) ── */
 
 const _TYPE_KEYS = Object.keys(ACTION_TYPES);
 

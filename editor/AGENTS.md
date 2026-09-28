@@ -45,7 +45,7 @@ editor/
     state.js              ← shared state, DOM refs, render hooks, utilities + read-only
                               queries (collectImagePaths); domain mutations
                               live in scene-actions.js / items-actions.js
-    scene-actions.js        ← scene-object mutations (add/delete/unique ids)
+    scene-actions.js        ← scene/object mutations (rename links, add/delete/unique ids)
     items-actions.js        ← inventory-item mutations
     action-context.js       ← single construction point for ActionEditor
                               viewer contexts + focusScene helper
@@ -76,8 +76,8 @@ editor/
     action-editor.js      ← stable public entry for AE (re-exports `openActionEditor` from `action-editor/`)
     action-editor/
       index.js            ← AE public implementation
-      state.js            ← editor registry + drag state
-      utils.js            ← nested value helpers + cleanup
+      state.js            ← editor/list registries (maps); drag state stays in drag.js
+      utils.js            ← nested value helpers + change notifications
       renderers.js        ← read-only action card renderers (summaries/badges
                               delegated to js/action-schema.js, not defined here)
       forms.js            ← schema-driven field editors + nested action editors
@@ -91,6 +91,7 @@ editor/
 ```
 
 ### Shared contract with runtime
+- `../../js/script-data.js` shares legacy sequence normalization and inline action traversal with the runtime.
 - `../../js/action-schema.js` is the canonical action registry for both the engine and the editor.
 - AE should derive labels, icons, colors, defaults, summaries, badges, and editable fields from that shared schema.
 - If an action type is added or changed, update:
@@ -161,7 +162,7 @@ Do not bypass that flow unless there is a clear reason.
 AE is the editor's action array UI with stable entry `editor/js/action-editor.js` (a re-export) and implementation under `editor/js/action-editor/`. It is a central subsystem, not a minor helper.
 
 - Opens floating windows for action arrays such as scene `onEnter`, object option actions, choice branches, loop bodies, and named `sequences`
-- Deduplicates windows via internal open-editor registry
+- Deduplicates windows via internal open-editor registry; transient Action Editor and list windows destroy their DOM when closed
 - Mutates the provided action array in place and reports changes through `opts.onChange`
 - Supports nested editors, inline field editing, add/delete, collapse, and drag-to-reorder
 - Supports dragging actions between compatible open AE windows
@@ -172,6 +173,16 @@ When editing AE-related code:
 - Preserve in-place mutation semantics so calling modules keep live references
 - Be careful with nested action arrays (`then`, `else`, `do`, choice option `actions`, sequences)
 - Do not introduce a second source of truth for action defaults or labels
+
+### Editing lifecycle and persistence
+
+- Inspection is read-only. `openActionField()` keeps missing arrays as drafts until the first edit; rendering or clicking Edit/Done must not normalize saved data.
+- Floating windows own a model. Close affected windows on deletion/rename/replacement, and close all transient windows before workspace replacement or import. Async loads and writes must retain their original workspace ownership.
+- Reject action moves into their own descendants, including unattached draft branches.
+- Scene renames update `goto`, `startScene`, and manifest scene links across loaded JSON. Save groups pending renames: write new scenes and changed links before deleting old scene files; preserve pending work after failure.
+- Sequence renames update local `run`/`fork` references. Shared inventory references retain an old-name compatibility alias in the renamed scene because item sequence lookup depends on the active scene.
+- File moves/renames/replacements require affected edits to be saved first, and invalidate affected script/asset caches and editors.
+- ZIP import supports uncompressed STORE archives only. Validate before writing and report unsupported formats, invalid archives, and I/O errors. Reload after partial imports; multi-file saving/import does not provide transactional rollback.
 
 ## Selection semantics
 
@@ -215,4 +226,5 @@ When editing AE-related code:
 8. **Preview round-trip** — edits stay in memory. The Run button serialises everything to `localStorage` (`buengine_editor_preview` for scripts, `buengine_editor_assets` for staged assets). The game checks for these on `?preview` and overlays the data.
 9. **Dirty-state discipline** — any edit that changes persistent data should mark the relevant script dirty so Save / Save All remain trustworthy.
 10. **AE changes are high-impact** — if you change action editing behavior, check nested arrays, drag/drop, and schema-derived field rendering, not just the top-level happy path.
-11. **Agent documentation updates** - Update this file (`editor/AGENTS.md`) after significant or otherwise notable changes, as deemed necessary.
+11. **Offline dependencies** — `tools/generate-sw-precache.mjs` includes editor files and the shared `js/action-schema.js` / `js/script-data.js` modules. Update its shared list when introducing another cross-app import.
+12. **Agent documentation updates** - Update this file (`editor/AGENTS.md`) after significant or otherwise notable changes, as deemed necessary.

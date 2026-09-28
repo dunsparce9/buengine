@@ -1,10 +1,11 @@
 import { state, hooks, scriptPathFromId, collectImagePaths } from '../state.js';
 import { discoverScripts } from '../script-store.js';
-import { openFolder, openFolderHandle, ensureHandlePermission, writeFile, deleteEntry, buildTree, clearAssetCache, cacheAssetURLs } from '../fs-provider.js';
+import { openFolder, openFolderHandle, ensureHandlePermission, writeFile, deleteEntry, buildTree, clearAssetCache, cacheAssetURLs, findNode } from '../fs-provider.js';
 import { promptForConfirmation } from '../confirm-dialog.js';
 import { renderFileList, selectScript, selectPath, expandFoldersForPath } from '../file-panel.js';
 import { showToast, hasUnsavedChanges, updateMenuVisibility, updateWindowTitle } from './ui.js';
 import { rememberRecentFolder } from './recent-folders.js';
+import { closeTransientWindows } from '../floating-window.js';
 
 export async function confirmDiscardUnsavedChanges(message = 'You have unsaved changes. Discard them?') {
   if (!hasUnsavedChanges()) return true;
@@ -21,9 +22,13 @@ export async function handleOpenFolder() {
     return;
   }
 
-  const handle = await openFolder();
-  if (!handle) return;
-  await loadWorkspaceFromHandle(handle, { remember: true, treeReady: true });
+  try {
+    const handle = await openFolder();
+    if (!handle) return;
+    await loadWorkspaceFromHandle(handle, { remember: true });
+  } catch (err) {
+    showToast(`Failed to open folder: ${err.message}`, 'error');
+  }
 }
 
 export async function handleOpenRecentFolder(folder) {
@@ -57,44 +62,60 @@ export async function handleOpenRecentFolder(folder) {
   }
 }
 
-async function loadWorkspaceFromHandle(handle, { remember = false, treeReady = false, initialPath = null } = {}) {
-  if (!treeReady) await openFolderHandle(handle);
-
+export async function loadWorkspaceFromHandle(handle, { remember = false, initialPath = null, notify = true } = {}) {
+  closeTransientWindows();
+  state.rootHandle = handle;
+  state.fileTree = [];
   state.scripts = {};
+  const workspace = { root: handle, scripts: state.scripts };
   state.selectedId = null;
   state.selectedObjectId = null;
   state.selectedItem = null;
   state.selectedPath = null;
   state.dirtySet.clear();
   state.pendingScriptRenames.clear();
+  state.expandedFolders = new Set(['']);
   state.manifest = null;
   clearAssetCache();
-
   updateMenuVisibility();
   updateWindowTitle();
+  renderFileList();
+  hooks.renderViewport();
+  hooks.renderProperties();
 
+  // Clear old controls before scanning, so they cannot save detached data into
+  // the new folder. A failed scan leaves these clean panes in place.
+  await openFolderHandle(handle);
+  if (!isCurrentWorkspace(workspace)) return;
+
+  let loadError = null;
   try {
     await discoverScripts();
   } catch (err) {
-    showToast(`Failed to load: ${err.message}`, 'error');
+    loadError = err;
   }
+  if (!isCurrentWorkspace(workspace)) return;
 
   // Pre-warm asset URLs for every referenced image (backgrounds, object
   // textures, show.texture overlays, item icons) via the single
   // state.collectImagePaths implementation.
   await cacheAssetURLs(collectImagePaths());
+  if (!isCurrentWorkspace(workspace)) return;
 
   updateWindowTitle();
   updateMenuVisibility();
   renderFileList();
   restoreInitialSelection(initialPath);
 
+  if (loadError) throw loadError;
+
   if (remember) await rememberRecentFolder(handle);
-  showToast(`Opened ${handle.name}`);
+  if (!isCurrentWorkspace(workspace)) return;
+  if (notify) showToast(`Opened ${handle.name}`);
 }
 
 function restoreInitialSelection(initialPath) {
-  if (initialPath && pathExists(initialPath)) {
+  if (initialPath && findNode(initialPath)) {
     expandFoldersForPath(initialPath);
     renderFileList();
     selectPath(initialPath);
@@ -103,47 +124,33 @@ function restoreInitialSelection(initialPath) {
   selectScript('_game');
 }
 
-function pathExists(path) {
-  if (!path) return false;
-  const parts = path.split('/').filter(Boolean);
-  let nodes = state.fileTree;
-
-  for (let i = 0; i < parts.length; i++) {
-    const node = nodes.find((entry) => entry.name === parts[i]);
-    if (!node) return false;
-    if (i === parts.length - 1) return true;
-    if (node.type !== 'dir' || !Array.isArray(node.children)) return false;
-    nodes = node.children;
-  }
-
-  return false;
-}
-
 hooks.openFolder = handleOpenFolder;
 
-/**
- * Write one script id to disk, handling pending scene-id renames.
- * Returns 'renamed' when the old file was removed too, true on a plain
- * save, false on failure (toast already shown). Pure save logic shared by
- * saveCurrentFile/saveAllFiles (review phase 5, item 22).
- */
-async function saveOne(id) {
-  const data = state.scripts[id];
-  if (!data) return false;
+/** Write one script. Rename source deletion happens only after the full group saves. */
+async function saveOne(id, workspace) {
+  if (!isCurrentWorkspace(workspace)) return null;
+  const data = workspace.scripts[id];
+  if (!data) return null;
   const path = scriptPathFromId(id);
-  const renamedFrom = state.pendingScriptRenames.get(id);
   try {
-    await writeFile(path, JSON.stringify(data, null, 2) + '\n');
-    if (renamedFrom && renamedFrom !== path) {
-      await deleteEntry(renamedFrom);
-      state.pendingScriptRenames.delete(id);
-      return 'renamed';
-    }
-    return true;
+    const json = JSON.stringify(data, null, 2) + '\n';
+    const originalPath = state.pendingScriptRenames.get(id);
+    await writeFile(path, json, workspace.root);
+    if (!isCurrentWorkspace(workspace)) return null;
+    return { id, data, json, originalPath };
   } catch (err) {
-    showToast(`Failed to save ${path}: ${err.message}`, 'error');
-    return false;
+    if (isCurrentWorkspace(workspace)) showToast(`Failed to save ${path}: ${err.message}`, 'error');
+    return null;
   }
+}
+
+function isCurrentWorkspace({ root, scripts }) {
+  return state.rootHandle === root && state.scripts === scripts;
+}
+
+function unchangedSinceWrite({ id, data, json, originalPath }) {
+  return state.scripts[id] === data && state.pendingScriptRenames.get(id) === originalPath
+    && JSON.stringify(data, null, 2) + '\n' === json;
 }
 
 export async function saveCurrentFile() {
@@ -152,6 +159,8 @@ export async function saveCurrentFile() {
     return;
   }
 
+  // Renames also update other scripts' links; Save must keep those files together.
+  if (state.pendingScriptRenames.size) return saveAllFiles();
   const id = state.selectedId;
   if (!id || !state.scripts[id]) return;
   if (!state.dirtySet.has(id)) {
@@ -160,10 +169,11 @@ export async function saveCurrentFile() {
   }
 
   const path = scriptPathFromId(id);
-  const result = await saveOne(id);
-  if (!result) return;
-  if (result === 'renamed') await buildTree();
-  state.dirtySet.delete(id);
+  const workspace = { root: state.rootHandle, scripts: state.scripts };
+  const result = await saveOne(id, workspace);
+  if (!result || !isCurrentWorkspace(workspace)) return;
+  if (unchangedSinceWrite(result)) state.dirtySet.delete(id);
+  else if (state.scripts[id]) state.dirtySet.add(id);
   renderFileList();
   showToast(`Saved ${path}`);
 }
@@ -178,17 +188,58 @@ export async function saveAllFiles() {
     return;
   }
 
+  const ids = [...state.dirtySet];
+  const workspace = { root: state.rootHandle, scripts: state.scripts };
+  const renameIds = ids.filter(id => state.pendingScriptRenames.has(id));
+  const written = [];
+  // Create the new scene files before writing links that point at them.
+  for (const id of renameIds) {
+    const result = await saveOne(id, workspace);
+    if (!result || !isCurrentWorkspace(workspace)) return;
+    written.push(result);
+  }
+  for (const id of ids.filter(id => !renameIds.includes(id))) {
+    const result = await saveOne(id, workspace);
+    if (!isCurrentWorkspace(workspace)) return;
+    if (result) written.push(result);
+  }
+  for (const result of written) {
+    if (!unchangedSinceWrite(result) && state.scripts[result.id]) state.dirtySet.add(result.id);
+  }
+  if (state.pendingScriptRenames.size && (written.length !== ids.length || written.some(result => !unchangedSinceWrite(result))
+      || [...state.dirtySet].some(id => !ids.includes(id)))) {
+    showToast('Save incomplete; scene renames remain pending. Retry Save.', 'error');
+    return;
+  }
+
   let saved = 0;
   let renamedAny = false;
-  for (const id of [...state.dirtySet]) {
-    const result = await saveOne(id);
-    if (!result) continue;
-    if (result === 'renamed') renamedAny = true;
+  for (const result of written) {
+    if (!isCurrentWorkspace(workspace)) return;
+    if (!unchangedSinceWrite(result)) continue;
+    const { id, originalPath } = result;
+    if (originalPath) {
+      try {
+        await deleteEntry(originalPath, workspace.root);
+        if (!isCurrentWorkspace(workspace)) return;
+        const unchanged = unchangedSinceWrite(result);
+        if (state.pendingScriptRenames.get(id) === originalPath) state.pendingScriptRenames.delete(id);
+        renamedAny = true;
+        if (!unchanged) {
+          if (state.scripts[id]) state.dirtySet.add(id);
+          continue;
+        }
+      } catch (err) {
+        if (!isCurrentWorkspace(workspace)) return;
+        showToast(`Saved ${id}, but could not remove ${originalPath}: ${err.message}`, 'error');
+        continue;
+      }
+    }
     state.dirtySet.delete(id);
     saved++;
   }
-
-  if (renamedAny) await buildTree();
+  if (renamedAny) await buildTree(workspace.root);
+  if (!isCurrentWorkspace(workspace)) return;
   renderFileList();
   showToast(`Saved ${saved} file(s)`);
 }

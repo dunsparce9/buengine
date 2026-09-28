@@ -1,26 +1,38 @@
-import { createFloatingWindow } from '../floating-window.js';
+import { createFloatingWindow, closeWindowsFor } from '../floating-window.js';
+import { containsReference } from '../../../js/script-data.js';
 import { createEditorToolbar } from '../editor-toolbar.js';
 import { ACTION_TYPES, detectType, createDefaultAction, getActionMeta } from '../../../js/action-schema.js';
-import {
-  getOpenEditor,
-  setOpenEditor,
-  deleteOpenEditor,
-  registerEditableList,
-  registerEmptyDropZone,
-} from './state.js';
+import { openEditors, editableLists, emptyDropZones } from './state.js';
 import {
   shortenText,
   cloneAction,
   notifyEditorChange,
-  cleanAction,
   adjustEditingIdxAfterInsert,
   adjustEditingIdxAfterRemove,
 } from './utils.js';
 import { createActionRenderers, getBadges, renderCollapsedSummary } from './renderers.js';
 import { createFormBuilders } from './forms.js';
-import { createDragController } from './drag.js';
+import { createDragController, cancelSimpleReorderDrag } from './drag.js';
 
 const inlineEditorStates = new WeakMap();
+const fieldDrafts = new WeakMap();
+
+/** Missing arrays stay local until the first edit, so inspecting data is read-only. */
+export function openActionField(title, owner, key, opts = {}) {
+  let drafts = fieldDrafts.get(owner);
+  if (!drafts) fieldDrafts.set(owner, drafts = new Map());
+  const actions = Array.isArray(owner[key]) ? owner[key] : (drafts.get(key) || []);
+  drafts.set(key, actions);
+  openActionEditor(title, actions, {
+    ...opts,
+    fieldOwner: owner,
+    owner: Array.isArray(owner[key]) ? actions : owner,
+    onChange() {
+      owner[key] = actions;
+      opts.onChange?.();
+    },
+  });
+}
 
 const renderers = createActionRenderers(openActionEditor, {
   buildReadOnlyList,
@@ -28,7 +40,7 @@ const renderers = createActionRenderers(openActionEditor, {
   pickActionType,
   createDefaultAction,
 });
-const forms = createFormBuilders(openActionEditor);
+const forms = createFormBuilders(openActionField);
 const drag = createDragController({ moveActionBetweenEditors });
 
 function preventMouseFocus(button) {
@@ -41,7 +53,7 @@ function preventMouseFocus(button) {
 export function openActionEditor(title, actions, opts = {}) {
   const displayTitle = title || 'Actions';
   const editorKey = getEditorKey(displayTitle, actions, opts);
-  const existing = getOpenEditor(editorKey);
+  const existing = openEditors.get(editorKey);
   if (existing && !existing.fw.el.classList.contains('hidden')) {
     existing.actions = actions;
     existing.opts = opts;
@@ -52,6 +64,7 @@ export function openActionEditor(title, actions, opts = {}) {
   }
 
   const fw = createFloatingWindow({
+    owner: opts.owner || actions,
     title: 'Actions',
     subtitle: displayTitle === 'Actions' ? '' : displayTitle,
     icon: 'list_alt',
@@ -76,8 +89,13 @@ export function openActionEditor(title, actions, opts = {}) {
   };
   editorState.rootEditorState = editorState;
 
-  setOpenEditor(editorKey, editorState);
-  fw.onClose(() => deleteOpenEditor(editorKey));
+  openEditors.set(editorKey, editorState);
+  fw.onClose(() => {
+    drag.cancelActionDrag();
+    cancelSimpleReorderDrag();
+    openEditors.delete(editorKey);
+    fw.destroy();
+  });
   editorState.rebuild();
   fw.open();
 }
@@ -91,6 +109,8 @@ function getEditorKey(title, actions, opts) {
 function moveActionBetweenEditors(sourceEditor, sourceIdx, targetEditor, targetIdx) {
   if (!sourceEditor || !targetEditor) return;
   if (sourceIdx == null || sourceIdx < 0 || sourceIdx >= sourceEditor.actions.length) return;
+  if (containsReference(sourceEditor.actions[sourceIdx], targetEditor.actions)) return;
+  if (targetEditor.opts.fieldOwner && containsReference(sourceEditor.actions[sourceIdx], targetEditor.opts.fieldOwner)) return;
 
   if (sourceEditor === targetEditor) {
     const [item] = sourceEditor.actions.splice(sourceIdx, 1);
@@ -109,6 +129,7 @@ function moveActionBetweenEditors(sourceEditor, sourceIdx, targetEditor, targetI
   }
 
   const [item] = sourceEditor.actions.splice(sourceIdx, 1);
+  closeWindowsFor(item);
   adjustEditingIdxAfterRemove(sourceEditor, sourceIdx);
   targetEditor.actions.splice(targetIdx, 0, item);
   adjustEditingIdxAfterInsert(targetEditor, targetIdx);
@@ -130,7 +151,7 @@ function buildEditorContent(container, editorState) {
     addAriaLabel: 'Add action',
     onAdd: async () => {
       const type = await pickActionType(editorState.fw);
-      if (!type) return;
+      if (!type || !editorState.fw.el.isConnected) return;
       const nextIdx = editorState.actions.length;
       editorState.actions.push(createDefaultAction(type));
       editorState.editingIdx = nextIdx;
@@ -151,7 +172,7 @@ function buildEditorContent(container, editorState) {
   const empty = document.createElement('div');
   empty.className = 'ae-empty ae-drop-empty ae-editable-empty';
   empty.textContent = 'No actions yet';
-  registerEmptyDropZone(empty, editorState);
+  emptyDropZones.set(empty, editorState);
   container.appendChild(empty);
 }
 
@@ -173,17 +194,14 @@ function buildEditableList(editorState) {
         },
         onEdit(idx) {
           if (editorState.editingIdx === idx) {
-            cleanAction(editorState.actions[idx], detectType(editorState.actions[idx]));
             editorState.editingIdx = null;
           } else {
-            if (editorState.editingIdx != null) {
-              cleanAction(editorState.actions[editorState.editingIdx], detectType(editorState.actions[editorState.editingIdx]));
-            }
             editorState.editingIdx = idx;
           }
           renderBlocks();
         },
         onDelete(idx) {
+          closeWindowsFor(editorState.actions[idx]);
           editorState.actions.splice(idx, 1);
           adjustEditingIdxAfterRemove(editorState, idx);
           notifyEditorChange(editorState);
@@ -197,7 +215,7 @@ function buildEditableList(editorState) {
   }
 
   renderBlocks();
-  registerEditableList(container, editorState);
+  editableLists.set(container, editorState);
   revealPendingAction(container, editorState);
   return container;
 }
@@ -462,6 +480,7 @@ function pickActionType(parentFw) {
     fw.onClose(() => {
       if (resolved) return;
       resolved = true;
+      fw.destroy();
       resolve(null);
     });
     fw.open();

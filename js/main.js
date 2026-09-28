@@ -15,12 +15,14 @@ import { ObjectOptionsUI } from './object-options-ui.js';
 import { GameSelector }    from './game-selector.js';
 import { DebugHud }        from './debug-hud.js';
 import { Paths }           from './paths.js';
+import { walkActions }     from './script-data.js';
 
 /* ── Bootstrap ──────────────────────────────────── */
 
 const bus         = new EventBus();
 const state       = new GameState();
 const loader      = new ScriptLoader();        // basePath set by selectGame()
+Paths.assetMap = loader.assetMap;
 const inventory   = new Inventory(bus);
 const scene       = new SceneRenderer(document.getElementById('scene-layer'), bus);
 const runner      = new ActionRunner({ bus, state, inventory });
@@ -33,7 +35,7 @@ new ChoiceUI(bus);
 const overlay = new OverlayUI(bus);
 const sound   = new SoundManager(bus);
 const hud = new HudUI(bus);
-const inventoryUI = new InventoryUI(bus, inventory, runner);
+new InventoryUI(bus, inventory);
 new NotificationUI(bus);
 new ObjectOptionsUI(bus);
 
@@ -60,6 +62,14 @@ bus.on('overlay:resumed', () => sound.resumeAll());
  * newer transition superseded this one and it must bail out silently.
  */
 let sceneEpoch = 0;
+let transitionInProgress = false;
+let interactionSerial = 0;
+
+function reportEngineError(error) {
+  console.error(error);
+  bus.emit('notification:show', { title: 'Engine error', content: error.message || String(error) });
+}
+bus.on('engine:error', reportEngineError);
 
 /**
  * Collect all `goto` scene IDs reachable from an action array (recursive).
@@ -67,18 +77,9 @@ let sceneEpoch = 0;
  * @param {Set<string>} out
  */
 function collectGotos(actions, out) {
-  if (!Array.isArray(actions)) return;
-  for (const a of actions) {
-    if (a.goto) out.add(a.goto);
-    if (a.then) collectGotos(a.then, out);
-    if (a.else) collectGotos(a.else, out);
-    if (a.do) collectGotos(a.do, out);
-    if (Array.isArray(a.fork)) collectGotos(a.fork, out);
-    if (Array.isArray(a.fork?.actions)) collectGotos(a.fork.actions, out);
-    if (a.choice?.options) {
-      for (const opt of a.choice.options) collectGotos(opt.actions, out);
-    }
-  }
+  walkActions(actions, (action) => {
+    if (action.goto) out.add(action.goto);
+  });
 }
 
 function collectObjectGotos(obj, out) {
@@ -94,35 +95,28 @@ function getSceneSequences(data) {
 }
 
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp)$/i;
-const FILE_EXT  = /\.(png|jpe?g|gif|webp|svg|bmp|opus|mp3|ogg|wav|webm|m4a|aac|flac)$/i;
 
-/** Walk a scene object and collect every string that looks like an asset path. */
+/** Walk a scene object and collect every string that looks like an image path. */
 function collectAssetPaths(data) {
   const paths = new Set();
   (function walk(obj) {
-    if (typeof obj === 'string') { if (FILE_EXT.test(obj)) paths.add(obj); return; }
+    if (typeof obj === 'string') { if (IMAGE_EXT.test(obj)) paths.add(obj); return; }
     if (Array.isArray(obj)) { for (const item of obj) walk(item); return; }
     if (obj && typeof obj === 'object') { for (const v of Object.values(obj)) walk(v); }
   })(data);
   return paths;
 }
 
-/** Preload all assets referenced in a scene (images + sounds). */
+/** Preload images referenced in a scene. Sounds load on demand. */
 function preloadAssets(data) {
   const paths = collectAssetPaths(data);
   if (paths.size === 0) return Promise.resolve();
   return Promise.all([...paths].map(p => {
-    const url = loader.resolvePath(p);
-    if (IMAGE_EXT.test(p)) {
-      return new Promise(resolve => {
-        const img = new Image();
-        img.onload = img.onerror = resolve;
-        img.src = url;
-      });
-    }
-    // Non-image assets (audio etc.) are not preloaded; the sound manager
-    // fetches them on demand.
-    return Promise.resolve();
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = img.onerror = resolve;
+      img.src = Paths.resolve(p);
+    });
   }));
 }
 
@@ -143,41 +137,43 @@ function preloadNeighbors(data) {
   }
 }
 
-async function gotoScene(id) {
-  const epoch = ++sceneEpoch;
-  runner.abort();
-  const data = await loader.load(id);
-  if (epoch !== sceneEpoch) return; // superseded by a newer transition
-  currentSceneData = data;
-  runner.sequences = getSceneSequences(data);
-  state.pushScene(id);
-  bus.emit('overlay:clear');
-  await preloadAssets(data);
-  if (epoch !== sceneEpoch) return; // superseded by a newer transition
-  scene.render(data);
-  debugHud.setScene(id);
+async function gotoScene(id, epoch = ++sceneEpoch) {
+  transitionInProgress = true;
+  try {
+    await runner.abort();
+    if (epoch !== sceneEpoch) return;
+    const data = await loader.load(id);
+    if (epoch !== sceneEpoch) return; // superseded by a newer transition
+    await preloadAssets(data);
+    if (epoch !== sceneEpoch) return; // superseded by a newer transition
+    currentSceneData = data;
+    runner.sequences = getSceneSequences(data);
+    runner.currentObjectId = null;
+    state.pushScene(id);
+    bus.emit('overlay:clear');
+    scene.render(data);
+    debugHud.setScene(id);
 
-  // Show or hide the HUD based on the scene's elements list
-  const elements = Array.isArray(data.elements) ? data.elements : [];
-  bus.emit(elements.includes('hud') ? 'hud:show' : 'hud:hide');
+    // Show or hide the HUD based on the scene's elements list
+    const elements = Array.isArray(data.elements) ? data.elements : [];
+    bus.emit(elements.includes('hud') ? 'hud:show' : 'hud:hide');
 
-  // Keep grid overlay CSS vars in sync with the scene's tile dimensions
-  const cols = data.grid?.cols ?? 16;
-  const rows = data.grid?.rows ?? 9;
-  gridOverlay.style.setProperty('--grid-cols', cols);
-  gridOverlay.style.setProperty('--grid-rows', rows);
+    // Keep grid overlay CSS vars in sync with the scene's tile dimensions
+    const cols = data.grid?.cols ?? 16;
+    const rows = data.grid?.rows ?? 9;
+    gridOverlay.style.setProperty('--grid-cols', cols);
+    gridOverlay.style.setProperty('--grid-rows', rows);
 
-  // Preload neighboring scenes in the background
-  preloadNeighbors(data);
+    // Preload neighboring scenes in the background
+    preloadNeighbors(data);
 
-  // Run the scene's entry actions, if any
-  if (Array.isArray(data.onEnter) && epoch === sceneEpoch) {
-    await runner.run(data.onEnter);
-    if (epoch !== sceneEpoch) {
-      // Superseded mid-onEnter: stop anything of ours still running.
-      runner.abort();
-      return;
+    transitionInProgress = false;
+    // Run the scene's entry actions, if any
+    if (Array.isArray(data.onEnter) && epoch === sceneEpoch) {
+      await runner.run(data.onEnter);
     }
+  } finally {
+    if (epoch === sceneEpoch) transitionInProgress = false;
   }
 }
 
@@ -191,52 +187,41 @@ function trackObjectClick(obj) {
   state.setFlag(key, (state.getFlag(key) ?? 0) + 1);
 }
 
-async function runObjectInteraction(obj, optionIndex = 0, { interruptIfRunning = false } = {}) {
-  const options = getObjectOptions(obj);
+/** All player interactions share the runner and the same interruption policy. */
+async function runPlayerActions(actions, { object = null, interrupt = false } = {}) {
+  if (transitionInProgress || !currentSceneData) return;
+  if (runner.running && (!interrupt || !actions?.length)) return;
+  const serial = ++interactionSerial;
+  const epoch = sceneEpoch;
+  if (runner.running) await runner.abort();
+  if (serial !== interactionSerial || epoch !== sceneEpoch || transitionInProgress) return;
 
-  if (options.length > 0) {
-    const option = options[optionIndex];
-    if (!option) return;
-    const actions = Array.isArray(option.actions) ? option.actions : [];
-    if (runner.running) {
-      if (!interruptIfRunning) return;
-      if (!actions.length) return;
-      await runner.abort(); // handshake: wait for the old chain to fully unwind
-    }
-    trackObjectClick(obj);
-    runner.currentObjectId = obj.id || null;
-    try {
-      await runner.run(actions);
-    } finally {
-      runner.currentObjectId = null;
-    }
-    return;
-  }
-
-  if (runner.running) {
-    if (!interruptIfRunning) return;
-    if (!Array.isArray(obj?.actions) || obj.actions.length === 0) return;
-    await runner.abort(); // handshake: wait for the old chain to fully unwind
-  }
-
-  trackObjectClick(obj);
-  if (Array.isArray(obj?.actions)) {
-    runner.currentObjectId = obj.id || null;
-    try {
-      await runner.run(obj.actions);
-    } finally {
-      runner.currentObjectId = null;
-    }
+  if (object) trackObjectClick(object);
+  if (!Array.isArray(actions)) return;
+  runner.currentObjectId = object?.id || null;
+  try {
+    await runner.run(actions);
+  } finally {
+    if (serial === interactionSerial) runner.currentObjectId = null;
   }
 }
 
-/* ── Object clicks → run attached actions/options ───── */
-bus.on('object:click', async (obj) => {
-  await runObjectInteraction(obj, 0);
-});
+function runObjectInteraction(obj, optionIndex = 0, interrupt = false) {
+  const options = getObjectOptions(obj);
+  if (options.length && !options[optionIndex]) return;
+  const actions = options.length ? (options[optionIndex].actions || []) : obj?.actions;
+  return runPlayerActions(actions, { object: obj, interrupt });
+}
 
-bus.on('object:option', async ({ obj, index }) => {
-  await runObjectInteraction(obj, index, { interruptIfRunning: true });
+/* ── Player interactions ────────────────────────── */
+bus.on('object:click', obj => {
+  Promise.resolve(runObjectInteraction(obj)).catch(reportEngineError);
+});
+bus.on('object:option', ({ obj, index }) => {
+  Promise.resolve(runObjectInteraction(obj, index, true)).catch(reportEngineError);
+});
+bus.on('inventory:interact', actions => {
+  runPlayerActions(actions, { interrupt: true }).catch(reportEngineError);
 });
 
 bus.on('object:contextmenu', ({ obj, clientX, clientY }) => {
@@ -246,30 +231,34 @@ bus.on('object:contextmenu', ({ obj, clientX, clientY }) => {
 });
 
 /* ── Scene goto (from action runner) ────────────── */
-bus.on('scene:goto', (id) => gotoScene(id));
+bus.on('scene:goto', id => { gotoScene(id).catch(reportEngineError); });
 
 /* ── Game selection (engine wiring) ─────────────── */
 
 function selectGame(id) {
+  const epoch = ++sceneEpoch;
   const basePath = `games/${id}`;
   loader.setBasePath(basePath);
   Paths.basePath = basePath;
   gameSelector.hide();
-  showTitle();
+  showTitle(epoch);
 }
 
 /* ── Game lifecycle ─────────────────────────────── */
 
 /** Load manifest and show title overlay (or skip straight to game). */
-async function showTitle() {
+async function showTitle(epoch = sceneEpoch) {
   try {
     const manifest = await loader.load('_game');
+    if (epoch !== sceneEpoch) return;
     if (manifest.skipTitleScreen) {
       bus.emit('game:start');
       return;
     }
     overlay.showTitle({ title: manifest.title, subtitle: manifest.subtitle });
-  } catch {
+  } catch (error) {
+    if (epoch !== sceneEpoch) return;
+    reportEngineError(error);
     overlay.showTitle({ title: 'b\u00fcengine', subtitle: 'A point-and-click adventure' });
   }
 }
@@ -281,39 +270,30 @@ async function showTitle() {
  * configure inventory capacity from the manifest, load item definitions,
  * announce them to the HUD, then enter the requested scene.
  * @param {string} sceneId scene to enter ('' → manifest.startScene)
- * @param {{ reset?: boolean, softFail?: boolean }} [opts]
- *   reset    – reset game state + inventory first (fresh game start)
- *   softFail – resolve silently when boot fails (editor-preview ?scene boot);
- *              otherwise fall back to gotoScene('intro')
+ * @param {{ reset?: boolean }} [opts]
  */
-async function bootGame(sceneId, { reset = false, softFail = false } = {}) {
-  if (reset) {
-    state.reset();
-    inventory.reset();
-  }
+async function bootGame(sceneId, { reset = false } = {}) {
+  const epoch = ++sceneEpoch;
+  transitionInProgress = true;
   try {
-    const manifest = await loader.load('_game');
-    const invCapacity = manifest.inventory || 0;
-    inventory.configure(invCapacity);
-
-    // In preview mode, item definitions may be in the script cache
-    if (loader.isPreview) {
-      try {
-        const defs = await loader.load('items/items');
-        inventory.loadDefinitionsFromData(defs);
-      } catch {
-        const pending = inventory.loadDefinitions(loader.basePath);
-        if (softFail) await pending.catch(() => {});
-        else await pending;
-      }
-    } else {
-      await inventory.loadDefinitions(loader.basePath);
+    await runner.abort();
+    if (epoch !== sceneEpoch) return;
+    if (reset) {
+      state.reset();
+      inventory.reset();
     }
-
+    const manifest = await loader.load('_game');
+    if (epoch !== sceneEpoch) return;
+    inventory.configure(manifest.inventory || 0);
+    const defs = inventory.enabled ? await loader.load('items/items', { optional: true }) : [];
+    if (epoch !== sceneEpoch) return;
+    inventory.loadDefinitionsFromData(defs ?? []);
     bus.emit('hud:inventory-enabled', inventory.enabled);
-    await gotoScene(sceneId || manifest.startScene || 'intro');
-  } catch {
-    if (!softFail) await gotoScene('intro');
+    await gotoScene(sceneId || manifest.startScene || 'intro', epoch);
+  } catch (error) {
+    if (epoch === sceneEpoch) reportEngineError(error);
+  } finally {
+    if (epoch === sceneEpoch) transitionInProgress = false;
   }
 }
 
@@ -322,9 +302,11 @@ bus.on('game:start', () => bootGame('', { reset: true }));
 
 /** Return to title screen. */
 bus.on('game:title', () => {
+  ++sceneEpoch;
+  transitionInProgress = false;
+  currentSceneData = null;
   runner.abort();
-  bus.emit('dialogue:dismiss');
-  bus.emit('choice:dismiss');
+  overlay.hidePause();
   bus.emit('sound:stopall');
   scene.clear();
   hud.hide();
@@ -333,9 +315,10 @@ bus.on('game:title', () => {
 
 /** Quit: return to the selector, unless this was launched from the local editor preview. */
 bus.on('game:quit', () => {
+  ++sceneEpoch;
+  transitionInProgress = false;
+  currentSceneData = null;
   runner.abort();
-  bus.emit('dialogue:dismiss');
-  bus.emit('choice:dismiss');
   bus.emit('sound:stopall');
   scene.clear();
   hud.hide();
@@ -356,15 +339,12 @@ const _urlGame = _params.get('game');
 
 if (_urlGame) {
   selectGame(_urlGame);
-} else if (loader.isPreview && loader._cache.has('_game')) {
+} else if (loader.isPreview && loader.has('_game')) {
   // Editor preview of a local folder — no game ID needed.
-  // Point the shared resolver at the editor asset blob URLs.
-  if (loader.assetMap) { Paths.assetMap = loader.assetMap; }
-
   const _sceneParam = _params.get('scene');
   if (_sceneParam) {
     // "Run current scene" — skip title, jump straight into the scene
-    bootGame(_sceneParam, { softFail: true });
+    bootGame(_sceneParam);
   } else {
     showTitle();
   }

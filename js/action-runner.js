@@ -6,7 +6,7 @@
  * ("Action commands"). Keep that documentation in sync with the runner and
  * avoid maintaining a second full command list here.
  */
-import { detectType, getActionMeta, ACTION_TYPES } from './action-schema.js';
+import { detectType } from './action-schema.js';
 
 /** Max iterations of a single `loop` statement before assuming an infinite loop. */
 const MAX_LOOP_ITERATIONS = 10000;
@@ -20,13 +20,12 @@ export class ActionRunner {
    * @param {import('./game-state.js').GameState} deps.state
    * @param {import('./inventory.js').Inventory} deps.inventory
    */
-  constructor({ bus, state, inventory }) {
+  constructor({ bus, state, inventory, dialogs = { active: null, queue: [] } }) {
     this.bus = bus;
     this.state = state;
     this.inventory = inventory;
-    this._assertSchemaMethods();
+    this._dialogs = dialogs;
     this._aborted = false;
-    this._exited = false;
     this._gotoFired = false;
     this._gotoTarget = null;
     this.running = false;
@@ -48,23 +47,17 @@ export class ActionRunner {
    * child run — has fully unwound. Fire-and-forget callers may ignore it.
    */
   abort() {
-    // Register the unwind waiter BEFORE flipping `running`, so we can't miss
-    // the finally-block flush even though running goes false synchronously.
+    // running stays true until finally; callers must wait before reusing this runner.
     const selfWait = this.running
       ? new Promise(resolve => this._unwindWaiters.push(resolve))
       : null;
     const childWaits = [];
     this._aborted = true;
-    this.running = false;
     for (const child of this._children) childWaits.push(child.abort());
     this._children.clear();
     // Resolve any pending blocking promise so the run() loop can unwind cleanly.
     const pending = this._pendingResolve;
     this._pendingResolve = null;
-    // Tear down any active modal UI tied to the aborted sequence so it cannot
-    // bleed into the next scene or wait for stale callbacks/timers.
-    this.bus.emit('dialogue:dismiss');
-    this.bus.emit('choice:dismiss');
     if (pending) pending();
     if (!selfWait && childWaits.length === 0) return Promise.resolve();
     return Promise.all([selfWait, ...childWaits].filter(Boolean)).then(() => {});
@@ -73,22 +66,19 @@ export class ActionRunner {
   /**
    * Execute an array of action commands sequentially.
    * @param {object[]} actions
-   * @param {boolean}  [_nested=false]  Internal flag — true when called recursively.
    */
-  async run(actions, _nested = false) {
-    if (!_nested) {
-      this._aborted = false;
-      this._exited = false;
-      this._gotoFired = false;
-      this._gotoTarget = null;
-      this.running = true;
-    }
+  async run(actions) {
+    if (this.running) throw new Error('Action runner: another action chain is still running' + this._errorContext());
+    this._aborted = false;
+    this._gotoFired = false;
+    this._gotoTarget = null;
+    this.running = true;
 
     try {
       const frames = [{ actions, index: 0 }];
 
       while (frames.length) {
-        if (this._aborted || this._exited || this._gotoFired) return;
+        if (this._aborted || this._gotoFired) return;
 
         const frame = frames[frames.length - 1];
         if (frame.index >= frame.actions.length) {
@@ -115,144 +105,162 @@ export class ActionRunner {
         if (shouldReturn) return;
       }
     } finally {
-      if (!_nested) {
-        this.running = false;
-        // Release anyone awaiting abort()'s completion handshake.
-        const waiters = this._unwindWaiters;
-        this._unwindWaiters = [];
-        for (const resolve of waiters) resolve();
-        // Emit scene change only after the entire action chain has unwound,
-        // so gotoScene's fresh runner.run() can't reset flags mid-unwind.
-        if (this._gotoFired && this._gotoTarget) {
-          this.bus.emit('scene:goto', this._gotoTarget);
-        }
+      this.running = false;
+      const waiters = this._unwindWaiters;
+      this._unwindWaiters = [];
+      for (const resolve of waiters) resolve();
+      // Navigation starts only after this chain is fully unwound.
+      if (!this._aborted && this._gotoFired && this._gotoTarget) {
+        this.bus.emit('scene:goto', this._gotoTarget);
       }
     }
   }
 
   /* ── private helpers ──────────────────────────── */
 
-  /**
-   * Boot-time assertion: every `engine.method` named by the shared schema
-   * must exist on this runner, and every `engine.kind` must be a known
-   * dispatch kind. Renaming a runner method without updating the schema
-   * (or vice versa) fails fast here instead of silently no-op'ing.
-   */
-  _assertSchemaMethods() {
-    const knownKinds = new Set([
-      'await', 'call', 'goto', 'branch', 'loop',
-      'emit', 'run-sequence', 'fork', 'exit', 'noop',
-    ]);
-    for (const [type, meta] of Object.entries(ACTION_TYPES)) {
-      const engine = meta?.engine;
-      if (!engine) continue;
-      if (!knownKinds.has(engine.kind)) {
-        throw new Error(
-          `ActionRunner: unknown engine.kind "${engine.kind}" for action type "${type}" in action-schema.js`
-        );
-      }
-      if (engine.method && typeof this[engine.method] !== 'function') {
-        throw new Error(
-          `ActionRunner: missing method "${engine.method}" for action type "${type}" (declared in action-schema.js)`
-        );
-      }
-    }
-  }
-
   async _dispatchAction(type, action, frames) {
-    const engine = getActionMeta(type).engine;
-    if (!engine) return false;
-
-    switch (engine.kind) {
-      case 'await':
-        await this[engine.method](engine.arg === 'action' ? action : action[engine.arg]);
-        return false;
-      case 'call':
-        this[engine.method](action[engine.arg]);
-        return false;
+    switch (type) {
+      case 'say': await this._say(action); break;
+      case 'choice': {
+        const option = await this._choice(action.choice);
+        if (!this._aborted) this._pushFrame(frames, option?.actions, 'choice branch', true);
+        break;
+      }
+      case 'wait': await this._delay(action.wait); break;
+      case 'show': await this._show(action.show); break;
+      case 'text': await this._text(action.text); break;
+      case 'hide': await this._hide(action.hide); break;
+      case 'effect': await this._effect(action.effect); break;
+      case 'playsound': await this._playsound(action.playsound); break;
+      case 'stopsound': await this._stopsound(action.stopsound); break;
+      case 'set': this._applySet(action.set); break;
+      case 'item': this._applyItem(action.item); break;
       case 'goto':
         this._gotoFired = true;
-        this._gotoTarget = action[engine.arg];
+        this._gotoTarget = action.goto;
         return true;
-      case 'branch': {
-        const result = this._evalCondition(action[engine.condition]);
-        const branch = result ? action[engine.trueActions] : action[engine.falseActions];
-        if (branch?.length) {
-          this._checkFrameDepth(frames, 'conditional branch');
-          frames.push({ actions: branch, index: 0 });
-        }
-        return false;
+      case 'if': {
+        const branch = this._evalCondition(action.if) ? action.then : action.else;
+        this._pushFrame(frames, branch, 'conditional branch');
+        break;
       }
       case 'loop': {
-        const loopActions = this._resolveLoopActions(action);
-        if (loopActions?.length && this._evalCondition(action[engine.condition])) {
+        const actions = this._resolveLoopActions(action);
+        if (actions?.length && this._evalCondition(action.loop)) {
           this._checkFrameDepth(frames, 'loop');
-          frames.push({ actions: loopActions, index: 0, loopCondition: action[engine.condition], iterations: 0 });
+          frames.push({ actions, index: 0, loopCondition: action.loop, iterations: 0 });
         }
-        return false;
+        break;
       }
-      case 'emit':
-        this.bus.emit(action[engine.event], action[engine.payload]);
-        return false;
-      case 'run-sequence': {
-        const sequence = this.sequences[action[engine.arg]];
-        if (sequence?.length) {
-          this._checkFrameDepth(frames, `sequence "${action[engine.arg]}"`);
-          frames.push({ actions: sequence, index: 0 });
-        }
-        return false;
-      }
+      case 'emit': this.bus.emit(action.emit, action.payload); break;
+      case 'run':
+        this._pushFrame(frames, this.sequences[action.run], `sequence "${action.run}"`);
+        break;
       case 'fork': {
-        const forkActions = this._resolveForkActions(action[engine.arg]);
-        if (forkActions?.length) this._spawnChild(forkActions);
-        return false;
+        const actions = this._resolveForkActions(action.fork);
+        if (actions?.length) this._spawnChild(actions);
+        break;
       }
-      case 'exit':
-        this._exited = true;
-        return true;
-      case 'noop':
-      default:
-        return false;
+      case 'exit': {
+        // Exit ends the nearest choice branch; outside choices it ends the chain.
+        const choiceIndex = frames.findLastIndex(frame => frame.choiceBranch);
+        if (choiceIndex < 0) return true;
+        frames.splice(choiceIndex);
+        break;
+      }
+    }
+    return false;
+  }
+
+  _pushFrame(frames, actions, context, choiceBranch = false) {
+    if (!actions?.length) return;
+    this._checkFrameDepth(frames, context);
+    frames.push({ actions, index: 0, choiceBranch });
+  }
+
+  /** One cancellable wait per runner. Completion consumes its callback and cleanup. */
+  _wait(start) {
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      let cleanup;
+      const settle = (value, error) => {
+        if (settled) return;
+        settled = true;
+        if (this._pendingResolve === finish) this._pendingResolve = null;
+        cleanup?.();
+        if (error) reject(error);
+        else resolve(value);
+      };
+      const finish = value => settle(value);
+      const fail = error => settle(undefined, error);
+      this._pendingResolve = finish;
+      try {
+        cleanup = start(finish, fail);
+      } catch (error) {
+        fail(error);
+      }
+    });
+  }
+
+  /** Main and forked chains take turns using the shared dialogue/choice UI. */
+  _dialog(kind, data) {
+    return this._wait((done, fail) => {
+      const dialogs = this._dialogs;
+      const job = { runner: this, kind, data, done, fail, completed: false };
+      dialogs.queue.push(job);
+      // Install cleanup before showing UI (a bus listener can complete synchronously).
+      queueMicrotask(() => this._showNextDialog());
+      return () => {
+        const index = dialogs.queue.indexOf(job);
+        if (index >= 0) dialogs.queue.splice(index, 1);
+        if (dialogs.active === job) {
+          dialogs.active = null;
+          if (!job.completed) this.bus.emit(`${kind}:dismiss`);
+        }
+        this._showNextDialog();
+      };
+    });
+  }
+
+  _showNextDialog() {
+    const dialogs = this._dialogs;
+    if (dialogs.active || !dialogs.queue.length) return;
+    const job = dialogs.active = dialogs.queue.shift();
+    if (job.runner._aborted) { job.done(); return; }
+    try {
+      this.bus.emit(`${job.kind}:show`, {
+        ...job.data,
+        [job.kind === 'choice' ? 'onPick' : 'onDone']: value => {
+          job.completed = true;
+          job.done(value);
+        },
+      });
+    } catch (error) {
+      job.fail(error);
     }
   }
 
   _say(action) {
-    return new Promise(resolve => {
-      this._pendingResolve = resolve;
-      this.bus.emit('dialogue:show', {
-        speaker: action.speaker || '',
-        accent: action.accent || null,
-        text: action.say,
-        typewriterSpeed: action.typewriterSpeed,
-        delay: action.delay || 0,
-        onDone: resolve,
-      });
+    return this._dialog('dialogue', {
+      speaker: action.speaker || '',
+      accent: action.accent || null,
+      text: action.say,
+      typewriterSpeed: action.typewriterSpeed,
+      delay: action.delay || 0,
     });
   }
 
   _choice(choiceDef) {
-    return new Promise(resolve => {
-      this._pendingResolve = resolve;
-      this.bus.emit('choice:show', {
-        prompt: choiceDef.prompt || '',
-        options: choiceDef.options,
-        onPick: async (option) => {
-          this._pendingResolve = null;
-          if (option.actions) await this.run(option.actions, true);
-          // `exit` inside a choice branch should only break out of that
-          // branch, not kill the parent sequence.
-          // But if a goto fired, keep everything stopped — we're changing scenes.
-          if (!this._gotoFired) this._exited = false;
-          resolve();
-        },
-      });
+    return this._dialog('choice', {
+      prompt: choiceDef.prompt || '',
+      options: choiceDef.options,
     });
   }
 
   _delay(ms) {
-    return new Promise(resolve => {
-      this._pendingResolve = resolve;
-      setTimeout(resolve, ms);
+    return this._wait(done => {
+      const timer = setTimeout(done, ms);
+      return () => clearTimeout(timer);
     });
   }
 
@@ -275,11 +283,12 @@ export class ActionRunner {
       bus: this.bus,
       state: this.state,
       inventory: this.inventory,
+      dialogs: this._dialogs,
     });
     child.sequences = this.sequences;
     child.currentObjectId = this.currentObjectId;
     this._children.add(child);
-    child.run(actions).finally(() => {
+    child.run(actions).catch(error => this.bus.emit('engine:error', error)).finally(() => {
       this._children.delete(child);
     });
   }
@@ -287,46 +296,40 @@ export class ActionRunner {
   _show(showDef) {
     if (typeof showDef === 'string') showDef = { id: showDef };
     if (showDef.id === 'this') showDef = { ...showDef, id: this.currentObjectId };
-    return new Promise(resolve => {
-      this._pendingResolve = resolve;
-      this.bus.emit('overlay:show', { ...showDef, onDone: resolve });
+    return this._wait(onDone => {
+      this.bus.emit('overlay:show', { ...showDef, onDone });
     });
   }
 
   _text(textDef) {
-    return new Promise(resolve => {
-      this._pendingResolve = resolve;
-      this.bus.emit('overlay:show', { ...textDef, kind: 'text', onDone: resolve });
+    return this._wait(onDone => {
+      this.bus.emit('overlay:show', { ...textDef, kind: 'text', onDone });
     });
   }
 
   _hide(hideDef) {
     if (typeof hideDef === 'string') hideDef = { id: hideDef };
     if (hideDef.id === 'this') hideDef = { ...hideDef, id: this.currentObjectId };
-    return new Promise(resolve => {
-      this._pendingResolve = resolve;
-      this.bus.emit('overlay:hide', { ...hideDef, onDone: resolve });
+    return this._wait(onDone => {
+      this.bus.emit('overlay:hide', { ...hideDef, onDone });
     });
   }
 
   _effect(effectDef) {
-    return new Promise(resolve => {
-      this._pendingResolve = resolve;
-      this.bus.emit('scene:effect', { ...effectDef, onDone: resolve });
+    return this._wait(onDone => {
+      this.bus.emit('scene:effect', { ...effectDef, onDone });
     });
   }
 
   _playsound(def) {
-    return new Promise(resolve => {
-      this._pendingResolve = resolve;
-      this.bus.emit('sound:play', { ...def, onDone: resolve });
+    return this._wait(onDone => {
+      this.bus.emit('sound:play', { ...def, onDone });
     });
   }
 
   _stopsound(def) {
-    return new Promise(resolve => {
-      this._pendingResolve = resolve;
-      this.bus.emit('sound:stop', { ...def, onDone: resolve });
+    return this._wait(onDone => {
+      this.bus.emit('sound:stop', { ...def, onDone });
     });
   }
 

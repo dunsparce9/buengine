@@ -4,6 +4,7 @@ import { createFloatingWindow } from '../floating-window.js';
 const toastContainer = document.getElementById('toast-container');
 
 const aboutWindow = createFloatingWindow({
+  reusable: true,
   title: 'About',
   icon: 'info',
   iconClass: 'material-symbols-outlined',

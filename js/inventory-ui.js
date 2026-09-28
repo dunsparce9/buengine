@@ -14,7 +14,7 @@
  *   game:quit / game:title – close window
  *
  * Emits:
- *   inventory:remove { id, qty }  – when dropping an item
+ *   inventory:interact actions[] – main.js applies the player-interaction policy
  */
 import { Paths } from './paths.js';
 import { ContextMenu } from './context-menu.js';
@@ -23,12 +23,10 @@ export class InventoryUI {
   /**
    * @param {import('./event-bus.js').EventBus} bus
    * @param {import('./inventory.js').Inventory} inventory
-   * @param {import('./action-runner.js').ActionRunner} runner
    */
-  constructor(bus, inventory, runner) {
+  constructor(bus, inventory) {
     this.bus = bus;
     this.inventory = inventory;
-    this.runner = runner;
     this._mode = 'grid';  // 'grid' | 'list'
     this._win = null;
     this._open = false;
@@ -318,10 +316,8 @@ export class InventoryUI {
         options.push({
           icon: opt.icon,
           text: opt.text,
-          onClick: async () => {
-            if (opt.actions) {
-              await this.runner.run(opt.actions);
-            }
+          onClick: () => {
+            if (opt.actions) this.bus.emit('inventory:interact', opt.actions);
           },
         });
       }

@@ -6,7 +6,12 @@
  * live in one place; only sequence-name handling stays here.
  */
 
-import { openActionEditor } from './action-editor.js';
+import { openActionField } from './action-editor.js';
+import { closeWindowsFor } from './floating-window.js';
+import { walkScriptActions } from '../../js/script-data.js';
+import { state, hooks } from './state.js';
+import { loadScript } from './script-store.js';
+import { findNode } from './fs-provider.js';
 import { promptForConfirmation } from './confirm-dialog.js';
 import {
   openListModal,
@@ -40,7 +45,7 @@ export function openSequencesModal({
       { label: 'Name', className: 'sequences-th-name' },
       { label: 'Actions' },
     ],
-    getRows: (st) => Object.keys(ensureSequencesObject(st.sceneData)),
+    getRows: (st) => Object.keys(st.sceneData.sequences || {}),
     buildRowCells: (tr, { modalState: st, row: name }) =>
       buildSequenceRowCells(tr, st, name),
     renderEmpty: (content, st) => {
@@ -71,8 +76,8 @@ function ensureSequencesObject(sceneData) {
 }
 
 function buildSequenceRowCells(tr, st, name) {
-  const sequences = ensureSequencesObject(st.sceneData);
-  const actions = Array.isArray(sequences[name]) ? sequences[name] : (sequences[name] = []);
+  const sequences = st.sceneData.sequences;
+  const actions = Array.isArray(sequences[name]) ? sequences[name] : [];
 
   const tdName = document.createElement('td');
   tdName.className = 'sequences-td-name';
@@ -104,6 +109,7 @@ function buildSequenceRowCells(tr, st, name) {
       sceneId: st.sceneData.id,
       name,
       actions,
+      sequences,
       scriptId: st.scriptId,
       onChange: st.onChange,
       actionViewerContext: st.actionViewerContext,
@@ -112,12 +118,12 @@ function buildSequenceRowCells(tr, st, name) {
   tr.appendChild(tdActions);
 }
 
-function createSequenceActionsPill({ sceneId, name, actions, scriptId, onChange, actionViewerContext }) {
+function createSequenceActionsPill({ sceneId, name, actions, sequences, scriptId, onChange, actionViewerContext }) {
   return createActionsPill(actions.length, (renderPill) => {
-    openActionEditor(`${sceneId} — ${name}`, actions, {
+    openActionField(`${sceneId} — ${name}`, sequences, name, {
       ...actionViewerContext,
       onChange: () => {
-        renderPill(actions.length);
+        renderPill(sequences[name].length);
         notifyListChange(scriptId, onChange);
       },
     });
@@ -132,7 +138,7 @@ function createNewSequence(st) {
   st.rebuild();
 }
 
-function renameSequence(st, prevName, input) {
+async function renameSequence(st, prevName, input) {
   const sequences = ensureSequencesObject(st.sceneData);
   const nextName = String(input.value || '').trim().replace(/\s+/g, '_');
   if (!nextName) {
@@ -146,9 +152,42 @@ function renameSequence(st, prevName, input) {
     return;
   }
 
+  input.disabled = true;
+  let items;
+  try {
+    if (findNode('items/items.json')) items = await loadScript('items/items');
+    if (!st.fw.el.isConnected || state.scripts[st.scriptId] !== st.sceneData) return;
+  } catch (err) {
+    input.value = prevName;
+    hooks.toast?.(`Rename failed: ${err.message}`, 'error');
+    return;
+  } finally {
+    input.disabled = false;
+  }
+  if (!(prevName in sequences) || nextName in sequences) {
+    st.rebuild();
+    return;
+  }
   const actions = sequences[prevName];
+  // Draft editors belong to the sequence table until their first edit.
+  closeWindowsFor(sequences);
   delete sequences[prevName];
   sequences[nextName] = actions;
+  const rewrite = data => {
+    walkScriptActions(data, action => {
+      if (action.run === prevName) action.run = nextName;
+      if (action.fork === prevName) action.fork = nextName;
+      if (action.fork?.run === prevName) action.fork.run = nextName;
+    });
+  };
+  rewrite(st.sceneData);
+  let sharedItemReference = false;
+  walkScriptActions(items, action => {
+    if (action.run === prevName || action.fork === prevName || action.fork?.run === prevName) sharedItemReference = true;
+  });
+  // Item actions resolve sequences in the active scene. Keep their shared
+  // name working here without rewriting their meaning in other scenes.
+  if (sharedItemReference) sequences[prevName] = [{ run: nextName }];
   input.classList.remove('prop-input-error');
   input.value = nextName;
   notifyListChange(st.scriptId, st.onChange);
@@ -165,7 +204,7 @@ async function confirmDeleteSequence(st, name) {
       message: `Sequence "${name}" has ${actions.length} action${actions.length === 1 ? '' : 's'}. Delete it anyway?`,
       confirmLabel: 'Delete',
     });
-    if (!confirmed) return;
+    if (!confirmed || !st.fw.el.isConnected) return;
   }
 
   deleteSequence(st, name);
@@ -173,6 +212,7 @@ async function confirmDeleteSequence(st, name) {
 
 function deleteSequence(st, name) {
   const sequences = ensureSequencesObject(st.sceneData);
+  closeWindowsFor(sequences);
   delete sequences[name];
   notifyListChange(st.scriptId, st.onChange);
   st.rebuild();

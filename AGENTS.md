@@ -21,6 +21,7 @@ js/
   event-bus.js           ← pub/sub decoupling
   game-state.js          ← flags, current scene, history
   script-loader.js       ← fetches & caches JSON scripts
+  script-data.js         ← shared JSON normalization + inline action traversal
   scene-renderer.js      ← background, scene objects, show/hide entity system
   action-schema.js       ← **shared** action type registry (fields, metadata, defaults)
   action-runner.js       ← walks action arrays, dispatches commands
@@ -126,6 +127,14 @@ Scripts can check inventory via conditions: `"if": "items.key.qty >= 1"` (uses `
 
 The inventory UI is a draggable floating window with Grid and List display modes. Right-click items for defined options or Drop (Drop is hidden when the item sets `"droppable": false`).
 
+### Action lifecycle
+
+- Player interactions start through `main.js`: ordinary object left-clicks are ignored while busy; object right-click options and inventory options interrupt a running chain after waiting for its abort to finish. UI modules emit events instead of starting the runner themselves.
+- A runner executes one chain at a time and stays `running` until it fully unwinds. Choice branches use the same frame stack; `exit` ends the nearest choice branch or, outside a choice, the whole chain.
+- Main and forked runners share a small FIFO for dialogue/choice display. Aborting a chain removes its own pending prompt without dismissing another chain's UI. Passive fork effects and sounds continue concurrently.
+- Runtime errors are reported through `engine:error` and a notification; failed entry actions do not silently redirect to intro.
+- Audio commands consume their completion once on end/error/stop/replacement. Cancelling a fade does not execute its natural-completion side effect; pause freezes fades and defers new playback until resume.
+
 ### Communication between modules
 Runtime behavior flows over `EventBus`. UI modules never import each other's classes — but they may import shared helpers (`paths.js`, `context-menu.js`, `action-schema.js`, `UI_SOUNDS` from `sound-manager.js`). Prefer `bus.emit()` / `bus.on()` for cross-module behavior.
 
@@ -140,7 +149,7 @@ The editor has its own separate instructions at `editor/AGENTS.md`. Refer to thi
 
 1. **Vanilla JS only** — no frameworks, no dependencies.
 2. **Prefer events over imports** — use `bus.emit()` / `bus.on()` for cross-module communication.
-3. New UI components should follow the pattern: most take `bus`, query their own DOM elements, and subscribe to relevant events (a few take extra/different deps — e.g. `InventoryUI(bus, inventory, runner)`, `GameSelector(onSelect)`, `DebugHud(getSceneData)`).
+3. New UI components should follow the pattern: most take `bus`, query their own DOM elements, and subscribe to relevant events (a few take extra/different deps — e.g. `InventoryUI(bus, inventory)`, `GameSelector(onSelect)`, `DebugHud(getSceneData)`).
 4. Editor-only code lives under `editor/` and should not be bolted into runtime modules unless the feature is genuinely shared.
-5. Shared action metadata belongs in `js/action-schema.js`; do not fork separate action registries for engine vs editor. Summaries and header badges are derived there too (`summarizeAction`/`getBadges`) — the editor delegates instead of keeping parallel switches.
+5. ActionRunner dispatches commands directly by type; do not add a second execution language or private method names to the schema. Shared JSON-format helpers belong in `js/script-data.js`. Shared action metadata belongs in `js/action-schema.js`; do not fork separate action registries for engine vs editor. Summaries and header badges are derived there too (`summarizeAction`/`getBadges`) — the editor delegates instead of keeping parallel switches.
 6. Update this file (`buengine/AGENTS.md`) after significant **engine-side** changes if necessary. **If editor-side, remember editor has its own `editor/AGENTS.md`!**

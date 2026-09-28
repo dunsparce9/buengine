@@ -1,7 +1,7 @@
 import { ACTION_TYPES } from '../../../js/action-schema.js';
 import { setNestedValue, getNestedValue } from './utils.js';
 
-export function createFormBuilders(openActionEditor) {
+export function createFormBuilders(openActionField) {
   function buildEditForm(action, type, ctx) {
     const form = document.createElement('div');
     form.className = 'ae-edit-form';
@@ -172,11 +172,11 @@ export function createFormBuilders(openActionEditor) {
   function buildSetEditor(action, ctx) {
     const wrap = document.createElement('div');
     wrap.className = 'ae-set-editor';
-    if (!action.set || typeof action.set !== 'object') action.set = {};
+    const values = action.set && typeof action.set === 'object' ? action.set : {};
 
     function render() {
       wrap.innerHTML = '';
-      for (const [flag, value] of Object.entries(action.set)) {
+      for (const [flag, value] of Object.entries(values)) {
         const row = document.createElement('div');
         row.className = 'ae-set-edit-row';
 
@@ -226,6 +226,7 @@ export function createFormBuilders(openActionEditor) {
       addBtn.className = 'ae-mini-btn';
       addBtn.innerHTML = '<span class="material-symbols-outlined">add</span> Add flag';
       addBtn.addEventListener('click', () => {
+        action.set = values;
         let name = 'new_flag';
         let suffix = 1;
         while (action.set[name]) name = `new_flag_${suffix++}`;
@@ -256,8 +257,7 @@ export function createFormBuilders(openActionEditor) {
       btn.className = 'ae-mini-btn';
       btn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${action[key]?.length || 0} action(s)`;
       btn.addEventListener('click', () => {
-        if (!action[key]) action[key] = [];
-        openActionEditor(label, action[key], {
+        openActionField(label, action, key, {
           onChange() {
             ctx.onFieldChange();
             btn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${action[key].length} action(s)`;
@@ -295,8 +295,7 @@ export function createFormBuilders(openActionEditor) {
     const getLoopActions = () => {
       if (Array.isArray(action.do)) return action.do;
       if (Array.isArray(action.then)) return action.then;
-      action.do = [];
-      return action.do;
+      return [];
     };
 
     const renderLabel = () => {
@@ -305,8 +304,8 @@ export function createFormBuilders(openActionEditor) {
 
     renderLabel();
     btn.addEventListener('click', () => {
-      const loopActions = getLoopActions();
-      openActionEditor('do', loopActions, {
+      const key = Array.isArray(action.do) || !Array.isArray(action.then) ? 'do' : 'then';
+      openActionField('do', action, key, {
         onChange() {
           ctx.onFieldChange();
           renderLabel();

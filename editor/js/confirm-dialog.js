@@ -68,6 +68,7 @@ export function promptForConfirmation({
     fw.onClose(() => {
       if (resolved) return;
       resolved = true;
+      fw.destroy();
       resolve(false);
     });
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'buengine-editor-v5';
+const CACHE_NAME = 'buengine-editor-v7';
 const CORE_ASSETS = [
   './',
   './assets/icon.svg',
@@ -56,6 +56,8 @@ const CORE_ASSETS = [
   './js/viewport.js',
   './js/zip-utils.js',
   './manifest.webmanifest',
+  '../js/action-schema.js',
+  '../js/script-data.js',
 ];
 
 self.addEventListener('message', (event) => {

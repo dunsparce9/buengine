@@ -39,7 +39,7 @@ function walk(dir, out = []) {
 }
 
 function discoverAssets() {
-  return walk(EDITOR_DIR)
+  const editorAssets = walk(EDITOR_DIR)
     .filter((rel) => {
       if (rel === 'sw.js') return false;
       const dot = rel.lastIndexOf('.');
@@ -48,6 +48,8 @@ function discoverAssets() {
     })
     .map((rel) => `./${rel}`)
     .sort();
+  // Neutral runtime modules imported by the editor must also work offline.
+  return [...editorAssets, '../js/action-schema.js', '../js/script-data.js'];
 }
 
 function buildSwBody(assets) {

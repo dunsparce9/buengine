@@ -1,16 +1,8 @@
-import {
-  getDragState,
-  setDragState,
-  clearDragState,
-  getDragAutoScrollRaf,
-  setDragAutoScrollRaf,
-  getEditableListEditor,
-  getEmptyDropZoneEditor,
-  hasEditableList,
-  hasEmptyDropZone,
-} from './state.js';
+import { editableLists, emptyDropZones } from './state.js';
 
 export function createDragController({ moveActionBetweenEditors }) {
+  let dragState = null;
+  let dragAutoScrollRaf = 0;
   function beginActionDrag(event, block, editorState) {
     if (event.button !== 0) return;
     const dragIdx = parseInt(block.dataset.index, 10);
@@ -23,7 +15,7 @@ export function createDragController({ moveActionBetweenEditors }) {
     cancelActionDrag();
 
     const headerRect = header.getBoundingClientRect();
-    setDragState({
+    dragState = {
       sourceEditor: editorState,
       sourceIdx: dragIdx,
       sourceEl: block,
@@ -37,7 +29,7 @@ export function createDragController({ moveActionBetweenEditors }) {
       previewOffsetX: event.clientX - headerRect.left,
       previewOffsetY: event.clientY - headerRect.top,
       scrollHost: block.closest('.fw-body'),
-    });
+    };
 
     block.classList.add('ae-dragging', 'ae-drag-source-hidden');
     document.body.style.cursor = 'grabbing';
@@ -50,7 +42,6 @@ export function createDragController({ moveActionBetweenEditors }) {
   }
 
   function onActionDragMove(event) {
-    const dragState = getDragState();
     if (!dragState) return;
     dragState.clientX = event.clientX;
     dragState.clientY = event.clientY;
@@ -58,7 +49,6 @@ export function createDragController({ moveActionBetweenEditors }) {
   }
 
   function onActionDragEnd() {
-    const dragState = getDragState();
     if (!dragState) return;
     const { sourceEditor, sourceIdx, currentEditor, dropIdx } = dragState;
     cancelActionDrag();
@@ -68,7 +58,6 @@ export function createDragController({ moveActionBetweenEditors }) {
   }
 
   function cancelActionDrag() {
-    const dragState = getDragState();
     if (!dragState) return;
     if (dragState.sourceEl) dragState.sourceEl.classList.remove('ae-dragging', 'ae-drag-source-hidden');
     if (dragState.previewEl?.parentNode) dragState.previewEl.remove();
@@ -81,22 +70,21 @@ export function createDragController({ moveActionBetweenEditors }) {
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
 
-    if (getDragAutoScrollRaf()) {
-      cancelAnimationFrame(getDragAutoScrollRaf());
-      setDragAutoScrollRaf(0);
+    if (dragAutoScrollRaf) {
+      cancelAnimationFrame(dragAutoScrollRaf);
+      dragAutoScrollRaf = 0;
     }
 
-    clearDragState();
+    dragState = null;
   }
 
   function updateActionDragTarget(clientX, clientY) {
-    const dragState = getDragState();
     if (!dragState) return;
     updateActionDragPreviewPosition(clientX, clientY);
     const pointEl = document.elementFromPoint(clientX, clientY);
     const emptyEl = pointEl?.closest('.ae-drop-empty.ae-editable-empty');
-    if (emptyEl && hasEmptyDropZone(emptyEl)) {
-      const editorState = getEmptyDropZoneEditor(emptyEl);
+    if (emptyEl && emptyDropZones.has(emptyEl)) {
+      const editorState = emptyDropZones.get(emptyEl);
       dragState.currentEditor = editorState;
       dragState.dropIdx = 0;
       dragState.scrollHost = emptyEl.closest('.fw-body');
@@ -105,8 +93,8 @@ export function createDragController({ moveActionBetweenEditors }) {
     }
 
     const container = pointEl?.closest('.ae-editable-list');
-    if (container && hasEditableList(container)) {
-      const editorState = getEditableListEditor(container);
+    if (container && editableLists.has(container)) {
+      const editorState = editableLists.get(container);
       const dropIdx = getActionDragDropIndex(container, clientY, editorState);
       dragState.currentEditor = editorState;
       dragState.dropIdx = dropIdx;
@@ -117,7 +105,7 @@ export function createDragController({ moveActionBetweenEditors }) {
 
   function getActionDragDropIndex(container, clientY, editorState) {
     const blocks = Array.from(container.children).filter((child) =>
-      child.classList?.contains('ae-block') && child !== getDragState()?.sourceEl
+      child.classList?.contains('ae-block') && child !== dragState?.sourceEl
     );
 
     let targetIdx = editorState.actions.length;
@@ -132,7 +120,6 @@ export function createDragController({ moveActionBetweenEditors }) {
   }
 
   function showActionDragIndicator(container, dropIdx) {
-    const dragState = getDragState();
     if (!dragState) return;
     if (dragState.emptyEl) {
       dragState.emptyEl.classList.remove('ae-drop-ready');
@@ -158,14 +145,12 @@ export function createDragController({ moveActionBetweenEditors }) {
   }
 
   function updateActionDragPreviewPosition(clientX, clientY) {
-    const dragState = getDragState();
     if (!dragState?.previewEl) return;
     dragState.previewEl.style.left = `${Math.round(clientX - dragState.previewOffsetX)}px`;
     dragState.previewEl.style.top = `${Math.round(clientY - dragState.previewOffsetY)}px`;
   }
 
   function showActionDragEmptyState(emptyEl) {
-    const dragState = getDragState();
     if (!dragState) return;
     if (dragState.indicator?.parentNode) dragState.indicator.remove();
     if (dragState.emptyEl && dragState.emptyEl !== emptyEl) dragState.emptyEl.classList.remove('ae-drop-ready');
@@ -174,11 +159,10 @@ export function createDragController({ moveActionBetweenEditors }) {
   }
 
   function scheduleActionDragAutoScroll() {
-    if (getDragAutoScrollRaf()) return;
+    if (dragAutoScrollRaf) return;
 
     const step = () => {
-      setDragAutoScrollRaf(0);
-      const dragState = getDragState();
+      dragAutoScrollRaf = 0;
       if (!dragState) return;
 
       const host = dragState.scrollHost;
@@ -197,13 +181,13 @@ export function createDragController({ moveActionBetweenEditors }) {
         }
       }
 
-      if (getDragState()) scheduleActionDragAutoScroll();
+      if (dragState) scheduleActionDragAutoScroll();
     };
 
-    setDragAutoScrollRaf(requestAnimationFrame(step));
+    dragAutoScrollRaf = requestAnimationFrame(step);
   }
 
-  return { beginActionDrag };
+  return { beginActionDrag, cancelActionDrag };
 }
 
 /* ── Generic single-list reorder drag (review phase 5, item 20) ──────────

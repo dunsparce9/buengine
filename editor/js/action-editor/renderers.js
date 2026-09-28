@@ -5,6 +5,7 @@ import {
 } from '../../../js/action-schema.js';
 import { cloneAction, notifyEditorChange } from './utils.js';
 import { beginSimpleReorderDrag } from './drag.js';
+import { closeWindowsFor } from '../floating-window.js';
 
 // Single source of truth for summaries/badges lives in js/action-schema.js.
 // Re-exported here so existing `renderers.js` import sites keep working.
@@ -62,15 +63,14 @@ export function createActionRenderers(openActionEditor, {
   }
 
   function ensureChoiceOptions(choice) {
-    if (!Array.isArray(choice.options)) choice.options = [];
-    return choice.options;
+    return Array.isArray(choice.options) ? choice.options : [];
   }
 
   async function addChoiceOptionAction(opt, viewCtx = {}) {
-    if (!Array.isArray(opt.actions)) opt.actions = [];
     const rootEditorState = getRootEditorState(viewCtx);
     const type = await pickActionType?.(rootEditorState?.fw);
-    if (!type) return;
+    if (!type || !rootEditorState?.fw.el.isConnected) return;
+    if (!Array.isArray(opt.actions)) opt.actions = [];
     opt.actions.push(createDefaultAction(type));
     commitInlineEdit(viewCtx);
   }
@@ -112,8 +112,7 @@ export function createActionRenderers(openActionEditor, {
     switch (type) {
       case 'say': return renderSay(action);
       case 'choice':
-        if (!action.choice || typeof action.choice !== 'object') action.choice = { prompt: '', options: [] };
-        return renderChoice(action.choice, viewCtx);
+        return renderChoice(action.choice || {}, viewCtx);
       case 'goto': return renderGotoChip(action.goto, '#8ec07c', viewCtx);
       case 'set': return renderSet(action.set);
       case 'if': return renderIf(action, viewCtx);
@@ -238,6 +237,7 @@ export function createActionRenderers(openActionEditor, {
           deleteBtn.innerHTML = '<span class="material-symbols-outlined">delete</span>';
           deleteBtn.addEventListener('click', (event) => {
             event.stopPropagation();
+            closeWindowsFor(opt);
             choice.options.splice(i, 1);
             commitInlineEdit(viewCtx);
           });

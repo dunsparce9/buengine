@@ -10,7 +10,8 @@ export const hasNativeFS = typeof window.showDirectoryPicker === 'function';
 /* ── Open folder ───────────────────────────────── */
 
 /**
- * Prompt user to pick a local game folder. Returns the handle or null if cancelled.
+ * Pick a local game folder without replacing the current workspace.
+ * Returns the handle or null if cancelled.
  */
 export async function openFolder() {
   if (!hasNativeFS) {
@@ -18,9 +19,7 @@ export async function openFolder() {
     return null;
   }
   try {
-    const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
-    await openFolderHandle(handle);
-    return handle;
+    return await window.showDirectoryPicker({ mode: 'readwrite' });
   } catch (e) {
     if (e.name === 'AbortError') return null;
     throw e;
@@ -48,9 +47,11 @@ export async function ensureHandlePermission(handle, mode = 'readwrite') {
 /**
  * Recursively scan the root handle and populate state.fileTree.
  */
-export async function buildTree() {
-  if (!state.rootHandle) return;
-  state.fileTree = await _scanDir(state.rootHandle, '');
+export async function buildTree(root = state.rootHandle) {
+  if (!root) return;
+  const scripts = state.scripts;
+  const tree = await _scanDir(root, '');
+  if (state.rootHandle === root && state.scripts === scripts) state.fileTree = tree;
 }
 
 async function _scanDir(dirHandle, basePath) {
@@ -104,84 +105,92 @@ export async function readFileBinary(path) {
 
 /* ── Write ─────────────────────────────────────── */
 
-async function _navigateToDir(pathParts, create = false) {
-  let dir = state.rootHandle;
+async function _navigateToDir(pathParts, create = false, root = state.rootHandle) {
+  let dir = root;
   for (const part of pathParts) {
     dir = await dir.getDirectoryHandle(part, { create });
   }
   return dir;
 }
 
-export async function writeFile(path, content) {
+export async function writeFile(path, content, root = state.rootHandle) {
   const parts = path.split('/').filter(Boolean);
   const fileName = parts.pop();
-  const dir = await _navigateToDir(parts, true);
+  const dir = await _navigateToDir(parts, true, root);
   const fh = await dir.getFileHandle(fileName, { create: true });
   const w = await fh.createWritable();
   await w.write(content);
   await w.close();
 }
 
-export async function writeFileBinary(path, data) {
-  const parts = path.split('/').filter(Boolean);
-  const fileName = parts.pop();
-  const dir = await _navigateToDir(parts, true);
-  const fh = await dir.getFileHandle(fileName, { create: true });
-  const w = await fh.createWritable();
-  await w.write(data);
-  await w.close();
-}
+export const writeFileBinary = writeFile;
 
 /* ── Delete ────────────────────────────────────── */
 
-export async function deleteEntry(path) {
+export async function deleteEntry(path, root = state.rootHandle) {
   const parts = path.split('/').filter(Boolean);
   const name = parts.pop();
-  const dir = await _navigateToDir(parts);
+  const dir = await _navigateToDir(parts, false, root);
   await dir.removeEntry(name, { recursive: true });
 }
 
 /* ── Create folder ─────────────────────────────── */
 
-export async function createDir(path) {
-  await _navigateToDir(path.split('/').filter(Boolean), true);
+export async function createDir(path, root = state.rootHandle) {
+  await _navigateToDir(path.split('/').filter(Boolean), true, root);
 }
 
 /* ── Move / Rename ─────────────────────────────── */
 
-export async function moveEntry(oldPath, newPath) {
+export async function moveEntry(oldPath, newPath, root = state.rootHandle) {
+  if (state.rootHandle !== root) throw new Error('Workspace changed before moving the entry.');
+  const parts = newPath.split('/');
+  if (parts.some(part => !part || part === '.' || part === '..' || /[<>:"\\|?*\x00-\x1f]/.test(part))) {
+    throw new Error('Invalid destination path.');
+  }
+  if (newPath.toLowerCase() === oldPath.toLowerCase() || newPath.toLowerCase().startsWith(`${oldPath.toLowerCase()}/`)) {
+    throw new Error('Cannot move an entry onto itself or into its own folder.');
+  }
+  let nodes = state.fileTree;
+  for (let i = 0; nodes && i < parts.length; i++) {
+    const existing = nodes.find(node => node.name.toLowerCase() === parts[i].toLowerCase());
+    if (!existing) break;
+    if (i === parts.length - 1) throw new Error(`Already exists: ${newPath}`);
+    nodes = existing.children;
+  }
   const node = findNode(oldPath);
   if (!node) throw new Error(`Not found: ${oldPath}`);
   if (node.type === 'file') {
     const file = await node.handle.getFile();
     const buf = await file.arrayBuffer();
-    await writeFileBinary(newPath, buf);
-    await deleteEntry(oldPath);
+    await writeFileBinary(newPath, buf, root);
+    await deleteEntry(oldPath, root);
   } else {
-    await _copyDirRecursive(node, newPath);
-    await deleteEntry(oldPath);
+    await _copyDirRecursive(node, newPath, root);
+    await deleteEntry(oldPath, root);
   }
 }
 
-async function _copyDirRecursive(node, destPath) {
-  await createDir(destPath);
+async function _copyDirRecursive(node, destPath, root) {
+  await createDir(destPath, root);
   for (const child of node.children) {
     const childDest = `${destPath}/${child.name}`;
     if (child.type === 'dir') {
-      await _copyDirRecursive(child, childDest);
+      await _copyDirRecursive(child, childDest, root);
     } else {
       const file = await child.handle.getFile();
       const buf = await file.arrayBuffer();
-      await writeFileBinary(childDest, buf);
+      await writeFileBinary(childDest, buf, root);
     }
   }
 }
 
-export async function renameEntry(path, newName) {
+export async function renameEntry(path, newName, root = state.rootHandle) {
+  if (!newName || /[/\\]/.test(newName)) throw new Error('Rename requires a filename, without a folder path.');
   const parts = path.split('/').filter(Boolean);
   parts.pop();
   const newPath = parts.length ? `${parts.join('/')}/${newName}` : newName;
-  await moveEntry(path, newPath);
+  await moveEntry(path, newPath, root);
   return newPath;
 }
 
@@ -191,12 +200,16 @@ export async function renameEntry(path, newName) {
  * Get a displayable blob URL for an asset path.
  */
 export async function resolveAssetURL(path) {
-  if (state.assetURLCache.has(path)) return state.assetURLCache.get(path);
+  const cache = state.assetURLCache;
+  if (cache.has(path)) return cache.get(path);
+  const root = state.rootHandle;
   const node = findNode(path);
   if (!node || node.type !== 'file') return '';
   const file = await node.handle.getFile();
+  if (state.rootHandle !== root || state.assetURLCache !== cache || findNode(path) !== node) return '';
+  if (cache.has(path)) return cache.get(path);
   const url = URL.createObjectURL(file);
-  state.assetURLCache.set(path, url);
+  cache.set(path, url);
   return url;
 }
 
@@ -217,7 +230,7 @@ export function clearAssetCache() {
   for (const url of state.assetURLCache.values()) {
     URL.revokeObjectURL(url);
   }
-  state.assetURLCache.clear();
+  state.assetURLCache = new Map();
 }
 
 /* ── Collect all file paths from tree ──────────── */

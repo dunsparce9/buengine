@@ -1,16 +1,14 @@
 import { state } from '../state.js';
 import { collectAllPaths, resolveAssetURL } from '../fs-provider.js';
-import { isStandalonePWA } from './ui.js';
+import { isStandalonePWA, showToast } from './ui.js';
 
 async function persistPreviewState() {
-  const overrides = {};
-  for (const [id, data] of Object.entries(state.scripts)) {
-    overrides[id] = data;
-  }
-  localStorage.setItem('buengine_editor_preview', JSON.stringify(overrides));
-
-  if (state.rootHandle) {
-    const assetMap = {};
+  const scripts = state.scripts;
+  const root = state.rootHandle;
+  const json = JSON.stringify(scripts);
+  let assetMap = null;
+  if (root) {
+    assetMap = {};
     for (const path of collectAllPaths()) {
       if (path.endsWith('.json')) continue;
       try {
@@ -18,6 +16,10 @@ async function persistPreviewState() {
         if (url) assetMap[path] = url;
       } catch {}
     }
+  }
+  if (state.scripts !== scripts || state.rootHandle !== root) throw new Error('Workspace changed while preparing preview');
+  localStorage.setItem('buengine_editor_preview', json);
+  if (assetMap) {
     localStorage.setItem('buengine_editor_assets', JSON.stringify(assetMap));
   } else {
     localStorage.removeItem('buengine_editor_assets');
@@ -37,15 +39,24 @@ function getSelectedSceneId() {
 }
 
 export async function runInNewTab() {
-  await persistPreviewState();
-  openPreview();
+  try {
+    await persistPreviewState();
+    openPreview();
+  } catch (err) {
+    showToast(`Preview failed: ${err.message}`, 'error');
+  }
 }
 
 export async function runCurrentScene() {
   const sceneId = getSelectedSceneId();
   if (!sceneId) return false;
 
-  await persistPreviewState();
-  openPreview(`&scene=${encodeURIComponent(sceneId)}`);
-  return true;
+  try {
+    await persistPreviewState();
+    openPreview(`&scene=${encodeURIComponent(sceneId)}`);
+    return true;
+  } catch (err) {
+    showToast(`Preview failed: ${err.message}`, 'error');
+    return false;
+  }
 }

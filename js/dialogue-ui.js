@@ -181,7 +181,9 @@ export class DialogueUI {
     } else {
       this.bus.emit('sound:play', UI_SOUNDS.dialogueClick);
       this.hide();
-      if (this._onDone) this._onDone();
+      const onDone = this._onDone;
+      this._onDone = null;
+      onDone?.();
     }
   }
 }

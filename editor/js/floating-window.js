@@ -2,7 +2,21 @@
  * Draggable (optionally resizable) floating window component.
  */
 
+import { containsReference } from '../../js/script-data.js';
+
 let _zTop = 1000;
+const transientWindows = new Map();
+
+export function closeTransientWindows() {
+  for (const fw of [...transientWindows.keys()]) fw.destroy();
+}
+
+/** Close editors whose model is being deleted, replaced, or renamed. */
+export function closeWindowsFor(owner) {
+  for (const [fw, model] of [...transientWindows]) {
+    if (model && containsReference(owner, model)) fw.destroy();
+  }
+}
 const OPENING_CLASS = 'fw-opening';
 const CLOSING_CLASS = 'fw-closing';
 function bringToFront(el) {
@@ -21,7 +35,7 @@ function bringToFront(el) {
  * @param {boolean} [opts.closeOnBackdrop=false]
  * @returns {{ el: HTMLElement, body: HTMLElement, open(): void, close(): void, destroy(): void }}
  */
-export function createFloatingWindow({ title = '', subtitle = '', icon = '', iconClass = '', width = 300, height, resizable = false, modal = false, closeOnBackdrop = false, parent = null }) {
+export function createFloatingWindow({ title = '', subtitle = '', icon = '', iconClass = '', width = 300, height, resizable = false, modal = false, closeOnBackdrop = false, parent = null, owner = null, reusable = false }) {
   const el = document.createElement('div');
   el.className = 'fw hidden';
   el.style.width = `${width}px`;
@@ -92,6 +106,7 @@ export function createFloatingWindow({ title = '', subtitle = '', icon = '', ico
 
   // -- Drag-to-move via header --
   let dragStartX, dragStartY, startLeft, startTop;
+  const endResize = [];
 
   function onDragMove(e) {
     const dx = e.clientX - dragStartX;
@@ -158,6 +173,7 @@ export function createFloatingWindow({ title = '', subtitle = '', icon = '', ico
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
       }
+      endResize.push(onResizeUp);
 
       handle.addEventListener('mousedown', (e) => {
         e.preventDefault();
@@ -260,7 +276,7 @@ export function createFloatingWindow({ title = '', subtitle = '', icon = '', ico
       el.classList.add('hidden');
       if (backdrop) backdrop.remove();
       if (parent) parent.el.classList.remove('fw-blocked');
-      if (_onClose) _onClose();
+      notifyClose();
     };
 
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -276,6 +292,12 @@ export function createFloatingWindow({ title = '', subtitle = '', icon = '', ico
   }
 
   function destroy() {
+    transientWindows.delete(fw);
+    for (const child of [...transientWindows.keys()]) {
+      if (child.parent === fw) child.destroy();
+    }
+    onDragUp();
+    for (const finish of endResize) finish();
     closeSeq++;
     if (attentionFrame) {
       cancelAnimationFrame(attentionFrame);
@@ -289,7 +311,13 @@ export function createFloatingWindow({ title = '', subtitle = '', icon = '', ico
     el.remove();
     if (backdrop) backdrop.remove();
     if (parent) parent.el.classList.remove('fw-blocked');
-    if (_onClose) _onClose();
+    notifyClose();
+  }
+
+  function notifyClose() {
+    const callback = _onClose;
+    _onClose = null;
+    callback?.();
   }
 
   function onClose(fn) {
@@ -300,5 +328,7 @@ export function createFloatingWindow({ title = '', subtitle = '', icon = '', ico
 
   document.body.appendChild(el);
 
-  return { el, body, open, close, destroy, onClose, setTitle, setSubtitle, requestAttention };
+  const fw = { el, body, parent, open, close, destroy, onClose, setTitle, setSubtitle, requestAttention };
+  if (!reusable) transientWindows.set(fw, owner);
+  return fw;
 }

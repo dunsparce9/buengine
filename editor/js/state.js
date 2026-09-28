@@ -1,3 +1,5 @@
+import { walkActions } from '../../js/script-data.js';
+
 /**
  * Shared editor state, DOM references, and render hooks.
  *
@@ -74,69 +76,23 @@ export function scriptPathFromId(id) {
  */
 export function collectImagePaths() {
   const paths = new Set();
-  const getSceneSequences = (data) => data?.sequences || {};
-  const walkObjectActions = (obj, walkActions) => {
-    if (!obj || typeof obj !== 'object') return;
-    if (Array.isArray(obj.actions)) walkActions(obj.actions);
-    if (Array.isArray(obj.options)) {
-      for (const option of obj.options) walkActions(option?.actions);
-    }
+  const visit = (action) => {
+    if (action.show?.texture) paths.add(action.show.texture);
   };
   for (const data of Object.values(state.scripts)) {
-    // Items table (items/items.json is an array, not a scene)
-    if (Array.isArray(data)) {
-      for (const item of data) {
-        if (!item || typeof item !== 'object') continue;
-        if (item.icon) paths.add(item.icon);
-      }
-      // Item option actions may still reference show.texture overlays.
-      const walkItemActions = (actions) => {
-        if (!Array.isArray(actions)) return;
-        for (const a of actions) {
-          if (a.show?.texture) paths.add(a.show.texture);
-          if (Array.isArray(a.then)) walkItemActions(a.then);
-          if (Array.isArray(a.else)) walkItemActions(a.else);
-          if (Array.isArray(a.do)) walkItemActions(a.do);
-          if (a.choice?.options) {
-            for (const o of a.choice.options) walkItemActions(o.actions);
-          }
-        }
-      };
-      for (const item of data) {
-        if (!item || typeof item !== 'object') continue;
-        if (Array.isArray(item.options)) {
-          for (const option of item.options) walkItemActions(option?.actions);
-        }
-      }
-      continue;
-    }
+    if (!data || typeof data !== 'object') continue;
     if (data.background) paths.add(data.background);
-    const objects = data?.objects;
-    if (Array.isArray(objects)) {
-      for (const obj of objects) {
-        if (obj.texture) paths.add(obj.texture);
-      }
+    // Item tables and scene objects both own image references and options.
+    const entities = Array.isArray(data) ? data : (data.objects || []);
+    for (const entity of entities) {
+      if (!entity || typeof entity !== 'object') continue;
+      if (entity.icon) paths.add(entity.icon);
+      if (entity.texture) paths.add(entity.texture);
+      walkActions(entity.actions, visit);
+      for (const option of entity.options || []) walkActions(option.actions, visit);
     }
-    // Walk actions for show.texture references
-    const walkActions = (actions) => {
-      if (!Array.isArray(actions)) return;
-      for (const a of actions) {
-        if (a.show?.texture) paths.add(a.show.texture);
-        if (Array.isArray(a.then)) walkActions(a.then);
-        if (Array.isArray(a.else)) walkActions(a.else);
-        if (Array.isArray(a.do)) walkActions(a.do);
-        if (a.choice?.options) {
-          for (const o of a.choice.options) walkActions(o.actions);
-        }
-      }
-    };
-    if (Array.isArray(data.onEnter)) walkActions(data.onEnter);
-    for (const acts of Object.values(getSceneSequences(data))) {
-      walkActions(acts);
-    }
-    if (Array.isArray(objects)) {
-      for (const obj of objects) walkObjectActions(obj, walkActions);
-    }
+    walkActions(data.onEnter, visit);
+    for (const actions of Object.values(data.sequences || {})) walkActions(actions, visit);
   }
   return [...paths].sort();
 }

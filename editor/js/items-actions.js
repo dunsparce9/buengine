@@ -6,6 +6,7 @@
  */
 
 import { state, hooks, markDirty } from './state.js';
+import { closeWindowsFor } from './floating-window.js';
 
 function getItemsArray() {
   const data = state.scripts[state.selectedId];
@@ -36,6 +37,7 @@ export function deleteItemDefinition(itemId) {
   if (!items || !state.selectedId) return;
   const idx = items.findIndex(item => item?.id === itemId);
   if (idx < 0) return;
+  closeWindowsFor(items[idx]);
   items.splice(idx, 1);
 
   if (state.selectedItem === itemId) {

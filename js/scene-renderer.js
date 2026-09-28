@@ -219,10 +219,12 @@ export class SceneRenderer {
       clearTimeout(timer);
       onDone?.();
     };
-    const handleEnd = () => settle();
+    const handleEnd = event => {
+      if (event.target === el && event.propertyName === 'opacity') settle();
+    };
     // +50ms slack so the fallback only fires if transitionend truly never will
     const timer = setTimeout(settle, seconds * 1000 + 50);
-    el.addEventListener('transitionend', handleEnd, { once: true });
+    el.addEventListener('transitionend', handleEnd);
   }
 
   /* ── Unified entity show/hide ────────────────── */
@@ -262,8 +264,10 @@ export class SceneRenderer {
     if (!entry) { onDone?.(); return; }
 
     const el = entry.el;
+    const version = entry.visibilityVersion = (entry.visibilityVersion || 0) + 1;
 
     const finish = () => {
+      if (this._entities.get(id) !== entry || entry.visibilityVersion !== version) return;
       entry.visible = false;
       if (entry.runtime) {
         el.remove();
@@ -308,6 +312,7 @@ export class SceneRenderer {
   }
 
   _revealEntity(entry, effect, onDone) {
+    entry.visibilityVersion = (entry.visibilityVersion || 0) + 1;
     const el = entry.el;
     entry.visible = true;
     el.style.pointerEvents = entry.runtime ? 'none' : '';
@@ -502,7 +507,7 @@ export class SceneRenderer {
       el.style.opacity = '1';
 
       if (effect.blocking) {
-        el.addEventListener('transitionend', () => onDone?.(), { once: true });
+        this._waitForTransition(el, effect.seconds, () => onDone?.());
       } else {
         onDone?.();
       }

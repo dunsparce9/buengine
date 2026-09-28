@@ -6,7 +6,8 @@
  * live in one place; only option-row rendering stays here.
  */
 
-import { openActionEditor } from './action-editor.js';
+import { openActionField } from './action-editor.js';
+import { closeWindowsFor } from './floating-window.js';
 import {
   openListModal,
   createActionsPill,
@@ -22,6 +23,7 @@ export function createOption({ text = 'New option', icon = '', actions = [] } = 
 export function createDefaultObjectOption() {
   return createOption({ text: 'Interact' });
 }
+const legacyOptions = new WeakMap();
 
 export function openOptionsModal({
   target,
@@ -34,7 +36,14 @@ export function openOptionsModal({
   actionViewerContext = {},
   createDefaultOption = () => createOption(),
 }) {
-  const initialState = { target, scriptId, ownerLabel, onChange, actionViewerContext, createDefaultOption, title, subtitle };
+  const commitChange = () => {
+    if (!Array.isArray(target.options)) {
+      target.options = getOptionsPreview(target);
+      delete target.actions;
+    }
+    onChange?.();
+  };
+  const initialState = { target, scriptId, ownerLabel, onChange: commitChange, actionViewerContext, createDefaultOption, title, subtitle };
   return openListModal({
     modalKey,
     title: 'Options',
@@ -57,7 +66,7 @@ export function openOptionsModal({
       { label: 'Text' },
       { label: 'Actions' },
     ],
-    getRows: (st) => getOptions(st.target),
+    getRows: (st) => getOptionsPreview(st.target),
     buildRowCells: (tr, { modalState: st, row: opt, index: i }) =>
       buildOptionRowCells(tr, st, opt, i),
     renderEmpty: (content, st) => {
@@ -84,9 +93,11 @@ function getOptionsSubtitle(title) {
   return label && label.toLowerCase() !== 'options' ? label : '';
 }
 
-function getOptions(target) {
-  if (!Array.isArray(target.options)) target.options = [];
-  return target.options;
+export function getOptionsPreview(target) {
+  if (Array.isArray(target.options)) return target.options;
+  if (!Array.isArray(target.actions)) return [];
+  if (!legacyOptions.has(target)) legacyOptions.set(target, [createOption({ text: 'Interact', actions: target.actions })]);
+  return legacyOptions.get(target);
 }
 
 function buildOptionRowCells(tr, st, opt, i) {
@@ -136,7 +147,7 @@ function buildOptionRowCells(tr, st, opt, i) {
 
   const tdActions = document.createElement('td');
   tdActions.className = 'items-opt-td-actions';
-  const actions = Array.isArray(opt.actions) ? opt.actions : (opt.actions = []);
+  const actions = Array.isArray(opt.actions) ? opt.actions : [];
   if (st.collapsed) {
     const count = document.createElement('span');
     count.className = 'items-options-compact-actions';
@@ -166,13 +177,14 @@ function createOptionActionsPill({
   actionViewerContext,
 }) {
   return createActionsPill(actions.length, (renderPill) => {
-    openActionEditor(
+    openActionField(
       `${ownerLabel} — ${option.text || 'Option ' + (optionIndex + 1)}`,
-      actions,
+      option,
+      'actions',
       {
         ...actionViewerContext,
         onChange: () => {
-          renderPill(actions.length);
+          renderPill(option.actions.length);
           notifyListChange(scriptId, onChange);
         },
       }
@@ -181,15 +193,22 @@ function createOptionActionsPill({
 }
 
 function createNewOption(st) {
-  getOptions(st.target).push(st.createDefaultOption());
+  if (!Array.isArray(st.target.options)) {
+    st.target.options = getOptionsPreview(st.target);
+    delete st.target.actions;
+  }
+  st.target.options.push(st.createDefaultOption());
   notifyListChange(st.scriptId, st.onChange);
   st.rebuild();
 }
 
 function deleteOption(st, index) {
-  const options = getOptions(st.target);
+  const options = getOptionsPreview(st.target);
   if (index < 0 || index >= options.length) return;
+  closeWindowsFor(options[index]);
   options.splice(index, 1);
+  st.target.options = options;
+  delete st.target.actions;
   notifyListChange(st.scriptId, st.onChange);
   st.rebuild();
 }
