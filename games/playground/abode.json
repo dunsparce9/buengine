@@ -397,6 +397,49 @@
               "run": "pick_up_seal"
             }
           ]
+        },
+        {
+          "text": "Seal Configuration Wizard...",
+          "icon": "⚙️",
+          "actions": [
+            {
+              "choice": {
+                "prompt": "Welcome to the Seal Configuration Wizard.",
+                "options": [
+                  {
+                    "text": "Embiggen",
+                    "actions": [
+                      {
+                        "animate": {
+                          "target": "object",
+                          "id": "this",
+                          "to": {
+                            "scale": 5
+                          },
+                          "seconds": 2,
+                          "easing": "ease-in-out"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "text": "Send to Shadow Realm",
+                    "actions": [
+                      {
+                        "hide": {
+                          "id": "this"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "text": "Cancel",
+                    "actions": []
+                  }
+                ]
+              }
+            }
+          ]
         }
       ]
     },

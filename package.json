@@ -1,0 +1,14 @@
+{
+  "name": "buengine",
+  "private": true,
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "precache": "node editor/tools/generate-sw-precache.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

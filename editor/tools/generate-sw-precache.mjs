@@ -1,90 +1,75 @@
 #!/usr/bin/env node
-/**
- * Regenerate the editor service-worker precache list from disk
- * (review phase 5, item 18).
- *
- * The hand-curated CORE_ASSETS in editor/sw.js drifted out of sync
- * (6+ files missing; cache.addAll is atomic, so one bad URL kills
- * install). Run this after adding/renaming editor files:
- *
- *   node editor/tools/generate-sw-precache.mjs
- *
- * It scans editor/ for web assets, rewrites only the CORE_ASSETS block
- * in sw.js, and preserves everything else (CACHE_NAME, strategies).
- * No build step — dev-only tooling, safe to run by hand.
- */
-
-import { readdirSync, readFileSync, writeFileSync, statSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
+/** Generate the source editor precache, or the release precache from build output. */
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const EDITOR_DIR = join(fileURLToPath(import.meta.url), '..', '..');
-const SW_PATH = join(EDITOR_DIR, 'sw.js');
-
-const INCLUDE_EXTS = new Set(['.html', '.css', '.js', '.webmanifest', '.svg']);
-const EXCLUDE_DIRS = new Set(['tools']);
+const PROJECT_DIR = fileURLToPath(new URL('../../', import.meta.url));
+const TEXT_EXTS = new Set(['.html', '.css', '.js', '.webmanifest', '.svg']);
+const ASSET_EXTS = new Set([
+  ...TEXT_EXTS, '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.ttf', '.woff', '.woff2',
+]);
+const extension = (path) => path.slice(path.lastIndexOf('.')).toLowerCase();
+const slash = (path) => path.split(sep).join('/');
 
 function walk(dir, out = []) {
-  for (const name of readdirSync(dir).sort()) {
-    const full = join(dir, name);
-    const rel = relative(EDITOR_DIR, full).split(sep).join('/');
-    if (statSync(full).isDirectory()) {
-      if (EXCLUDE_DIRS.has(rel.split('/')[0]) || EXCLUDE_DIRS.has(name)) continue;
-      walk(full, out);
-    } else {
-      out.push(rel);
-    }
+  for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name, 'en'))) {
+    if (entry.name === 'tools') continue;
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) walk(full, out);
+    else if (entry.isFile() && ASSET_EXTS.has(extension(full))) out.push(full);
   }
   return out;
 }
 
-function discoverAssets() {
-  const editorAssets = walk(EDITOR_DIR)
-    .filter((rel) => {
-      if (rel === 'sw.js') return false;
-      const dot = rel.lastIndexOf('.');
-      if (dot < 0) return false;
-      return INCLUDE_EXTS.has(rel.slice(dot));
-    })
-    .map((rel) => `./${rel}`)
-    .sort();
-  // Neutral runtime modules imported by the editor must also work offline.
-  return [...editorAssets, '../assets/images/seal.png', '../js/shared/action-schema.js', '../js/shared/script-data.js'];
-}
+const normalizedText = (text) => text.replace(/\r\n/g, '\n');
 
-function buildSwBody(assets) {
-  const lines = [
-    "const CORE_ASSETS = [",
-    "  './',",
-    ...assets.map((a) => `  '${a}',`),
-    "];",
+export function generatePrecache({ root = PROJECT_DIR, releaseBuild = false, extraAssets = [] } = {}) {
+  const editorDir = join(root, 'editor');
+  const swPath = join(editorDir, 'sw.js');
+  const editorAssets = walk(editorDir).filter((path) => path !== swPath)
+    .map((path) => `./${slash(relative(editorDir, path))}`);
+  const sharedAssets = releaseBuild ? [] : [
+    '../js/shared/action-schema.js', '../js/shared/script-data.js',
+    '../css/material-symbols.css', '../assets/fonts/material-symbols-outlined.ttf',
   ];
-  return lines.join('\n');
+  const assets = [...new Set([
+    ...editorAssets, ...sharedAssets, '../assets/images/seal.png',
+    ...extraAssets.map((path) => path.startsWith('.') ? path : `./${path}`),
+  ])].sort();
+  const swSrc = readFileSync(swPath, 'utf8');
+  const assetBlock = /const CORE_ASSETS = \[[\s\S]*?\];/;
+  const versionDeclaration = /const CACHE_VERSION = '[^']*';/;
+  const releaseDeclaration = /const RELEASE_BUILD = (?:true|false);/;
+  if (![assetBlock, versionDeclaration, releaseDeclaration].every((pattern) => pattern.test(swSrc))) {
+    throw new Error('Generated declarations not found in editor/sw.js');
+  }
+
+  const newline = swSrc.includes('\r\n') ? '\r\n' : '\n';
+  const nextBlock = [
+    'const CORE_ASSETS = [', "  './',",
+    ...assets.map((asset) => `  '${asset}',`), '];',
+  ].join(newline);
+  const template = swSrc
+    .replace(assetBlock, '/* generated precache list */')
+    .replace(versionDeclaration, '/* generated cache version */')
+    .replace(releaseDeclaration, `const RELEASE_BUILD = ${releaseBuild};`);
+  const hash = createHash('sha256').update(normalizedText(template));
+  for (const asset of assets) {
+    const contents = readFileSync(join(editorDir, asset));
+    const bytes = TEXT_EXTS.has(extension(asset)) ? normalizedText(contents.toString('utf8')) : contents;
+    hash.update('\0' + asset + '\0');
+    hash.update(createHash('sha256').update(bytes).digest());
+  }
+  const version = hash.digest('hex').slice(0, 16);
+  const nextSource = swSrc.replace(assetBlock, () => nextBlock)
+    .replace(versionDeclaration, `const CACHE_VERSION = '${version}';`)
+    .replace(releaseDeclaration, `const RELEASE_BUILD = ${releaseBuild};`);
+  if (swSrc !== nextSource) writeFileSync(swPath, nextSource);
+  console.log(`${releaseBuild ? 'Release' : 'Source'} editor precache: ${assets.length + 1} URLs, version ${version}.`);
 }
 
-const assets = discoverAssets();
-const swSrc = readFileSync(SW_PATH, 'utf8');
-
-const start = swSrc.indexOf('const CORE_ASSETS = [');
-const end = swSrc.indexOf('];', start);
-if (start < 0 || end < 0) {
-  console.error('CORE_ASSETS block not found in sw.js');
-  process.exit(1);
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  generatePrecache();
 }
-
-const prevBlock = swSrc.slice(start, end + 2);
-const nextBlock = buildSwBody(assets);
-
-if (prevBlock === nextBlock) {
-  console.log(`sw.js precache already in sync (${assets.length} assets).`);
-  process.exit(0);
-}
-
-const prevAssets = [...prevBlock.matchAll(/'(\.\/[^']+)'/g)].map((m) => m[1]);
-const added = assets.filter((a) => a !== './' && !prevAssets.includes(a));
-const removed = prevAssets.filter((a) => a !== './' && !assets.includes(a));
-
-writeFileSync(SW_PATH, swSrc.slice(0, start) + nextBlock + swSrc.slice(end + 2));
-console.log(`Wrote ${assets.length} precache entries to editor/sw.js.`);
-if (added.length) console.log(`  added: ${added.join(', ')}`);
-if (removed.length) console.log(`  removed: ${removed.join(', ')}`);

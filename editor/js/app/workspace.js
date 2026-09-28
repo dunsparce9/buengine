@@ -176,6 +176,7 @@ export async function saveCurrentFile() {
   else if (state.scripts[id]) state.dirtySet.add(id);
   renderFileList();
   showToast(`Saved ${path}`);
+  hooks.afterSave();
 }
 
 export async function saveAllFiles() {
@@ -242,4 +243,5 @@ export async function saveAllFiles() {
   if (!isCurrentWorkspace(workspace)) return;
   renderFileList();
   showToast(`Saved ${saved} file(s)`);
+  hooks.afterSave();
 }

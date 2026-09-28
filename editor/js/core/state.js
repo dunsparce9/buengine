@@ -1,4 +1,4 @@
-import { walkActions } from '../../../js/shared/script-data.js';
+import { walkScriptActions } from '../../../js/shared/script-data.js';
 
 /**
  * Shared editor state, DOM references, and render hooks.
@@ -45,6 +45,7 @@ export const hooks = {
   renderViewport:   () => {},
   renderProperties: () => {},
   updateWindowTitle: () => {},
+  afterSave:        () => {},
 };
 
 /* ── Utilities ─────────────────────────────────── */
@@ -88,11 +89,8 @@ export function collectImagePaths() {
       if (!entity || typeof entity !== 'object') continue;
       if (entity.icon) paths.add(entity.icon);
       if (entity.texture) paths.add(entity.texture);
-      walkActions(entity.actions, visit);
-      for (const option of entity.options || []) walkActions(option.actions, visit);
     }
-    walkActions(data.onEnter, visit);
-    for (const actions of Object.values(data.sequences || {})) walkActions(actions, visit);
+    walkScriptActions(data, visit);
   }
   return [...paths].sort();
 }

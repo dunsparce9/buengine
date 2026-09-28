@@ -1,35 +1,73 @@
-import { showToast, updateRunLabels, updateWindowTitle, isStandalonePWA } from './ui.js';
+import { showToast, updateRunLabels, updateWindowTitle, isStandalonePWA, hasUnsavedChanges } from './ui.js';
+import { hooks } from '../core/state.js';
 
 let deferredInstallPrompt = null;
 let hasReloadedForServiceWorkerUpdate = false;
+let pendingServiceWorkerReload = false;
+let updateNoticeShown = false;
+let serviceWorkerRegistration = null;
+let activatingWorker = null;
+
+function applyPendingUpdate() {
+  const waiting = serviceWorkerRegistration?.waiting;
+  if ((!pendingServiceWorkerReload && !waiting) || hasReloadedForServiceWorkerUpdate) return;
+  if (hasUnsavedChanges()) {
+    if (!updateNoticeShown) {
+      updateNoticeShown = true;
+      showToast('Editor update ready. Save all changes to reload.');
+    }
+    return;
+  }
+  if (pendingServiceWorkerReload) {
+    hasReloadedForServiceWorkerUpdate = true;
+    window.location.reload();
+  } else if (waiting && waiting !== activatingWorker) {
+    activatingWorker = waiting;
+    waiting.postMessage({ type: 'SKIP_WAITING' });
+  }
+}
 
 function setupServiceWorkerUpdates(registration) {
-  const requestUpdateCheck = () => registration.update().catch(() => {});
+  serviceWorkerRegistration = registration;
+  hooks.afterSave = applyPendingUpdate;
+  const requestUpdateCheck = () => {
+    applyPendingUpdate();
+    registration.update().catch(() => {});
+  };
 
   window.addEventListener('focus', requestUpdateCheck);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') requestUpdateCheck();
   });
 
-  if (registration.waiting) {
-    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-  }
+  applyPendingUpdate();
 
   registration.addEventListener('updatefound', () => {
     const worker = registration.installing;
-    if (!worker) return;
-    worker.addEventListener('statechange', () => {
-      if (worker.state === 'installed' && navigator.serviceWorker.controller) {
-        worker.postMessage({ type: 'SKIP_WAITING' });
-      }
-    });
+    if (worker) watchInstallingWorker(worker);
   });
+  if (registration.installing) watchInstallingWorker(registration.installing);
+}
 
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (hasReloadedForServiceWorkerUpdate) return;
-    hasReloadedForServiceWorkerUpdate = true;
-    window.location.reload();
+function watchInstallingWorker(worker) {
+  worker.addEventListener('statechange', () => {
+    if (worker.state === 'installed') applyPendingUpdate();
   });
+}
+
+function registerServiceWorker() {
+  let hadController = Boolean(navigator.serviceWorker.controller);
+  // Listen before registration, including when installation finishes quickly.
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    const isUpdate = hadController;
+    hadController = true;
+    if (!isUpdate) return;
+    pendingServiceWorkerReload = true;
+    applyPendingUpdate();
+  });
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
+    .then(setupServiceWorkerUpdates)
+    .catch(() => {});
 }
 
 export function updateInstallMenuVisibility() {
@@ -62,11 +100,8 @@ export function setupPWAInstall() {
   });
 
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
-        .then(setupServiceWorkerUpdates)
-        .catch(() => {});
-    });
+    if (document.readyState === 'complete') registerServiceWorker();
+    else window.addEventListener('load', registerServiceWorker, { once: true });
   }
 }
 

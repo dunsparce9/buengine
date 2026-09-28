@@ -6,7 +6,7 @@ applyTo: "editor/**"
 # büengine Editor
 
 ## Overview
-A visual level editor for büengine games. It lives entirely inside `editor/` and is opened via `editor/index.html`. Like the game engine, there is no build step — just vanilla ES modules and static files.
+A visual level editor for büengine games. It lives entirely inside `editor/` and is opened via `editor/index.html`. Source development uses vanilla ES modules and static files directly. The optional root `npm run build` command bundles it into `dist/editor/` and generates a release service worker from its emitted assets.
 
 It edits real folders on disk through the browser's File System Access API and keeps unsaved changes in memory until the user saves. The editor is a separate app from the runtime, but it intentionally shares the action schema with the engine.
 
@@ -81,7 +81,7 @@ editor/
       forms.js            ← schema-driven fields + nested action editors
       drag.js             ← cross-window action drag + shared reorder engine
   tools/
-    generate-sw-precache.mjs ← dev-only script regenerating sw.js CORE_ASSETS
+    generate-sw-precache.mjs ← shared source/release precache generator + content version
 ```
 
 ### Shared contract with runtime
@@ -156,7 +156,8 @@ Do not bypass that flow unless there is a clear reason.
 
 AE is the editor's action array UI with stable entry `editor/js/action-editor.js` (a re-export) and implementation under `editor/js/action-editor/`. It is a central subsystem, not a minor helper.
 
-- Opens floating windows for action arrays such as scene `onEnter`, object option actions, choice branches, loop bodies, and named `sequences`
+- Opens floating windows for action arrays such as scene `onEnter`, object `onHover`, object option actions, choice branches, loop bodies, and named `sequences`
+- Object properties expose an `onHover` action-count link using `openActionField`, so missing hover arrays stay drafts until edited. Hover actions participate in shared traversal for scene/sequence rename links and image-path suggestions.
 - Deduplicates windows via internal open-editor registry; transient Action Editor and list windows destroy their DOM when closed
 - Mutates the provided action array in place and reports changes through `opts.onChange`
 - Supports nested editors, inline field editing, add/delete, collapse, and drag-to-reorder
@@ -215,7 +216,7 @@ When editing AE-related code:
 
 ## Coding Rules
 
-1. **Same rules as the game engine** — vanilla JS, no frameworks, no build tools.
+1. **Same rules as the game engine** — vanilla JS, no frameworks or browser dependencies; optional esbuild release tooling must preserve direct source development.
 2. **Editor CSS stays in `editor/css/`** — use the existing split files by concern; do not dump everything into one stylesheet and do not touch `css/style.css` unless the runtime itself needs changes.
 3. **Editor JS goes in `editor/js/`** — one file per concern, grouped into `core/`, `data/`, `panels/`, `ui/`, `editors/`, `app/`, and `action-editor/`. Keep the entry modules at the root. Shared state lives in `core/state.js`. Cross-module render calls go through `hooks` (set by the orchestrator `app/index.js`) where that avoids cycles.
 4. **Do not couple editor code to runtime UI modules** — the editor is a separate app. Shared logic should live in neutral modules like `js/shared/action-schema.js`, not by importing runtime-only UI behavior.
@@ -225,6 +226,7 @@ When editing AE-related code:
 8. **Preview round-trip** — edits stay in memory. The Run button serialises everything to `localStorage` (`buengine_editor_preview` for scripts, `buengine_editor_assets` for staged assets). The game checks for these on `?preview` and overlays the data.
 9. **Dirty-state discipline** — any edit that changes persistent data should mark the relevant script dirty so Save / Save All remain trustworthy.
 10. **AE changes are high-impact** — if you change action editing behavior, check nested arrays, drag/drop, and schema-derived field rendering, not just the top-level happy path.
-11. **Offline dependencies** — `tools/generate-sw-precache.mjs` includes editor files and the shared `js/shared/action-schema.js` / `js/shared/script-data.js` modules. Update its shared list when introducing another cross-app import.
-    The service worker revalidates HTTP-cached responses on network requests and bypasses the HTTP cache when installing its precache. Bump `CACHE_NAME` for releases that need a fresh precache.
+11. **Offline dependencies** — `tools/generate-sw-precache.mjs` includes editor files, the shared `js/shared/action-schema.js` / `js/shared/script-data.js` modules, and the local Material Symbols stylesheet/font. Update its source shared list when introducing another cross-app import. Release builds call the same generator with actual emitted bundles/assets; shared JS is already bundled, and source maps/runtime-only files are excluded from precaching.
+    After every change to editor web assets (HTML/CSS/JS/manifest/icons), precached shared dependencies, or service-worker logic, run `npm run precache` (or `node editor/tools/generate-sw-precache.mjs`) before finishing. This regenerates `CORE_ASSETS` and derives `CACHE_VERSION` from asset paths/contents plus worker logic. Do not manually bump cache versions. Identical inputs leave the worker untouched; text line endings are normalized for hashing. The release build generates `dist/editor/sw.js` independently without rewriting the source worker.
+    `RELEASE_BUILD` is generated: source uses network first with revalidation/offline fallback; releases use their installed precache snapshot first. Install requests bypass HTTP cache. The worker caches only known core URLs and cleans only caches belonging to its own registration scope. Keep `sw.js` at the stable editor URL so existing installations discover updates. Do not add automatic `skipWaiting()` to install: the app requests activation only when clean, checks for updates on focus/visibility, and protects reloads if another tab activates an update while this tab is dirty. A pending update shows a save reminder and retries via `hooks.afterSave` after successful saves, or on focus. First-time worker control does not reload the editor. Runtime preview tabs are outside the editor worker's scope.
 12. **Agent documentation updates** - Update this file (`editor/AGENTS.md`) after significant or otherwise notable changes, as deemed necessary.

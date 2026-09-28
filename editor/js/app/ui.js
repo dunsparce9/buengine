@@ -8,7 +8,7 @@ const aboutWindow = createFloatingWindow({
   title: 'About',
   icon: 'info',
   iconClass: 'material-symbols-outlined',
-  width: 280,
+  width: 360,
   resizable: false,
 });
 
@@ -17,10 +17,11 @@ const aboutWindow = createFloatingWindow({
   content.style.textAlign = 'center';
   content.style.padding = '20px 28px';
 
+  const brand = document.querySelector('.welcome-brand').cloneNode(true);
+  brand.classList.add('about-brand');
   const heading = document.createElement('h2');
-  heading.textContent = 'büengine editor';
-  heading.style.fontSize = '1.3rem';
-  heading.style.marginBottom = '6px';
+  heading.textContent = 'büengine';
+  brand.querySelector('h1').replaceWith(heading);
 
   const version = document.createElement('p');
   version.textContent = 'v0.1';
@@ -31,7 +32,7 @@ const aboutWindow = createFloatingWindow({
   copyright.style.color = '#a89984';
   copyright.style.fontSize = '12px';
 
-  content.append(heading, version, copyright);
+  content.append(brand, version, copyright);
 }
 
 export function hasLoadedGame() {

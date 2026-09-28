@@ -29,6 +29,7 @@ const SECTION_ICONS = {
   'Cursor': 'mouse',
   'Sequences': 'code',
   'onEnter': 'login',
+  'onHover': 'mouse',
   'Options': 'tune',
 };
 
@@ -322,6 +323,15 @@ function renderObjectProps(obj) {
     }));
     dom.propsContent.appendChild(group);
   }
+
+  addActionLinkGroup('onHover', [['actions', Array.isArray(obj.onHover) ? obj.onHover.length : 0]],
+    () => openActionField(`${obj.label || obj.id} — onHover`, obj, 'onHover',
+      makeActionEditorOpts(data, () => {
+        markDirty(sceneId);
+        hooks.renderProperties();
+      })
+    )
+  );
 
   // ── Actions ──
   {

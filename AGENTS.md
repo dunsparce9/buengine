@@ -6,7 +6,7 @@ applyTo: "**"
 # büengine — Agent Instructions
 
 ## Project Overview
-büengine is a **static, browser-only, 2D point-and-click adventure game engine**. There is no server, no build step, no bundler — just ES modules served from files. Games are stored in `games/` as self-contained folders, each with its own JSON scripts and assets.
+büengine is a **static, browser-only, 2D point-and-click adventure game engine**. Development uses ES modules served directly from files. An optional esbuild release step (`npm run build`) packages a static `dist/` website; no application server is needed. Games are stored in `games/` as self-contained folders, each with its own JSON scripts and assets.
 
 ## Testing and verification
 No testing, no browser automation or CI steps (syntax checks are fine). The user handles in-browser verification.
@@ -60,8 +60,8 @@ games/
 
 ## Key Conventions
 
-### No build tools
-All JS is vanilla ES-module (`type="module"`). No TypeScript, no bundler. Keep it simple — a layperson should be able to open `index.html` from a local server.
+### Source development and release builds
+All JS is vanilla ES-module (`type="module"`). No TypeScript or frameworks. Source development must keep working from a local static server without installing dependencies. `tools/build.mjs` uses esbuild only for optional release packaging: hashed/minified runtime and editor JS/CSS, source maps, copied games/public assets, rewritten output HTML, and a generated release editor service worker. Do not edit generated `dist/` files; update source and rebuild. Node.js 22+ is required for tooling, and esbuild is a development dependency only.
 
 ### Script format
 Scene scripts are JSON files in each game's folder (e.g. `games/playground/`). Each has:
@@ -157,7 +157,9 @@ The editor has its own separate instructions at `editor/AGENTS.md`. Refer to thi
 
 ## Coding Rules
 
-1. **Vanilla JS only** — no frameworks, no dependencies.
+After changing editor web assets, `js/shared/action-schema.js`, `js/shared/script-data.js`, `assets/images/seal.png`, or editor service-worker logic, run `node editor/tools/generate-sw-precache.mjs` before finishing to refresh the editor's precache list and content-derived version. See `editor/AGENTS.md` for the editor update lifecycle.
+
+1. **Vanilla JS only** — no frameworks or browser dependencies; esbuild is permitted for optional release tooling.
 2. **Prefer events over imports** — use `bus.emit()` / `bus.on()` for cross-module communication.
 3. New UI components should follow the pattern: most take `bus`, query their own DOM elements, and subscribe to relevant events (a few take extra/different deps — e.g. `InventoryUI(bus, inventory)`, `GameSelector(onSelect)`, `DebugHud(getSceneData)`).
 4. Editor-only code lives under `editor/` and should not be bolted into runtime modules unless the feature is genuinely shared.

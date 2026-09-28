@@ -4,7 +4,49 @@ Simple 2D point-and-click story engine & level editor.
 
 ### Building
 
-Fully static website, no build steps.
+Development runs directly from the source: serve this folder with any local static
+server and open `index.html` or `editor/index.html`.
+
+For a smaller release, install Node.js 22+ and run:
+
+```sh
+npm ci
+npm run build
+```
+
+Serve or upload the contents of `dist/`. The build recreates that folder, bundles
+and minifies runtime/editor JS and CSS with esbuild, emits hashed filenames and
+source maps, and rewrites the copied HTML to use them. Game folders and public
+assets are copied with their existing paths. The result is still a static website;
+Node is only needed to generate it. Relative URLs support hosting under a subfolder.
+
+The build also generates `dist/editor/sw.js` from the emitted editor assets.
+Deploy the complete output together, including that worker. Configure the host to
+revalidate `editor/sw.js` and HTML (`Cache-Control: no-cache`); hashed bundles can
+use long-lived immutable caching.
+
+### Editor offline cache and updates
+
+For source development, refresh the editor's offline list/version after changing
+editor assets or precached shared dependencies:
+
+```sh
+npm run precache
+```
+
+This command needs no esbuild installation and is also available as
+`node editor/tools/generate-sw-precache.mjs`. Release builds generate their own
+precache automatically without rewriting the source worker.
+
+Cache versions are derived from file contents and worker logic. Source mode fetches
+fresh assets first, with an offline fallback. Release mode serves its installed
+editor snapshot from cache, checks for updates on opening/focus, and activates the
+new snapshot once edits are saved. Unsaved edits defer activation and reload; Save
+All or returning to a clean editor completes a pending update. First installation
+does not force a reload. Cache cleanup is limited to this editor's URL scope.
+
+The offline cache covers the editor, including its local icon font. Runtime preview
+tabs and games still need the host; the external Google font is optional offline.
 
 ### Source layout
 
@@ -17,10 +59,10 @@ Fully static website, no build steps.
 - `editor/js/panels/` and `editor/js/ui/` — editor panes and reusable UI components.
 - `editor/js/editors/` and `editor/js/action-editor/` — list editors and Action Editor.
 - `editor/tools/` — optional maintenance scripts.
+- `tools/build.mjs` — optional esbuild release packaging.
 - `games/` — self-contained game scripts and assets.
 
-Both HTML entry points stay unchanged. After adding or moving editor modules, refresh
-its offline asset list with `node editor/tools/generate-sw-precache.mjs`.
+Source HTML entry points keep using the original ES modules and stylesheets.
 
 ### Animation
 
