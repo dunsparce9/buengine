@@ -1,10 +1,10 @@
-import { renderFileList, initFilePanelDrop } from '../file-panel.js';
-import { renderViewport, initViewportInteractions } from '../viewport.js';
-import { renderProperties } from '../properties.js';
-import { initMenu } from '../menu.js';
-import { initResizeHandles } from '../resize.js';
-import { hooks, state } from '../state.js';
-import { deleteObject } from '../scene-actions.js';
+import { renderFileList, initFilePanelDrop } from '../panels/file-panel.js';
+import { renderViewport, initViewportInteractions } from '../panels/viewport.js';
+import { renderProperties } from '../panels/properties.js';
+import { initMenu } from '../ui/menu.js';
+import { initResizeHandles } from '../ui/resize.js';
+import { hooks, state } from '../core/state.js';
+import { deleteObject } from '../core/scene-actions.js';
 import '../action-editor.js';
 
 import { updateMenuVisibility, updateWindowTitle, openAboutWindow, hasUnsavedChanges, showToast } from './ui.js';

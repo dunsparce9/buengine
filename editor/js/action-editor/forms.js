@@ -1,4 +1,4 @@
-import { ACTION_TYPES } from '../../../js/action-schema.js';
+import { ACTION_TYPES } from '../../../js/shared/action-schema.js';
 import { setNestedValue, getNestedValue } from './utils.js';
 
 export function createFormBuilders(openActionField) {

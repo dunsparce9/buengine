@@ -18,26 +18,29 @@ index.html              ← single entry point (game selector + engine)
 css/style.css           ← import index for the split stylesheets in css/ (base, scene, dialogue, choice, overlay, hud, inventory, notifications, debug)
 js/
   main.js               ← bootstrap, scene navigation, object-click routing, wires subsystems together
-  event-bus.js           ← pub/sub decoupling
-  game-state.js          ← flags, current scene, history
-  script-loader.js       ← fetches & caches JSON scripts
-  script-data.js         ← shared JSON normalization + inline action traversal
-  scene-renderer.js      ← background, scene objects, show/hide entity system
-  action-schema.js       ← **shared** action type registry (fields, metadata, defaults)
-  action-runner.js       ← walks action arrays, dispatches commands
-  dialogue-ui.js         ← dialogue box with typewriter effect
-  choice-ui.js           ← multiple-choice modal
-  object-options-ui.js   ← scene-object right-click options menu
-  overlay-ui.js          ← title screen & pause menu
-  hud-ui.js              ← HUD taskbar (e.g. inventory button visibility)
-  notification-ui.js     ← toast notifications
-  sound-manager.js       ← audio playback, fade in/out
-  inventory.js           ← inventory state, item definitions, add/remove
-  inventory-ui.js        ← inventory floating window (grid/list), context menu
-  paths.js               ← shared asset-path resolver (basePath + preview assetMap)
-  context-menu.js        ← shared `.inv-ctx` context menu (buttons, separators, positioning)
-  game-selector.js       ← game picker overlay UI
-  debug-hud.js           ← debug HUD (key "1": grid overlay + tile/object readout)
+  core/
+    event-bus.js        ← pub/sub decoupling
+    game-state.js       ← flags, current scene, history
+    script-loader.js    ← fetches & caches JSON scripts
+    action-runner.js    ← walks action arrays, dispatches commands
+    scene-renderer.js   ← backgrounds, scene objects, runtime image/text entities
+    sound-manager.js    ← audio playback, fade in/out
+    inventory.js        ← inventory state and item definitions
+    paths.js            ← game asset-path resolver (basePath + preview assetMap)
+  shared/
+    action-schema.js    ← runtime/editor action metadata, defaults, summaries, badges
+    script-data.js      ← runtime/editor JSON normalization + inline action traversal
+  ui/
+    dialogue-ui.js      ← dialogue box with typewriter effect
+    choice-ui.js        ← multiple-choice modal
+    object-options-ui.js ← scene-object right-click options menu
+    overlay-ui.js       ← title screen & pause menu
+    hud-ui.js           ← HUD taskbar
+    notification-ui.js  ← toast notifications
+    inventory-ui.js     ← inventory floating window and context menu
+    context-menu.js     ← shared runtime context menu
+    game-selector.js    ← game picker overlay
+    debug-hud.js        ← debug grid + tile/object readout
 editor/
   AGENTS.md              ← editor-specific instructions
 games/
@@ -70,10 +73,10 @@ Scene scripts are JSON files in each game's folder (e.g. `games/playground/`). E
 - `onEnter[]` — action array run when the scene is entered
 
 ### Runtime vs editor
-- `js/` contains the runtime engine used by players.
+- `js/main.js` is the runtime entry point. `js/core/` holds engine services, `js/ui/` holds player-facing UI, and `js/shared/` holds neutral modules used by both apps.
 - `editor/` is a separate static app used to inspect and edit game folders via the browser File System Access API.
-- The runtime and editor intentionally share `js/action-schema.js` as the single source of truth for action metadata, defaults, labels, and field definitions.
-- If an action type changes, update both the runtime execution path (`js/action-runner.js`) and the shared schema (`js/action-schema.js`) so the editor stays in sync automatically.
+- The runtime and editor intentionally share `js/shared/action-schema.js` as the single source of truth for action metadata, defaults, labels, and field definitions.
+- If an action type changes, update both the runtime execution path (`js/core/action-runner.js`) and the shared schema (`js/shared/action-schema.js`) so the editor stays in sync automatically.
 
 ### Action commands
 Actions are objects in an array. Supported commands:
@@ -136,7 +139,7 @@ The inventory UI is a draggable floating window with Grid and List display modes
 - Audio commands consume their completion once on end/error/stop/replacement. Cancelling a fade does not execute its natural-completion side effect; pause freezes fades and defers new playback until resume.
 
 ### Communication between modules
-Runtime behavior flows over `EventBus`. UI modules never import each other's classes — but they may import shared helpers (`paths.js`, `context-menu.js`, `action-schema.js`, `UI_SOUNDS` from `sound-manager.js`). Prefer `bus.emit()` / `bus.on()` for cross-module behavior.
+Runtime behavior flows over `EventBus`. UI modules never import each other's classes — but they may import shared helpers (`core/paths.js`, `ui/context-menu.js`, `shared/action-schema.js`, `UI_SOUNDS` from `core/sound-manager.js`). Prefer `bus.emit()` / `bus.on()` for cross-module behavior.
 
 ### DOM structure
 All game UI lives inside `#game-container`. The `#scene-layer` holds backgrounds and scene objects. The `#ui-layer` holds overlays, dialogues, and choice modals, using `.hidden` class toggling.
@@ -151,5 +154,5 @@ The editor has its own separate instructions at `editor/AGENTS.md`. Refer to thi
 2. **Prefer events over imports** — use `bus.emit()` / `bus.on()` for cross-module communication.
 3. New UI components should follow the pattern: most take `bus`, query their own DOM elements, and subscribe to relevant events (a few take extra/different deps — e.g. `InventoryUI(bus, inventory)`, `GameSelector(onSelect)`, `DebugHud(getSceneData)`).
 4. Editor-only code lives under `editor/` and should not be bolted into runtime modules unless the feature is genuinely shared.
-5. ActionRunner dispatches commands directly by type; do not add a second execution language or private method names to the schema. Shared JSON-format helpers belong in `js/script-data.js`. Shared action metadata belongs in `js/action-schema.js`; do not fork separate action registries for engine vs editor. Summaries and header badges are derived there too (`summarizeAction`/`getBadges`) — the editor delegates instead of keeping parallel switches.
+5. ActionRunner dispatches commands directly by type; do not add a second execution language or private method names to the schema. Shared JSON-format helpers belong in `js/shared/script-data.js`. Shared action metadata belongs in `js/shared/action-schema.js`; do not fork separate action registries for engine vs editor. Summaries and header badges are derived there too (`summarizeAction`/`getBadges`) — the editor delegates instead of keeping parallel switches.
 6. Update this file (`buengine/AGENTS.md`) after significant **engine-side** changes if necessary. **If editor-side, remember editor has its own `editor/AGENTS.md`!**

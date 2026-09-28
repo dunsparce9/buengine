@@ -2,18 +2,18 @@
  * Left-side file panel — folder tree view with drag/drop and context menu.
  */
 
-import { state, dom, hooks } from './state.js';
-import { showContextMenu } from './context-menu.js';
-import { createFloatingWindow, closeWindowsFor } from './floating-window.js';
-import { renameScene } from './scene-actions.js';
-import { loadScript } from './script-store.js';
-import { promptForConfirmation } from './confirm-dialog.js';
-import { getFileExtension } from './file-types.js';
-import { rememberRecentFolderSelection } from './app/recent-folders.js';
+import { state, dom, hooks } from '../core/state.js';
+import { showContextMenu } from '../ui/context-menu.js';
+import { createFloatingWindow, closeWindowsFor } from '../ui/floating-window.js';
+import { renameScene } from '../core/scene-actions.js';
+import { loadScript } from '../data/script-store.js';
+import { promptForConfirmation } from '../ui/confirm-dialog.js';
+import { getFileExtension } from '../data/file-types.js';
+import { rememberRecentFolderSelection } from '../app/recent-folders.js';
 import {
   buildTree, deleteEntry, renameEntry, moveEntry, createDir,
   writeFileBinary, findNode,
-} from './fs-provider.js';
+} from '../data/fs-provider.js';
 
 /* ── File type helpers ─────────────────────────── */
 

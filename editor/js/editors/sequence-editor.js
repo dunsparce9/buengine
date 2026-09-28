@@ -6,13 +6,13 @@
  * live in one place; only sequence-name handling stays here.
  */
 
-import { openActionField } from './action-editor.js';
-import { closeWindowsFor } from './floating-window.js';
-import { walkScriptActions } from '../../js/script-data.js';
-import { state, hooks } from './state.js';
-import { loadScript } from './script-store.js';
-import { findNode } from './fs-provider.js';
-import { promptForConfirmation } from './confirm-dialog.js';
+import { openActionField } from '../action-editor.js';
+import { closeWindowsFor } from '../ui/floating-window.js';
+import { walkScriptActions } from '../../../js/shared/script-data.js';
+import { state, hooks } from '../core/state.js';
+import { loadScript } from '../data/script-store.js';
+import { findNode } from '../data/fs-provider.js';
+import { promptForConfirmation } from '../ui/confirm-dialog.js';
 import {
   openListModal,
   createActionsPill,

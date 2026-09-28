@@ -6,7 +6,7 @@
  */
 
 import { state, hooks, markDirty } from './state.js';
-import { closeWindowsFor } from './floating-window.js';
+import { closeWindowsFor } from '../ui/floating-window.js';
 
 function getItemsArray() {
   const data = state.scripts[state.selectedId];

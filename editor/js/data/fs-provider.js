@@ -2,7 +2,7 @@
  * File system provider — uses the File System Access API for local folder access.
  */
 
-import { state } from './state.js';
+import { state } from '../core/state.js';
 
 /** Whether the browser supports the File System Access API. */
 export const hasNativeFS = typeof window.showDirectoryPicker === 'function';

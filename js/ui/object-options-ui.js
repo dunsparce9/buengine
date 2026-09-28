@@ -5,7 +5,7 @@ import { ContextMenu } from './context-menu.js';
 
 export class ObjectOptionsUI {
   /**
-   * @param {import('./event-bus.js').EventBus} bus
+   * @param {import('../core/event-bus.js').EventBus} bus
    */
   constructor(bus) {
     this.bus = bus;

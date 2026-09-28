@@ -2,21 +2,21 @@
  * Right-side property inspector panel.
  */
 
-import { state, dom, hooks, escapeHtml, markDirty, collectImagePaths } from './state.js';
-import { openActionField } from './action-editor.js';
-import { renameScene } from './scene-actions.js';
-import { closeWindowsFor } from './floating-window.js';
+import { state, dom, hooks, escapeHtml, markDirty, collectImagePaths } from '../core/state.js';
+import { openActionField } from '../action-editor.js';
+import { renameScene } from '../core/scene-actions.js';
+import { closeWindowsFor } from '../ui/floating-window.js';
 import { renderItemsProperties } from './items-viewer.js';
-import { openOptionsModal, createDefaultObjectOption, getOptionsPreview } from './options-editor.js';
-import { openSequencesModal } from './sequence-editor.js';
+import { openOptionsModal, createDefaultObjectOption, getOptionsPreview } from '../editors/options-editor.js';
+import { openSequencesModal } from '../editors/sequence-editor.js';
 import { renderAssetProps } from './media-info.js';
-import { makeActionViewerContext, makeActionEditorOpts } from './action-context.js';
-import { createSectionHeader } from './section-header.js';
+import { makeActionViewerContext, makeActionEditorOpts } from '../core/action-context.js';
+import { createSectionHeader } from '../ui/section-header.js';
 import {
   addEditablePropGroup,
   addCompactEditablePropGroup,
   buildFieldRow,
-} from './field-rows.js';
+} from '../ui/field-rows.js';
 
 const SECTION_ICONS = {
   'Game manifest': 'sports_esports',

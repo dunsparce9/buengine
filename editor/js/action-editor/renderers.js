@@ -1,13 +1,13 @@
-import { escapeHtml } from '../state.js';
+import { escapeHtml } from '../core/state.js';
 import {
   summarizeAction as schemaSummarizeAction,
   getBadges as schemaGetBadges,
-} from '../../../js/action-schema.js';
+} from '../../../js/shared/action-schema.js';
 import { cloneAction, notifyEditorChange } from './utils.js';
 import { beginSimpleReorderDrag } from './drag.js';
-import { closeWindowsFor } from '../floating-window.js';
+import { closeWindowsFor } from '../ui/floating-window.js';
 
-// Single source of truth for summaries/badges lives in js/action-schema.js.
+// Single source of truth for summaries/badges lives in js/shared/action-schema.js.
 // Re-exported here so existing `renderers.js` import sites keep working.
 export const summarizeAction = schemaSummarizeAction;
 export const getBadges = schemaGetBadges;

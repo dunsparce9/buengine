@@ -6,10 +6,10 @@
  */
 
 import { state, hooks, markDirty } from './state.js';
-import { closeWindowsFor } from './floating-window.js';
-import { collectAllPaths, findNode } from './fs-provider.js';
-import { loadScript } from './script-store.js';
-import { walkScriptActions } from '../../js/script-data.js';
+import { closeWindowsFor } from '../ui/floating-window.js';
+import { collectAllPaths, findNode } from '../data/fs-provider.js';
+import { loadScript } from '../data/script-store.js';
+import { walkScriptActions } from '../../../js/shared/script-data.js';
 
 /** Rename a scene and its links together; disk changes follow the normal Save flow. */
 export async function renameScene(currentId, nextId) {

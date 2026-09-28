@@ -3,7 +3,7 @@
  */
 export class OverlayUI {
   /**
-   * @param {import('./event-bus.js').EventBus} bus
+   * @param {import('../core/event-bus.js').EventBus} bus
    */
   constructor(bus) {
     this.bus = bus;

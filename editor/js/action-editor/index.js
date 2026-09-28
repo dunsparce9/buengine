@@ -1,7 +1,7 @@
-import { createFloatingWindow, closeWindowsFor } from '../floating-window.js';
-import { containsReference } from '../../../js/script-data.js';
-import { createEditorToolbar } from '../editor-toolbar.js';
-import { ACTION_TYPES, detectType, createDefaultAction, getActionMeta } from '../../../js/action-schema.js';
+import { createFloatingWindow, closeWindowsFor } from '../ui/floating-window.js';
+import { containsReference } from '../../../js/shared/script-data.js';
+import { createEditorToolbar } from '../ui/editor-toolbar.js';
+import { ACTION_TYPES, detectType, createDefaultAction, getActionMeta } from '../../../js/shared/action-schema.js';
 import { openEditors, editableLists, emptyDropZones } from './state.js';
 import {
   shortenText,

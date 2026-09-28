@@ -11,10 +11,10 @@
  * no stylesheet changes are needed.
  */
 
-import { hooks, markDirty } from './state.js';
-import { createFloatingWindow } from './floating-window.js';
-import { createEditorToolbar } from './editor-toolbar.js';
-import { showContextMenu } from './context-menu.js';
+import { hooks, markDirty } from '../core/state.js';
+import { createFloatingWindow } from '../ui/floating-window.js';
+import { createEditorToolbar } from '../ui/editor-toolbar.js';
+import { showContextMenu } from '../ui/context-menu.js';
 
 /** @type {Map<string, { fw: ReturnType<typeof createFloatingWindow>, state: object }>} */
 const _openModals = new Map();

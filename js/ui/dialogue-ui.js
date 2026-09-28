@@ -1,4 +1,4 @@
-import { UI_SOUNDS } from './sound-manager.js';
+import { UI_SOUNDS } from '../core/sound-manager.js';
 
 const DEFAULT_TYPEWRITER_SPEED_MS = 30;
 
@@ -8,7 +8,7 @@ const DEFAULT_TYPEWRITER_SPEED_MS = 30;
  */
 export class DialogueUI {
   /**
-   * @param {import('./event-bus.js').EventBus} bus
+   * @param {import('../core/event-bus.js').EventBus} bus
    */
   constructor(bus) {
     this.bus = bus;

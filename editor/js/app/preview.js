@@ -1,5 +1,5 @@
-import { state } from '../state.js';
-import { collectAllPaths, resolveAssetURL } from '../fs-provider.js';
+import { state } from '../core/state.js';
+import { collectAllPaths, resolveAssetURL } from '../data/fs-provider.js';
 import { isStandalonePWA, showToast } from './ui.js';
 
 async function persistPreviewState() {

@@ -6,8 +6,8 @@
  * live in one place; only option-row rendering stays here.
  */
 
-import { openActionField } from './action-editor.js';
-import { closeWindowsFor } from './floating-window.js';
+import { openActionField } from '../action-editor.js';
+import { closeWindowsFor } from '../ui/floating-window.js';
 import {
   openListModal,
   createActionsPill,

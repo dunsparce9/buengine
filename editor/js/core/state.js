@@ -1,4 +1,4 @@
-import { walkActions } from '../../js/script-data.js';
+import { walkActions } from '../../../js/shared/script-data.js';
 
 /**
  * Shared editor state, DOM references, and render hooks.

@@ -3,14 +3,14 @@
  * Supports: selection, pan/zoom, drag-to-move, drag-to-resize, drag-to-create, context menu.
  */
 
-import { state, dom, hooks, markDirty } from './state.js';
-import { addObject, deleteObject, uniqueObjectId } from './scene-actions.js';
-import { makeActionViewerContext } from './action-context.js';
-import { showContextMenu } from './context-menu.js';
-import { resolveAssetURL, resolveAssetURLSync } from './fs-provider.js';
-import { getFileKind, isPreviewableMedia } from './file-types.js';
+import { state, dom, hooks, markDirty } from '../core/state.js';
+import { addObject, deleteObject, uniqueObjectId } from '../core/scene-actions.js';
+import { makeActionViewerContext } from '../core/action-context.js';
+import { showContextMenu } from '../ui/context-menu.js';
+import { resolveAssetURL, resolveAssetURLSync } from '../data/fs-provider.js';
+import { getFileKind, isPreviewableMedia } from '../data/file-types.js';
 import { renderItemsViewport } from './items-viewer.js';
-import { openOptionsModal, createDefaultObjectOption } from './options-editor.js';
+import { openOptionsModal, createDefaultObjectOption } from '../editors/options-editor.js';
 
 /* ── Drag state (module-scoped, survives re-renders) ── */
 let _selectionBox = null; // { x, y, w, h } in grid units (for drag-to-create)

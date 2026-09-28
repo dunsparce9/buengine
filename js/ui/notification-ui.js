@@ -15,10 +15,10 @@
  *     emit        – optional bus event to emit when clicked
  *     payload     – optional event payload emitted when clicked
  */
-import { Paths } from './paths.js';
+import { Paths } from '../core/paths.js';
 
 export class NotificationUI {
-  /** @param {import('./event-bus.js').EventBus} bus */
+  /** @param {import('../core/event-bus.js').EventBus} bus */
   constructor(bus) {
     this.bus = bus;
     this.el = document.getElementById('notification-container');

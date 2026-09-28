@@ -7,19 +7,19 @@ import {
   hooks,
   escapeHtml,
   markDirty,
-} from './state.js';
+} from '../core/state.js';
 import {
   addItemDefinition,
   deleteItemDefinition,
   uniqueItemId,
-} from './items-actions.js';
-import { resolveAssetURLSync } from './fs-provider.js';
-import { showContextMenu } from './context-menu.js';
-import { openOptionsModal } from './options-editor.js';
-import { openActionField } from './action-editor.js';
-import { closeWindowsFor } from './floating-window.js';
-import { createSectionHeader } from './section-header.js';
-import { addEditablePropGroup } from './field-rows.js';
+} from '../core/items-actions.js';
+import { resolveAssetURLSync } from '../data/fs-provider.js';
+import { showContextMenu } from '../ui/context-menu.js';
+import { openOptionsModal } from '../editors/options-editor.js';
+import { openActionField } from '../action-editor.js';
+import { closeWindowsFor } from '../ui/floating-window.js';
+import { createSectionHeader } from '../ui/section-header.js';
+import { addEditablePropGroup } from '../ui/field-rows.js';
 
 const ITEM_SECTION_ICONS = {
   'Items': 'inventory_2',

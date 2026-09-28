@@ -7,7 +7,7 @@
  */
 
 import { state, markDirty } from './state.js';
-import { selectScript } from './file-panel.js';
+import { selectScript } from '../panels/file-panel.js';
 
 export function focusSceneInEditor(sceneId) {
   if (!sceneId) return;

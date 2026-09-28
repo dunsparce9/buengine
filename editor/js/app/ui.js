@@ -1,5 +1,5 @@
-import { state, hooks } from '../state.js';
-import { createFloatingWindow } from '../floating-window.js';
+import { state, hooks } from '../core/state.js';
+import { createFloatingWindow } from '../ui/floating-window.js';
 
 const toastContainer = document.getElementById('toast-container');
 

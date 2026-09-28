@@ -49,7 +49,7 @@ function discoverAssets() {
     .map((rel) => `./${rel}`)
     .sort();
   // Neutral runtime modules imported by the editor must also work offline.
-  return [...editorAssets, '../js/action-schema.js', '../js/script-data.js'];
+  return [...editorAssets, '../js/shared/action-schema.js', '../js/shared/script-data.js'];
 }
 
 function buildSwBody(assets) {

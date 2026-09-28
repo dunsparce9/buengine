@@ -5,10 +5,10 @@
  * resolves size, mime, dates, image dimensions and audio/video duration.
  */
 
-import { state, dom, escapeHtml } from './state.js';
-import { findNode } from './fs-provider.js';
-import { getFileExtension, getFileKind, isPreviewableMedia } from './file-types.js';
-import { createSectionHeader } from './section-header.js';
+import { state, dom, escapeHtml } from '../core/state.js';
+import { findNode } from '../data/fs-provider.js';
+import { getFileExtension, getFileKind, isPreviewableMedia } from '../data/file-types.js';
+import { createSectionHeader } from '../ui/section-header.js';
 
 let _assetInfoRequestId = 0;
 

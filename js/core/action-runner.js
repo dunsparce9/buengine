@@ -6,7 +6,7 @@
  * ("Action commands"). Keep that documentation in sync with the runner and
  * avoid maintaining a second full command list here.
  */
-import { detectType } from './action-schema.js';
+import { detectType } from '../shared/action-schema.js';
 
 /** Max iterations of a single `loop` statement before assuming an infinite loop. */
 const MAX_LOOP_ITERATIONS = 10000;

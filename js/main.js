@@ -1,21 +1,21 @@
-import { EventBus }      from './event-bus.js';
-import { GameState }     from './game-state.js';
-import { ScriptLoader }  from './script-loader.js';
-import { SceneRenderer } from './scene-renderer.js';
-import { ActionRunner }  from './action-runner.js';
-import { DialogueUI }    from './dialogue-ui.js';
-import { ChoiceUI }      from './choice-ui.js';
-import { OverlayUI }     from './overlay-ui.js';
-import { SoundManager }  from './sound-manager.js';
-import { HudUI }         from './hud-ui.js';
-import { Inventory }       from './inventory.js';
-import { InventoryUI }     from './inventory-ui.js';
-import { NotificationUI }  from './notification-ui.js';
-import { ObjectOptionsUI } from './object-options-ui.js';
-import { GameSelector }    from './game-selector.js';
-import { DebugHud }        from './debug-hud.js';
-import { Paths }           from './paths.js';
-import { walkActions }     from './script-data.js';
+import { EventBus }      from './core/event-bus.js';
+import { GameState }     from './core/game-state.js';
+import { ScriptLoader }  from './core/script-loader.js';
+import { SceneRenderer } from './core/scene-renderer.js';
+import { ActionRunner }  from './core/action-runner.js';
+import { DialogueUI }    from './ui/dialogue-ui.js';
+import { ChoiceUI }      from './ui/choice-ui.js';
+import { OverlayUI }     from './ui/overlay-ui.js';
+import { SoundManager }  from './core/sound-manager.js';
+import { HudUI }         from './ui/hud-ui.js';
+import { Inventory }       from './core/inventory.js';
+import { InventoryUI }     from './ui/inventory-ui.js';
+import { NotificationUI }  from './ui/notification-ui.js';
+import { ObjectOptionsUI } from './ui/object-options-ui.js';
+import { GameSelector }    from './ui/game-selector.js';
+import { DebugHud }        from './ui/debug-hud.js';
+import { Paths }           from './core/paths.js';
+import { walkActions }     from './shared/script-data.js';
 
 /* ── Bootstrap ──────────────────────────────────── */
 

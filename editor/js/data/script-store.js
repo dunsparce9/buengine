@@ -2,11 +2,11 @@
  * Legacy sequence names are normalized by the shared JSON-format helper.
  */
 
-import { state } from './state.js';
+import { state } from '../core/state.js';
 import { readFileText, collectAllPaths, findNode } from './fs-provider.js';
 
-import { normalizeSceneSequences } from '../../js/script-data.js';
-export { normalizeSceneSequences } from '../../js/script-data.js';
+import { normalizeSceneSequences } from '../../../js/shared/script-data.js';
+export { normalizeSceneSequences } from '../../../js/shared/script-data.js';
 
 /**
  * Load a single script by id. `id` is the path without the `.json`

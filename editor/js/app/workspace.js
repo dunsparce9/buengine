@@ -1,11 +1,11 @@
-import { state, hooks, scriptPathFromId, collectImagePaths } from '../state.js';
-import { discoverScripts } from '../script-store.js';
-import { openFolder, openFolderHandle, ensureHandlePermission, writeFile, deleteEntry, buildTree, clearAssetCache, cacheAssetURLs, findNode } from '../fs-provider.js';
-import { promptForConfirmation } from '../confirm-dialog.js';
-import { renderFileList, selectScript, selectPath, expandFoldersForPath } from '../file-panel.js';
+import { state, hooks, scriptPathFromId, collectImagePaths } from '../core/state.js';
+import { discoverScripts } from '../data/script-store.js';
+import { openFolder, openFolderHandle, ensureHandlePermission, writeFile, deleteEntry, buildTree, clearAssetCache, cacheAssetURLs, findNode } from '../data/fs-provider.js';
+import { promptForConfirmation } from '../ui/confirm-dialog.js';
+import { renderFileList, selectScript, selectPath, expandFoldersForPath } from '../panels/file-panel.js';
 import { showToast, hasUnsavedChanges, updateMenuVisibility, updateWindowTitle } from './ui.js';
 import { rememberRecentFolder } from './recent-folders.js';
-import { closeTransientWindows } from '../floating-window.js';
+import { closeTransientWindows } from '../ui/floating-window.js';
 
 export async function confirmDiscardUnsavedChanges(message = 'You have unsaved changes. Discard them?') {
   if (!hasUnsavedChanges()) return true;

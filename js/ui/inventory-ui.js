@@ -16,13 +16,13 @@
  * Emits:
  *   inventory:interact actions[] – main.js applies the player-interaction policy
  */
-import { Paths } from './paths.js';
+import { Paths } from '../core/paths.js';
 import { ContextMenu } from './context-menu.js';
 
 export class InventoryUI {
   /**
-   * @param {import('./event-bus.js').EventBus} bus
-   * @param {import('./inventory.js').Inventory} inventory
+   * @param {import('../core/event-bus.js').EventBus} bus
+   * @param {import('../core/inventory.js').Inventory} inventory
    */
   constructor(bus, inventory) {
     this.bus = bus;

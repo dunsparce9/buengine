@@ -12,7 +12,7 @@
  *   hud:show / hud:hide  – toggle visibility
  */
 export class HudUI {
-  /** @param {import('./event-bus.js').EventBus} bus */
+  /** @param {import('../core/event-bus.js').EventBus} bus */
   constructor(bus) {
     this.bus = bus;
     this.el = document.getElementById('hud-bar');

@@ -5,8 +5,8 @@
  * When the page is opened with ?preview, loads override data
  * from localStorage (set by the editor) instead of fetching files.
  */
-import { normalizeSceneSequences } from './script-data.js';
-export { normalizeSceneSequences } from './script-data.js';
+import { normalizeSceneSequences } from '../shared/script-data.js';
+export { normalizeSceneSequences } from '../shared/script-data.js';
 
 export class ScriptLoader {
   constructor(basePath = '') {

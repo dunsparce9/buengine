@@ -1,9 +1,9 @@
-import { state } from '../state.js';
-import { writeFileBinary, readFileBinary, collectAllPaths } from '../fs-provider.js';
-import { createZip, readZip } from '../zip-utils.js';
+import { state } from '../core/state.js';
+import { writeFileBinary, readFileBinary, collectAllPaths } from '../data/fs-provider.js';
+import { createZip, readZip } from '../data/zip-utils.js';
 import { showToast } from './ui.js';
 import { confirmDiscardUnsavedChanges, loadWorkspaceFromHandle } from './workspace.js';
-import { closeTransientWindows } from '../floating-window.js';
+import { closeTransientWindows } from '../ui/floating-window.js';
 
 export function exportCurrentJson() {
   if (!state.selectedId || !state.scripts[state.selectedId]) return;

@@ -2,7 +2,7 @@
  * Draggable (optionally resizable) floating window component.
  */
 
-import { containsReference } from '../../js/script-data.js';
+import { containsReference } from '../../../js/shared/script-data.js';
 
 let _zTop = 1000;
 const transientWindows = new Map();
