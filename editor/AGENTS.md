@@ -21,7 +21,8 @@ editor/
   css/
     base.css              ← tokens, global resets, shared primitives
     layout.css            ← three-pane shell and sizing
-    editor.css            ← high-level editor-specific styling
+    editor.css            ← `@import` aggregator for the other stylesheets (no rules of its own)
+    toolbars.css          ← editor toolbar styling
     file-panel.css        ← file tree visuals
     properties.css        ← inspector styling
     viewport.css          ← scene preview styling
@@ -34,13 +35,14 @@ editor/
   js/
     editor.js             ← thin entry module; imports app bootstrap
     app/
-      index.js            ← editor bootstrap/wiring
+      index.js            ← editor bootstrap/wiring (orchestrator: sets core hooks, inits menu/resize/shortcuts)
       ui.js               ← title/menu visibility/about/toasts
       workspace.js        ← open folder + save flows
       archive.js          ← export/import JSON/ZIP flows
       preview.js          ← preview launch and asset URL staging
       pwa.js              ← install prompt + service worker update handling
-    state.js              ← shared state, DOM refs, render hooks, read-only
+      recent-folders.js   ← recent-folder IDB bookkeeping
+    state.js              ← shared state, DOM refs, render hooks, utilities + read-only
                               queries (collectImagePaths); domain mutations
                               live in scene-actions.js / items-actions.js
     scene-actions.js        ← scene-object mutations (add/delete/unique ids)
@@ -68,8 +70,10 @@ editor/
     field-rows.js         ← shared property-inspector field-row builder
                               (text/number/checkbox/select/datalist; used by
                               properties.js, items-viewer.js, object inspector)
+    section-header.js     ← shared collapsible section headers for properties/items panels
+    editor-toolbar.js     ← editor toolbar component (used by Action Editor)
     context-menu.js       ← shared context menu component
-    action-editor.js      ← stable public entry for AE
+    action-editor.js      ← stable public entry for AE (re-exports `openActionEditor` from `action-editor/`)
     action-editor/
       index.js            ← AE public implementation
       state.js            ← editor registry + drag state
@@ -92,19 +96,19 @@ editor/
 - If an action type is added or changed, update:
   1. `js/action-runner.js` in the runtime
   2. `js/action-schema.js` shared metadata (including `summary`/`badges`)
-  3. Any editor-specific rendering/editing logic in `editor/js/action-editor.js` (rich card bodies and nested editors only — summaries/badges follow the schema automatically)
+  3. Any editor-specific rendering/editing logic under `editor/js/action-editor/` (rich card bodies and nested editors only — summaries/badges follow the schema automatically; `action-editor.js` itself is just a re-export of `openActionEditor`)
 
 ### File System
 
 The editor operates exclusively via the **File System Access API** (`showDirectoryPicker()`). The user opens a local game folder, and the browser grants read/write access. All file operations (save, create, rename, delete, move) go through `fs-provider.js` which wraps `FileSystemDirectoryHandle` / `FileSystemFileHandle`.
 
-Modules avoid circular imports by using a `hooks` object (in `state.js`) for cross-module render calls. The orchestrator (`editor.js`) sets `hooks.renderFileList`, `hooks.renderViewport`, `hooks.renderProperties`, `hooks.toast`, and `hooks.openFolder` after importing all modules.
+Modules avoid circular imports by using a `hooks` object (in `state.js`) for cross-module render calls. The orchestrator (`js/app/index.js` — `js/editor.js` is just a thin `import './app/index.js'`) sets `hooks.renderFileList`, `hooks.renderViewport`, and `hooks.renderProperties`; `app/ui.js` sets `hooks.updateWindowTitle` and `hooks.toast`; `app/workspace.js` sets `hooks.openFolder`.
 
 ## UI Layout
 
 ```
 ┌─ #menu-bar ─────────────────────────────────────┐
-│ File  Help                           [▶ Run]    │
+│ File  Run  Help                      [▶ Run]    │
 ├──────────┬──────────────────────┬───────────────┤
 │ #file-   │ #viewport            │ #props-panel  │
 │ panel    │                      │               │
@@ -137,6 +141,7 @@ All mutable state lives in the `state` object exported from `state.js`:
 | `state.expandedFolders` | `Set` of folder paths currently expanded in the tree (root = `''`) |
 | `state.selectedPath` | Path of the selected item in the file tree |
 | `state.assetURLCache` | `Map<path, blobURL>` — cached blob URLs for assets |
+| `state.pendingScriptRenames` | `Map` backing the scene-id rename flow |
 
 ## Rendering Pipeline
 
@@ -153,7 +158,7 @@ Do not bypass that flow unless there is a clear reason.
 
 ## Action Editor (AE)
 
-AE is the editor's action array UI rooted at `editor/js/action-editor.js` and implemented under `editor/js/action-editor/`. It is a central subsystem, not a minor helper.
+AE is the editor's action array UI with stable entry `editor/js/action-editor.js` (a re-export) and implementation under `editor/js/action-editor/`. It is a central subsystem, not a minor helper.
 
 - Opens floating windows for action arrays such as scene `onEnter`, object option actions, choice branches, loop bodies, and named `sequences`
 - Deduplicates windows via internal open-editor registry
@@ -173,7 +178,7 @@ When editing AE-related code:
 - Selecting a JSON script usually sets both `state.selectedPath` and `state.selectedId`
 - Selecting a non-JSON asset sets `state.selectedPath` but clears `state.selectedId`
 - Selecting an object within the viewport keeps the scene selected and sets `state.selectedObjectId`
-- Selecting `items/items.json` routes properties rendering through `items-viewer.js`
+- Selecting `items/items.json` routes properties rendering through `items-viewer.js` (the router keys off the data being an array, not the literal path)
 
 ## Features
 
@@ -185,29 +190,29 @@ When editing AE-related code:
 | Import ZIP | `app/archive.js` + `zip-utils.js` | `importZip()` — extracts ZIP into the open folder |
 | File tree | `file-panel.js` | `renderFileList()` — folder tree with expand/collapse, type icons |
 | Drag-and-drop files | `file-panel.js` | Drop from OS to add files, drag within tree to move between folders |
-| File context menu | `file-panel.js` | Right-click → Rename, Delete, Copy Path, Download, New File/Folder |
-| Script discovery | `script-store.js` | `discoverScripts()` — reads `_game.json`, loads all scenes |
+| File context menu | `file-panel.js` | Right-click file → Rename, Copy Path, Download, Delete; folders/root also offer New File/Folder (plus Paste on folders) |
+| Script discovery | `script-store.js` | `discoverScripts()` — reads `_game.json`, loads top-level `*.json` scenes + `items/items` (single `loadScript`, no `loadNestedJson`) |
 | Scene preview | `viewport.js` | `renderViewport()` — background + dashed object outlines |
 | Property inspector | `properties.js` | `renderProperties()` → delegates to game / scene / object / asset / items renderers |
 | Editable fields | `field-rows.js` | `addEditablePropGroup()` — shared text/number/checkbox/select/datalist rows binding `<input>` to in-memory data |
 | Action Editor | `action-editor/` | `openActionEditor()` — floating action list editor for arrays |
 | Items editor | `items-viewer.js` | `renderItemsProperties()` — inventory item editing |
 | Export JSON | `app/archive.js` | `exportCurrentJson()` — Blob download of current script |
-| Run preview | `app/preview.js` | Stores all edited scripts into `localStorage` key `buengine_editor_preview`, opens game in new tab with `?preview` |
+| Run preview | `app/preview.js` | Serialises edited scripts to `localStorage` (`buengine_editor_preview` + staged-asset key `buengine_editor_assets`), opens game in new tab with `?preview` (`runCurrentScene()` adds `&scene=` for the current scene) |
 | Floating windows | `floating-window.js` | `createFloatingWindow()` — draggable, optionally resizable panels (`.fw`) |
 | Toast notifications | `app/ui.js` | `showToast(msg, type)` — bottom-center transient messages |
-| Keyboard shortcuts | `app/index.js` | Ctrl+S (save), Ctrl+Shift+S (save all), Ctrl+O (open folder) |
+| Keyboard shortcuts | `app/index.js` | Ctrl+S (save), Ctrl+Shift+S (save all), Ctrl+O (open folder), Delete (delete selected object) |
 
 ## Coding Rules
 
 1. **Same rules as the game engine** — vanilla JS, no frameworks, no build tools.
 2. **Editor CSS stays in `editor/css/`** — use the existing split files by concern; do not dump everything into one stylesheet and do not touch `css/style.css` unless the runtime itself needs changes.
-3. **Editor JS goes in `editor/js/`** — one file per concern. Shared state lives in `state.js`. Cross-module render calls go through `hooks` (set by the orchestrator `editor.js`) where that avoids cycles.
+3. **Editor JS goes in `editor/js/`** — one file per concern. Shared state lives in `state.js`. Cross-module render calls go through `hooks` (set by the orchestrator `app/index.js`) where that avoids cycles.
 4. **Do not couple editor code to runtime UI modules** — the editor is a separate app. Shared logic should live in neutral modules like `js/action-schema.js`, not by importing runtime-only UI behavior.
 5. **Colour palette** — the editor uses Gruvbox Dark (`#282828` bg, `#ebdbb2` fg, `#fe8019` accent, `#1d2021` panel bg, `#3c3836` borders). Keep new UI consistent.
 6. **Object visualisation** — dashed orange outlines (`.editor-object`), yellow when selected. Labels are 10px overlays.
 7. **Grid-aware positioning** — all object coordinates are in tile units. Convert to percentages (`tile / cols * 100%`) for CSS positioning.
-8. **Preview round-trip** — edits stay in memory. The Run button serialises everything to `localStorage` under `buengine_editor_preview`. The game should check for this on `?preview` and overlay the data.
+8. **Preview round-trip** — edits stay in memory. The Run button serialises everything to `localStorage` (`buengine_editor_preview` for scripts, `buengine_editor_assets` for staged assets). The game checks for these on `?preview` and overlays the data.
 9. **Dirty-state discipline** — any edit that changes persistent data should mark the relevant script dirty so Save / Save All remain trustworthy.
 10. **AE changes are high-impact** — if you change action editing behavior, check nested arrays, drag/drop, and schema-derived field rendering, not just the top-level happy path.
 11. **Agent documentation updates** - Update this file (`editor/AGENTS.md`) after significant or otherwise notable changes, as deemed necessary.
