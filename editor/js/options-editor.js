@@ -1,15 +1,19 @@
 /**
  * Shared options modal/editor for items and scene objects.
+ *
+ * Thin domain adapter over the parameterized `list-editor.js` (review
+ * phase 5): window lifecycle, toolbar, table skeleton and the actions pill
+ * live in one place; only option-row rendering stays here.
  */
 
-import { hooks, markDirty } from './state.js';
-import { createFloatingWindow } from './floating-window.js';
-import { createEditorToolbar } from './editor-toolbar.js';
 import { openActionEditor } from './action-editor.js';
-import { showContextMenu } from './context-menu.js';
-
-/** @type {Map<string, { fw: ReturnType<typeof createFloatingWindow>, state: object }>} */
-const _openModals = new Map();
+import {
+  openListModal,
+  createActionsPill,
+  notifyListChange,
+  showNewRowMenu,
+  showRowMenu,
+} from './list-editor.js';
 
 export function createOption({ text = 'New option', icon = '', actions = [] } = {}) {
   return { text, icon, actions };
@@ -30,51 +34,49 @@ export function openOptionsModal({
   actionViewerContext = {},
   createDefaultOption = () => createOption(),
 }) {
-  const existing = _openModals.get(modalKey);
-  if (existing && !existing.fw.el.classList.contains('hidden')) {
-    existing.state.target = target;
-    existing.state.scriptId = scriptId;
-    existing.state.ownerLabel = ownerLabel;
-    existing.state.onChange = onChange;
-    existing.state.actionViewerContext = actionViewerContext;
-    existing.state.createDefaultOption = createDefaultOption;
-    existing.fw.setSubtitle(subtitle || getOptionsSubtitle(title));
-    existing.fw.open();
-    existing.fw.requestAttention();
-    return existing.fw;
-  }
-
-  const fw = createFloatingWindow({
+  const initialState = { target, scriptId, ownerLabel, onChange, actionViewerContext, createDefaultOption, title, subtitle };
+  return openListModal({
+    modalKey,
     title: 'Options',
     subtitle: subtitle || getOptionsSubtitle(title),
     icon: 'tune',
-    iconClass: 'material-symbols-outlined',
-    width: 500,
-    height: 400,
-    resizable: true,
-  });
-
-  fw.body.classList.add('options-editor-body');
-
-  const modalState = {
-    fw,
-    collapsed: false,
-    target,
-    scriptId,
-    ownerLabel,
-    onChange,
-    actionViewerContext,
-    createDefaultOption,
-    rebuild() {
-      buildOptionsContent(fw.body, modalState);
+    initialState,
+    onReuse: (st, next) => {
+      st.target = next.target;
+      st.scriptId = next.scriptId;
+      st.ownerLabel = next.ownerLabel;
+      st.onChange = next.onChange;
+      st.actionViewerContext = next.actionViewerContext;
+      st.createDefaultOption = next.createDefaultOption;
+      st.title = next.title;
+      st.subtitle = next.subtitle;
     },
-  };
-
-  _openModals.set(modalKey, { fw, state: modalState });
-  fw.onClose(() => _openModals.delete(modalKey));
-  modalState.rebuild();
-  fw.open();
-  return fw;
+    getSubtitle: (st) => st.subtitle || getOptionsSubtitle(st.title),
+    columns: [
+      { label: 'Icon', className: 'items-opt-th-icon' },
+      { label: 'Text' },
+      { label: 'Actions' },
+    ],
+    getRows: (st) => getOptions(st.target),
+    buildRowCells: (tr, { modalState: st, row: opt, index: i }) =>
+      buildOptionRowCells(tr, st, opt, i),
+    renderEmpty: (content, st) => {
+      const empty = document.createElement('div');
+      empty.className = 'items-viewer-empty';
+      empty.textContent = st.collapsed
+        ? 'No options defined.'
+        : 'No options defined. Right-click to create one.';
+      content.appendChild(empty);
+    },
+    onEmptyContextMenu: (x, y, st) =>
+      showNewRowMenu(x, y, 'New option', () => createNewOption(st)),
+    onRowContextMenu: (x, y, st, _row, index) =>
+      showRowMenu(x, y, 'New option', () => createNewOption(st), () => deleteOption(st, index)),
+    onAdd: (st) => createNewOption(st),
+    addTitle: 'Add option',
+    collapseTitleCollapsed: 'Expand options',
+    collapseTitleExpanded: 'Collapse options',
+  });
 }
 
 function getOptionsSubtitle(title) {
@@ -82,222 +84,112 @@ function getOptionsSubtitle(title) {
   return label && label.toLowerCase() !== 'options' ? label : '';
 }
 
-function notifyChange(scriptId, onChange) {
-  markDirty(scriptId);
-  hooks.renderViewport();
-  hooks.renderProperties();
-  onChange?.();
-}
-
 function getOptions(target) {
   if (!Array.isArray(target.options)) target.options = [];
   return target.options;
 }
 
-function buildOptionsContent(container, ctx) {
-  const {
-    target,
-    scriptId,
-    ownerLabel,
-    onChange,
-    actionViewerContext,
-    createDefaultOption,
-  } = ctx;
-  const options = getOptions(target);
+function buildOptionRowCells(tr, st, opt, i) {
+  const { scriptId, ownerLabel, onChange, actionViewerContext } = st;
 
-  container.innerHTML = '';
-  container.oncontextmenu = null;
-
-  const toolbar = createEditorToolbar({
-    collapsed: ctx.collapsed,
-    onToggleCollapse: () => {
-      ctx.collapsed = !ctx.collapsed;
-      ctx.rebuild();
-    },
-    addLabel: 'Add',
-    addTitle: 'Add option',
-    addAriaLabel: 'Add option',
-    onAdd: () => createNewOption(ctx),
-    collapseTitleCollapsed: 'Expand options',
-    collapseTitleExpanded: 'Collapse options',
-    extraClassName: 'options-editor-toolbar',
-  });
-  container.appendChild(toolbar);
-
-  const content = document.createElement('div');
-  content.className = 'options-editor-content';
-  container.appendChild(content);
-
-  content.oncontextmenu = ctx.collapsed
-    ? null
-    : (e) => {
-        const row = e.target.closest('.items-options-row');
-        if (row) return;
-        e.preventDefault();
-        showOptionsEmptyContextMenu(e.clientX, e.clientY, ctx);
-      };
-
-  const table = document.createElement('table');
-  table.className = `items-options-table${ctx.collapsed ? ' items-options-table-compact' : ''}`;
-
-  const thead = document.createElement('thead');
-  thead.innerHTML =
-    '<tr>' +
-    '<th class="items-opt-th-icon">Icon</th>' +
-    '<th>Text</th>' +
-    '<th>Actions</th>' +
-    '</tr>';
-  table.appendChild(thead);
-
-  const tbody = document.createElement('tbody');
-  for (let i = 0; i < options.length; i++) {
-    const opt = options[i];
-    const tr = document.createElement('tr');
-    tr.className = 'items-options-row';
-    if (!ctx.collapsed) {
-      tr.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        showOptionRowContextMenu(e.clientX, e.clientY, ctx, i);
-      });
-    }
-
-    const tdIcon = document.createElement('td');
-    tdIcon.className = 'items-opt-td-icon';
-    if (ctx.collapsed) {
-      const iconText = document.createElement('span');
-      iconText.className = 'items-options-compact-text items-options-compact-icon';
-      iconText.textContent = opt.icon || '—';
-      tdIcon.appendChild(iconText);
-    } else {
-      const iconInput = document.createElement('input');
-      iconInput.type = 'text';
-      iconInput.className = 'items-options-input items-options-icon-input';
-      iconInput.value = opt.icon || '';
-      iconInput.placeholder = 'Icon';
-      iconInput.addEventListener('input', () => {
-        opt.icon = iconInput.value || undefined;
-        notifyChange(scriptId, onChange);
-      });
-      tdIcon.appendChild(iconInput);
-    }
-    tr.appendChild(tdIcon);
-
-    const tdText = document.createElement('td');
-    tdText.className = 'items-opt-td-text';
-    if (ctx.collapsed) {
-      const textValue = document.createElement('span');
-      textValue.className = 'items-options-compact-text';
-      textValue.textContent = opt.text || `Option ${i + 1}`;
-      tdText.appendChild(textValue);
-    } else {
-      const textInput = document.createElement('input');
-      textInput.type = 'text';
-      textInput.className = 'items-options-input';
-      textInput.value = opt.text || '';
-      textInput.placeholder = 'Option text';
-      textInput.addEventListener('input', () => {
-        opt.text = textInput.value || undefined;
-        notifyChange(scriptId, onChange);
-      });
-      tdText.appendChild(textInput);
-    }
-    tr.appendChild(tdText);
-
-    const tdActions = document.createElement('td');
-    tdActions.className = 'items-opt-td-actions';
-    const actions = Array.isArray(opt.actions) ? opt.actions : (opt.actions = []);
-    if (ctx.collapsed) {
-      const count = document.createElement('span');
-      count.className = 'items-options-compact-actions';
-      count.textContent = `${actions.length} action${actions.length === 1 ? '' : 's'}`;
-      tdActions.appendChild(count);
-    } else {
-      tdActions.appendChild(createActionsPill({
-        ownerLabel,
-        optionIndex: i,
-        option: opt,
-        actions,
-        scriptId,
-        onChange,
-        actionViewerContext,
-      }));
-    }
-    tr.appendChild(tdActions);
-
-    tbody.appendChild(tr);
-  }
-
-  table.appendChild(tbody);
-  content.appendChild(table);
-
-  if (!options.length) {
-    const empty = document.createElement('div');
-    empty.className = 'items-viewer-empty';
-    empty.textContent = ctx.collapsed
-      ? 'No options defined.'
-      : 'No options defined. Right-click to create one.';
-    content.appendChild(empty);
-  }
-
-  function createActionsPill({
-    ownerLabel,
-    optionIndex,
-    option,
-    actions,
-    scriptId,
-    onChange,
-    actionViewerContext,
-  }) {
-    const pill = document.createElement('button');
-    pill.type = 'button';
-    pill.className = 'ae-mini-btn items-actions-pill';
-    const renderPill = () => {
-      pill.innerHTML = '<span class="material-symbols-outlined">list_alt</span> ' + actions.length;
-      pill.title = `${actions.length} action(s)`;
-    };
-    renderPill();
-    pill.addEventListener('click', () => {
-      openActionEditor(
-        `${ownerLabel} — ${option.text || 'Option ' + (optionIndex + 1)}`,
-        actions,
-        {
-          ...actionViewerContext,
-          onChange: () => {
-            renderPill();
-            notifyChange(scriptId, onChange);
-          },
-        }
-      );
+  const tdIcon = document.createElement('td');
+  tdIcon.className = 'items-opt-td-icon';
+  if (st.collapsed) {
+    const iconText = document.createElement('span');
+    iconText.className = 'items-options-compact-text items-options-compact-icon';
+    iconText.textContent = opt.icon || '—';
+    tdIcon.appendChild(iconText);
+  } else {
+    const iconInput = document.createElement('input');
+    iconInput.type = 'text';
+    iconInput.className = 'items-options-input items-options-icon-input';
+    iconInput.value = opt.icon || '';
+    iconInput.placeholder = 'Icon';
+    iconInput.addEventListener('input', () => {
+      opt.icon = iconInput.value || undefined;
+      notifyListChange(scriptId, onChange);
     });
-    return pill;
+    tdIcon.appendChild(iconInput);
   }
+  tr.appendChild(tdIcon);
 
-  function showOptionsEmptyContextMenu(x, y, ctx) {
-    showContextMenu(x, y, [
-      { icon: 'add_box', label: 'New option', onClick: () => createNewOption(ctx) },
-    ]);
+  const tdText = document.createElement('td');
+  tdText.className = 'items-opt-td-text';
+  if (st.collapsed) {
+    const textValue = document.createElement('span');
+    textValue.className = 'items-options-compact-text';
+    textValue.textContent = opt.text || `Option ${i + 1}`;
+    tdText.appendChild(textValue);
+  } else {
+    const textInput = document.createElement('input');
+    textInput.type = 'text';
+    textInput.className = 'items-options-input';
+    textInput.value = opt.text || '';
+    textInput.placeholder = 'Option text';
+    textInput.addEventListener('input', () => {
+      opt.text = textInput.value || undefined;
+      notifyListChange(scriptId, onChange);
+    });
+    tdText.appendChild(textInput);
   }
+  tr.appendChild(tdText);
 
-  function showOptionRowContextMenu(x, y, ctx, index) {
-    showContextMenu(x, y, [
-      { icon: 'add_box', label: 'New option', onClick: () => createNewOption(ctx) },
-      { separator: true },
-      { icon: 'delete', label: 'Delete', danger: true, onClick: () => deleteOption(ctx, index) },
-    ]);
+  const tdActions = document.createElement('td');
+  tdActions.className = 'items-opt-td-actions';
+  const actions = Array.isArray(opt.actions) ? opt.actions : (opt.actions = []);
+  if (st.collapsed) {
+    const count = document.createElement('span');
+    count.className = 'items-options-compact-actions';
+    count.textContent = `${actions.length} action${actions.length === 1 ? '' : 's'}`;
+    tdActions.appendChild(count);
+  } else {
+    tdActions.appendChild(createOptionActionsPill({
+      ownerLabel,
+      optionIndex: i,
+      option: opt,
+      actions,
+      scriptId,
+      onChange,
+      actionViewerContext,
+    }));
   }
+  tr.appendChild(tdActions);
+}
 
-  function createNewOption(ctx) {
-    getOptions(ctx.target).push(ctx.createDefaultOption());
-    notifyChange(ctx.scriptId, ctx.onChange);
-    ctx.rebuild();
-  }
+function createOptionActionsPill({
+  ownerLabel,
+  optionIndex,
+  option,
+  actions,
+  scriptId,
+  onChange,
+  actionViewerContext,
+}) {
+  return createActionsPill(actions.length, (renderPill) => {
+    openActionEditor(
+      `${ownerLabel} — ${option.text || 'Option ' + (optionIndex + 1)}`,
+      actions,
+      {
+        ...actionViewerContext,
+        onChange: () => {
+          renderPill(actions.length);
+          notifyListChange(scriptId, onChange);
+        },
+      }
+    );
+  });
+}
 
-  function deleteOption(ctx, index) {
-    const options = getOptions(ctx.target);
-    if (index < 0 || index >= options.length) return;
-    options.splice(index, 1);
-    notifyChange(ctx.scriptId, ctx.onChange);
-    ctx.rebuild();
-  }
+function createNewOption(st) {
+  getOptions(st.target).push(st.createDefaultOption());
+  notifyListChange(st.scriptId, st.onChange);
+  st.rebuild();
+}
+
+function deleteOption(st, index) {
+  const options = getOptions(st.target);
+  if (index < 0 || index >= options.length) return;
+  options.splice(index, 1);
+  notifyListChange(st.scriptId, st.onChange);
+  st.rebuild();
 }

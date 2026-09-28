@@ -3,7 +3,9 @@
  * Supports: selection, pan/zoom, drag-to-move, drag-to-resize, drag-to-create, context menu.
  */
 
-import { state, dom, hooks, markDirty, addObject, deleteObject, uniqueObjectId } from './state.js';
+import { state, dom, hooks, markDirty } from './state.js';
+import { addObject, deleteObject, uniqueObjectId } from './scene-actions.js';
+import { makeActionViewerContext } from './action-context.js';
 import { showContextMenu } from './context-menu.js';
 import { resolveAssetURL, resolveAssetURLSync } from './fs-provider.js';
 import { getFileKind, isPreviewableMedia } from './file-types.js';
@@ -140,11 +142,7 @@ function openObjectOptionsManager(obj) {
     subtitle: obj.label || obj.id,
     modalKey: `${sceneId}:${obj.id}:options`,
     ownerLabel: obj.label || obj.id,
-    actionViewerContext: {
-      sceneId,
-      sceneData,
-      markDirty,
-    },
+    actionViewerContext: makeActionViewerContext(sceneData),
     createDefaultOption: createDefaultObjectOption,
   });
 }

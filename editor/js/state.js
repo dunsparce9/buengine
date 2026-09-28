@@ -4,6 +4,10 @@
  * Modules read/write `state.*` directly. Cross-module render calls
  * go through `hooks.*`, which the orchestrator (editor.js) wires up
  * after all modules are imported.
+ *
+ * Domain mutations live in `./scene-actions.js` (objects) and
+ * `./items-actions.js` (inventory items) — review phase 5. This module
+ * keeps pure state, DOM refs, hooks, and read-only queries.
  */
 
 /* ── Mutable application state ─────────────────── */
@@ -60,22 +64,13 @@ export function scriptPathFromId(id) {
   return id === '_game' ? '_game.json' : `${id}.json`;
 }
 
-/** Get the objects array from scene data. */
-function getObjectsArray(data) {
-  return data?.objects;
-}
-
-/** Get or create the objects array on scene data. */
-function ensureObjectsArray(data) {
-  if (!data) return [];
-  if (data.objects) return data.objects;
-  data.objects = [];
-  return data.objects;
-}
-
 /**
  * Collect all image paths referenced across loaded scripts.
- * Returns a sorted, deduplicated array of paths.
+ * Covers scene backgrounds, object textures, `show.texture` action refs,
+ * and inventory item icons. Returns a sorted, deduplicated array of paths.
+ *
+ * This is the single implementation — callers must not keep a parallel
+ * inline copy (review phase 5, item 22).
  */
 export function collectImagePaths() {
   const paths = new Set();
@@ -88,8 +83,35 @@ export function collectImagePaths() {
     }
   };
   for (const data of Object.values(state.scripts)) {
+    // Items table (items/items.json is an array, not a scene)
+    if (Array.isArray(data)) {
+      for (const item of data) {
+        if (!item || typeof item !== 'object') continue;
+        if (item.icon) paths.add(item.icon);
+      }
+      // Item option actions may still reference show.texture overlays.
+      const walkItemActions = (actions) => {
+        if (!Array.isArray(actions)) return;
+        for (const a of actions) {
+          if (a.show?.texture) paths.add(a.show.texture);
+          if (Array.isArray(a.then)) walkItemActions(a.then);
+          if (Array.isArray(a.else)) walkItemActions(a.else);
+          if (Array.isArray(a.do)) walkItemActions(a.do);
+          if (a.choice?.options) {
+            for (const o of a.choice.options) walkItemActions(o.actions);
+          }
+        }
+      };
+      for (const item of data) {
+        if (!item || typeof item !== 'object') continue;
+        if (Array.isArray(item.options)) {
+          for (const option of item.options) walkItemActions(option?.actions);
+        }
+      }
+      continue;
+    }
     if (data.background) paths.add(data.background);
-    const objects = getObjectsArray(data);
+    const objects = data?.objects;
     if (Array.isArray(objects)) {
       for (const obj of objects) {
         if (obj.texture) paths.add(obj.texture);
@@ -117,92 +139,4 @@ export function collectImagePaths() {
     }
   }
   return [...paths].sort();
-}
-
-/**
- * Delete an object from the currently selected scene.
- */
-export function deleteObject(objectId) {
-  const sceneId = state.selectedId;
-  if (!sceneId) return;
-  const data = state.scripts[sceneId];
-  const objects = getObjectsArray(data);
-  if (!objects) return;
-  const idx = objects.findIndex(obj => obj.id === objectId);
-  if (idx < 0) return;
-  objects.splice(idx, 1);
-  if (state.selectedObjectId === objectId) state.selectedObjectId = null;
-  markDirty(sceneId);
-  hooks.renderViewport();
-  hooks.renderProperties();
-}
-
-/**
- * Add an object to the currently selected scene.
- */
-export function addObject(obj) {
-  const sceneId = state.selectedId;
-  if (!sceneId) return;
-  const data = state.scripts[sceneId];
-  if (!data) return;
-  const objects = ensureObjectsArray(data);
-  objects.push(obj);
-  state.selectedObjectId = obj.id;
-  markDirty(sceneId);
-  hooks.renderViewport();
-  hooks.renderProperties();
-}
-
-/**
- * Generate a unique object id within the current scene.
- */
-export function uniqueObjectId(base = 'object') {
-  const data = state.scripts[state.selectedId];
-  const objects = getObjectsArray(data) || [];
-  const existing = new Set(objects.map(obj => obj.id));
-  if (!existing.has(base)) return base;
-  let i = 1;
-  while (existing.has(`${base}_${i}`)) i++;
-  return `${base}_${i}`;
-}
-
-function getItemsArray() {
-  const data = state.scripts[state.selectedId];
-  return Array.isArray(data) ? data : null;
-}
-
-export function uniqueItemId(base = 'item') {
-  const items = getItemsArray() || [];
-  const existing = new Set(items.map(item => item?.id).filter(Boolean));
-  if (!existing.has(base)) return base;
-  let i = 1;
-  while (existing.has(`${base}_${i}`)) i++;
-  return `${base}_${i}`;
-}
-
-export function addItemDefinition(item) {
-  const items = getItemsArray();
-  if (!items || !state.selectedId) return;
-  items.push(item);
-  state.selectedItem = item.id || null;
-  markDirty(state.selectedId);
-  hooks.renderViewport();
-  hooks.renderProperties();
-}
-
-export function deleteItemDefinition(itemId) {
-  const items = getItemsArray();
-  if (!items || !state.selectedId) return;
-  const idx = items.findIndex(item => item?.id === itemId);
-  if (idx < 0) return;
-  items.splice(idx, 1);
-
-  if (state.selectedItem === itemId) {
-    const fallback = items[Math.min(idx, items.length - 1)];
-    state.selectedItem = fallback?.id || null;
-  }
-
-  markDirty(state.selectedId);
-  hooks.renderViewport();
-  hooks.renderProperties();
 }

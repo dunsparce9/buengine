@@ -3,7 +3,8 @@ import { renderViewport, initViewportInteractions } from '../viewport.js';
 import { renderProperties } from '../properties.js';
 import { initMenu } from '../menu.js';
 import { initResizeHandles } from '../resize.js';
-import { hooks, state, deleteObject } from '../state.js';
+import { hooks, state } from '../state.js';
+import { deleteObject } from '../scene-actions.js';
 import '../action-editor.js';
 
 import { updateMenuVisibility, updateWindowTitle, openAboutWindow, hasUnsavedChanges, showToast } from './ui.js';

@@ -7,10 +7,12 @@ import {
   hooks,
   escapeHtml,
   markDirty,
+} from './state.js';
+import {
   addItemDefinition,
   deleteItemDefinition,
   uniqueItemId,
-} from './state.js';
+} from './items-actions.js';
 import { resolveAssetURLSync } from './fs-provider.js';
 import { showContextMenu } from './context-menu.js';
 import { openOptionsModal } from './options-editor.js';

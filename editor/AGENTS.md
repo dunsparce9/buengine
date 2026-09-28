@@ -40,12 +40,29 @@ editor/
       archive.js          ← export/import JSON/ZIP flows
       preview.js          ← preview launch and asset URL staging
       pwa.js              ← install prompt + service worker update handling
-    state.js              ← shared state, DOM refs, render hooks, utilities
+    state.js              ← shared state, DOM refs, render hooks, read-only
+                              queries (collectImagePaths); domain mutations
+                              live in scene-actions.js / items-actions.js
+    scene-actions.js        ← scene-object mutations (add/delete/unique ids)
+    items-actions.js        ← inventory-item mutations
+    action-context.js       ← single construction point for ActionEditor
+                              viewer contexts + focusScene helper
+    media-info.js           ← asset File/Info inspector + media metadata
+    list-editor.js          ← parameterized table-list modal backing both
+                              options-editor.js and sequence-editor.js
+    options-editor.js       ← item/object options adapter over list-editor.js
+    sequence-editor.js      ← scene sequences adapter over list-editor.js
+    script-store.js         ← fetch & cache JSON scripts via fs-provider
+                              (single loadScript for top-level + nested
+                              paths; no loadNestedJson)
     fs-provider.js        ← file system access via File System Access API
     zip-utils.js          ← minimal ZIP creation/extraction (no dependencies)
     floating-window.js    ← draggable/resizable floating panel component
-    script-loader.js      ← fetch & cache JSON scripts (uses fs-provider)
-    file-panel.js         ← left file tree panel + selection, DnD, context menu
+    file-panel.js         ← left file tree panel + selection (single
+                              applySelection cascade), DnD, context menu
+    tools/
+      generate-sw-precache.mjs ← dev-only node script regenerating the
+                              sw.js CORE_ASSETS list from disk
     viewport.js           ← centre scene preview + object overlays
     properties.js         ← right property inspector panel
     field-rows.js         ← shared property-inspector field-row builder
@@ -60,7 +77,8 @@ editor/
       renderers.js        ← read-only action card renderers (summaries/badges
                               delegated to js/action-schema.js, not defined here)
       forms.js            ← schema-driven field editors + nested action editors
-      drag.js             ← cross-window drag/reorder controller
+      drag.js             ← cross-window action drag + shared single-list
+                              reorder engine (also used for choice options)
     items-viewer.js       ← items/items.json editor UI
     confirm-dialog.js     ← modal confirmation dialog
     file-types.js         ← extension/kind/media helpers
@@ -122,7 +140,7 @@ All mutable state lives in the `state` object exported from `state.js`:
 
 ## Rendering Pipeline
 
-Selection changes trigger a cascade: `selectScript(id)` → `renderFileList()` + `renderViewport()` + `renderProperties()`. Object clicks update `selectedObjectId` and re-render viewport + properties only.
+Selection changes trigger a cascade: `applySelection()` in file-panel.js → `renderFileList()` + `renderViewport()` + `renderProperties()` (`selectScript(id)` / `selectPath(path)` are thin wrappers). Object clicks update `selectedObjectId` and re-render viewport + properties only.
 
 The viewport computes pixel dimensions from the scene's `grid.cols` / `grid.rows` to maintain aspect ratio within the available container space. Objects are positioned as percentage offsets.
 
@@ -168,7 +186,7 @@ When editing AE-related code:
 | File tree | `file-panel.js` | `renderFileList()` — folder tree with expand/collapse, type icons |
 | Drag-and-drop files | `file-panel.js` | Drop from OS to add files, drag within tree to move between folders |
 | File context menu | `file-panel.js` | Right-click → Rename, Delete, Copy Path, Download, New File/Folder |
-| Script discovery | `script-loader.js` | `discoverScripts()` — reads `_game.json`, loads all scenes |
+| Script discovery | `script-store.js` | `discoverScripts()` — reads `_game.json`, loads all scenes |
 | Scene preview | `viewport.js` | `renderViewport()` — background + dashed object outlines |
 | Property inspector | `properties.js` | `renderProperties()` → delegates to game / scene / object / asset / items renderers |
 | Editable fields | `field-rows.js` | `addEditablePropGroup()` — shared text/number/checkbox/select/datalist rows binding `<input>` to in-memory data |
