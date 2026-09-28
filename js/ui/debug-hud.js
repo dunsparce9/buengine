@@ -59,16 +59,8 @@ export class DebugHud {
 
     // Find hovered object
     let hoveredLabel = '\u2014';
-    const sceneObjects = data.objects;
-    if (Array.isArray(sceneObjects)) {
-      for (const obj of sceneObjects) {
-        if (tileX >= obj.x && tileX < obj.x + obj.w &&
-            tileY >= obj.y && tileY < obj.y + obj.h) {
-          hoveredLabel = obj.id || obj.label || '(unnamed)';
-          break;
-        }
-      }
-    }
+    const objectEl = e.target.closest('.scene-object');
+    if (objectEl && this.sceneLayer.contains(objectEl)) hoveredLabel = objectEl.dataset.objectId || '(unnamed)';
     this.debugObject.textContent = `Object: ${hoveredLabel}`;
   }
 

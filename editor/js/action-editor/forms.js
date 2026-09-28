@@ -1,26 +1,155 @@
 import { ACTION_TYPES } from '../../../js/shared/action-schema.js';
 import { setNestedValue, getNestedValue } from './utils.js';
 
+const actionTabs = new WeakMap();
+const lastTabs = new Map();
+let nextFormId = 0;
+
+function getLastTab(type) {
+  if (!lastTabs.has(type)) {
+    let tab;
+    try { tab = localStorage.getItem(`buengine_ae_tab_${type}`); } catch { /* Keep preferences in memory if storage is unavailable. */ }
+    lastTabs.set(type, tab);
+  }
+  return lastTabs.get(type);
+}
+
+function rememberTab(action, type, group) {
+  actionTabs.set(action, group);
+  lastTabs.set(type, group);
+  try { localStorage.setItem(`buengine_ae_tab_${type}`, group); } catch { /* In-memory selection still persists across form rebuilds. */ }
+}
+
 export function createFormBuilders(openActionField) {
   function buildEditForm(action, type, ctx) {
     const form = document.createElement('div');
     form.className = 'ae-edit-form';
+    const meta = ACTION_TYPES[type];
+    const formId = `ae-form-${++nextFormId}`;
+    let preferredTab = meta?.tabs ? actionTabs.get(action) || getLastTab(type) : null;
+    let updateIndicators = () => {};
+    const fieldCtx = {
+      ...ctx,
+      onFieldChange() {
+        ctx.onFieldChange();
+        updateIndicators();
+      },
+    };
 
-    const fields = ACTION_TYPES[type]?.fields;
-    if (fields) {
+    function appendFields(container, fields, headings = false) {
+      let group;
       for (const field of fields) {
-        form.appendChild(buildFieldRow(action, field, ctx));
+        if (headings && field.group && field.group !== group) {
+          group = field.group;
+          const heading = document.createElement('div');
+          heading.className = 'ae-sub-label';
+          heading.textContent = group;
+          container.appendChild(heading);
+        }
+        container.appendChild(buildFieldRow(action, field, fieldCtx, renderFields));
       }
     }
 
-    if (type === 'set') form.appendChild(buildSetEditor(action, ctx));
-    if (type === 'if') form.appendChild(buildIfBranchesEditor(action, ctx));
-    if (type === 'loop') form.appendChild(buildLoopEditor(action, ctx));
+    function renderTabs(fields, tabs) {
+      const groups = new Set(tabs.map(tab => tab.group));
+      appendFields(form, fields.filter(field => !groups.has(field.group)));
+      const tabList = document.createElement('div');
+      tabList.className = 'ae-field-tabs';
+      tabList.setAttribute('role', 'tablist');
+      tabList.setAttribute('aria-label', `${meta.label} properties`);
+      const panel = document.createElement('div');
+      panel.className = 'ae-field-tab-panel';
+      panel.id = `${formId}-panel`;
+      panel.setAttribute('role', 'tabpanel');
+      const buttons = new Map();
+      let selected = tabs.some(tab => tab.group === preferredTab) ? preferredTab : tabs[0].group;
+
+      function showTab(group, remember = true, focus = false) {
+        selected = group;
+        if (remember) {
+          preferredTab = group;
+          rememberTab(action, type, group);
+        }
+        for (const [name, button] of buttons) {
+          button.setAttribute('aria-selected', String(name === group));
+          button.tabIndex = name === group ? 0 : -1;
+        }
+        panel.setAttribute('aria-labelledby', buttons.get(group).id);
+        panel.replaceChildren();
+        appendFields(panel, fields.filter(field => field.group === group));
+        if (focus) buttons.get(group).focus();
+      }
+
+      updateIndicators = () => {
+        for (const [group, button] of buttons) {
+          const configured = fields.filter(field => field.group === group).some(field => {
+            const value = getNestedValue(action, field.key);
+            const defaultValue = getNestedValue(meta.defaults, field.key);
+            if (field.type === 'boolean') return !!value !== !!defaultValue;
+            return value != null && value !== '' && value !== defaultValue;
+          });
+          button.classList.toggle('ae-tab-configured', configured);
+          const description = `${group}${configured ? ' — configured' : ''}`;
+          button.title = description;
+          button.setAttribute('aria-label', description);
+        }
+      };
+
+      tabs.forEach((tab, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'ae-field-tab';
+        button.id = `${formId}-tab-${index}`;
+        button.setAttribute('role', 'tab');
+        button.setAttribute('aria-controls', panel.id);
+        const icon = document.createElement('span');
+        icon.className = 'material-symbols-outlined';
+        icon.textContent = tab.icon;
+        icon.setAttribute('aria-hidden', 'true');
+        const label = document.createElement('span');
+        label.textContent = tab.group;
+        const dot = document.createElement('span');
+        dot.className = 'ae-tab-dot';
+        dot.setAttribute('aria-hidden', 'true');
+        button.append(icon, label, dot);
+        button.addEventListener('click', () => showTab(tab.group));
+        button.addEventListener('keydown', event => {
+          const current = tabs.findIndex(tab => tab.group === selected);
+          let next;
+          if (event.key === 'ArrowRight') next = (current + 1) % tabs.length;
+          else if (event.key === 'ArrowLeft') next = (current + tabs.length - 1) % tabs.length;
+          else if (event.key === 'Home') next = 0;
+          else if (event.key === 'End') next = tabs.length - 1;
+          else return;
+          event.preventDefault();
+          showTab(tabs[next].group, true, true);
+        });
+        buttons.set(tab.group, button);
+        tabList.appendChild(button);
+      });
+      form.append(tabList, panel);
+      showTab(selected, false);
+      updateIndicators();
+    }
+
+    function renderFields() {
+      form.replaceChildren();
+      updateIndicators = () => {};
+      const fields = (meta?.fields || []).filter(field => !field.visibleWhen || field.visibleWhen(action));
+      const tabs = (meta?.tabs || []).filter(tab => fields.some(field => field.group === tab.group));
+      if (tabs.length) renderTabs(fields, tabs);
+      else appendFields(form, fields, true);
+
+      if (type === 'set') form.appendChild(buildSetEditor(action, ctx));
+      if (type === 'if') form.appendChild(buildIfBranchesEditor(action, ctx));
+      if (type === 'loop') form.appendChild(buildLoopEditor(action, ctx));
+    }
+    renderFields();
 
     return form;
   }
 
-  function buildFieldRow(action, field, ctx) {
+  function buildFieldRow(action, field, ctx, onLayoutChange) {
     const row = document.createElement('div');
     row.className = 'ae-field-row';
 
@@ -98,13 +227,14 @@ export function createFormBuilders(openActionField) {
         for (const option of (field.options || [])) {
           const opt = document.createElement('option');
           opt.value = option;
-          opt.textContent = option || '(none)';
+          opt.textContent = field.optionLabels?.[option] || option || '(none)';
           if (option === (value ?? '')) opt.selected = true;
           select.appendChild(opt);
         }
         select.addEventListener('change', () => {
           setNestedValue(action, field.key, select.value || undefined);
           ctx.onFieldChange();
+          if (field.affectsLayout) onLayoutChange?.();
         });
         row.appendChild(select);
         break;

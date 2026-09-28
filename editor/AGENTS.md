@@ -158,6 +158,8 @@ AE is the editor's action array UI with stable entry `editor/js/action-editor.js
 - Deduplicates windows via internal open-editor registry; transient Action Editor and list windows destroy their DOM when closed
 - Mutates the provided action array in place and reports changes through `opts.onChange`
 - Supports nested editors, inline field editing, add/delete, collapse, and drag-to-reorder
+- Animate forms keep the Target selector/ID visible above icon pills: Move / Rotate / Scale / Resize / Fade / Timing (Scene mode shows Fade / Timing). Pill metadata lives in the shared action schema; field visibility and selector labels are also schema-driven. Dots indicate configured properties or timing values differing from the new-card defaults, including zero-valued targets, and clear when those values are removed/reset. Pill selection is retained per action in memory and as the last-used preference per action type in localStorage; selecting pills never mutates game data or marks it dirty. Scene-mode fallback does not overwrite a remembered object pill. Changing target rebuilds visible fields without clearing retained values. New cards have Blocking checked. Rich card bodies show active targets and timing, while summaries/badges remain schema-derived. Whole-scene fades use Animate directly; there is no standalone Effect action.
+- Shared AE field rows use a two-column grid with wrapping labels and controls aligned to the right edge, including numeric fields, checkboxes and color pickers. This layout also applies to Say and the other action forms.
 - Supports dragging actions between compatible open AE windows
 - Uses shared schema metadata from `js/shared/action-schema.js` for action cards and form generation
 

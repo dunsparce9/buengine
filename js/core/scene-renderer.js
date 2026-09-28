@@ -7,6 +7,7 @@
  * so that `show` / `hide` actions work on any entity by id.
  */
 import { Paths } from './paths.js';
+import { EntityAnimator } from './entity-animator.js';
 
 export class SceneRenderer {
   /**
@@ -41,10 +42,16 @@ export class SceneRenderer {
      * @type {Map<string, { el: HTMLElement, def: object|null, runtime: boolean, visible: boolean, kind: string }>}
      */
     this._entities = new Map();
+    this._sceneEntity = { el: this.el, kind: 'scene', motion: null };
+    this._hoveredEntity = null;
+    this._animator = new EntityAnimator(bus, {
+      getEntity: (id, target) => target === 'scene' ? this._sceneEntity : this._entities.get(id),
+      getState: entry => this._getMotionState(entry),
+      applyState: (entry, keys) => this._applyMotionState(entry, keys),
+    });
 
     window.addEventListener('resize', () => this._fitToContainer());
 
-    bus.on('scene:effect',  (payload) => this._applyEffect(payload));
     bus.on('overlay:show',  (payload) => this._showEntity(payload));
     bus.on('overlay:hide',  (payload) => this._hideEntity(payload));
     bus.on('overlay:clear', ()        => this._clearRuntimeEntities());
@@ -70,6 +77,7 @@ export class SceneRenderer {
 
     this.el.style.width  = `${Math.round(w)}px`;
     this.el.style.height = `${Math.round(h)}px`;
+    if (this._hoveredEntity) this._positionTooltip(this._hoveredEntity);
   }
 
   /**
@@ -77,6 +85,8 @@ export class SceneRenderer {
    * @param {object} scene  Parsed scene JSON
    */
   render(scene) {
+    this._animator.cancelEntity(this._sceneEntity);
+    this._sceneEntity.motion = null;
     // Reset any scene-level fade styles left over from the previous scene
     // (e.g. a blocking fade-out leaves opacity:0 inline, which would make
     // the next scene invisible unless it fades in itself)
@@ -137,11 +147,12 @@ export class SceneRenderer {
             this._tooltipAction.textContent = defaultOptionText;
             this._tooltipAction.classList.toggle('hidden', !defaultOptionText);
             this._tooltipLabel.textContent = obj.label;
-            this._tooltip.style.left = `${obj.x * tilePctW + (obj.w * tilePctW) / 2}%`;
-            this._tooltip.style.top  = `${obj.y * tilePctH}%`;
+            this._hoveredEntity = div;
+            this._positionTooltip(div);
             this._tooltip.classList.remove('hidden');
           });
           div.addEventListener('mouseleave', () => {
+            this._hoveredEntity = null;
             this._tooltip.classList.add('hidden');
           });
         }
@@ -165,39 +176,75 @@ export class SceneRenderer {
     }
   }
 
-  /**
-   * Apply a visual effect to the entire scene layer.
-   * @param {object} p
-   * @param {string} p.type       "fade-in" | "fade-out"
-   * @param {number} p.seconds    duration
-   * @param {boolean} p.blocking  whether to block actions until done
-   * @param {function} [p.onDone]
-   */
-  _applyEffect({ type, seconds = 1, blocking, onDone }) {
-    if (type === 'fade-in' && seconds > 0) {
-      this.el.style.transition = 'none';
-      this.el.style.opacity = '0';
-      this.el.offsetWidth; // force reflow
-      this.el.style.transition = `opacity ${seconds}s ease`;
-      this.el.style.opacity = '1';
+  _positionTooltip(el) {
+    const sceneRect = this.el.getBoundingClientRect();
+    const rect = el.getBoundingClientRect();
+    this._tooltip.style.left = `${rect.left - sceneRect.left + rect.width / 2}px`;
+    this._tooltip.style.top = `${rect.top - sceneRect.top}px`;
+  }
 
-      if (blocking) {
-        this._waitForTransition(this.el, seconds, () => onDone?.());
-      } else {
-        onDone?.();
-      }
-    } else if (type === 'fade-out' && seconds > 0) {
-      this.el.style.transition = `opacity ${seconds}s ease`;
-      this.el.style.opacity = '0';
-
-      if (blocking) {
-        this._waitForTransition(this.el, seconds, () => onDone?.());
-      } else {
-        onDone?.();
-      }
-    } else {
-      onDone?.();
+  /** Runtime geometry is separate from cached JSON, which stays reusable on re-entry. */
+  _getMotionState(entry) {
+    const opacity = Number(getComputedStyle(entry.el).opacity);
+    if (entry.kind === 'scene') {
+      entry.motion ||= {};
+      entry.motion.opacity = opacity;
+      return entry.motion;
     }
+    if (entry.motion) {
+      entry.motion.opacity = opacity;
+      // Natural text/image layout can change on resize before width/height are animated.
+      if (entry.runtime && !entry.resizedWidth) entry.motion.w = entry.el.offsetWidth / (this.el.clientWidth || 1) * this._cols;
+      if (entry.runtime && !entry.resizedHeight) entry.motion.h = entry.el.offsetHeight / (this.el.clientHeight || 1) * this._rows;
+      return entry.motion;
+    }
+    entry.anchorTransform = entry.el.style.transform;
+    const position = entry.position || {};
+    const gridOffset = (value, axis) => parseFloat(this._resolvePositionOffset(value, axis)) / 100
+      * (axis === 'x' ? this._cols : this._rows);
+    entry.motion = {
+      x: entry.runtime ? gridOffset(position.x, 'x') : entry.def.x,
+      y: entry.runtime ? gridOffset(position.y, 'y') : entry.def.y,
+      w: entry.runtime ? entry.el.offsetWidth / (this.el.clientWidth || 1) * this._cols : entry.def.w,
+      h: entry.runtime ? entry.el.offsetHeight / (this.el.clientHeight || 1) * this._rows : entry.def.h,
+      rotation: 0, scaleX: 1, scaleY: 1, opacity,
+    };
+    return entry.motion;
+  }
+
+  _applyMotionState(entry, keys) {
+    const { el, motion } = entry;
+    if (keys.includes('opacity')) el.style.opacity = String(motion.opacity);
+    if (entry.kind === 'scene') return;
+    if (entry.kind === 'text-overlay' && (keys.includes('x') || keys.includes('y'))) {
+      // Text x/y remain offsets from its existing anchor, just like the text action.
+      entry.position = { ...entry.position, x: motion.x, y: motion.y };
+      this._applyTextPosition(el, entry.position);
+    } else {
+      if (keys.includes('x')) {
+        el.style.left = `${this._gridUnitsToPercent(motion.x, 'x')}%`;
+        el.style.right = 'auto';
+      }
+      if (keys.includes('y')) {
+        el.style.top = `${this._gridUnitsToPercent(motion.y, 'y')}%`;
+        el.style.bottom = 'auto';
+      }
+    }
+    if (keys.includes('w')) {
+      entry.resizedWidth = true;
+      el.style.width = `${this._gridUnitsToPercent(motion.w, 'x')}%`;
+      if (entry.kind === 'text-overlay') el.style.maxWidth = 'none';
+    }
+    if (keys.includes('h')) {
+      entry.resizedHeight = true;
+      el.style.height = `${this._gridUnitsToPercent(motion.h, 'y')}%`;
+    }
+    if (entry.kind === 'text-overlay' && (keys.includes('x') || keys.includes('y'))) {
+      entry.anchorTransform = el.style.transform;
+    }
+    // Anchor translation must precede rotation/scale so centered text stays anchored.
+    el.style.transform = `${entry.anchorTransform || ''} rotate(${motion.rotation}deg) scale(${motion.scaleX}, ${motion.scaleY})`;
+    if (this._hoveredEntity === el) this._positionTooltip(el);
   }
 
   /**
@@ -270,8 +317,7 @@ export class SceneRenderer {
       if (this._entities.get(id) !== entry || entry.visibilityVersion !== version) return;
       entry.visible = false;
       if (entry.runtime) {
-        el.remove();
-        this._entities.delete(id);
+        this._removeEntity(id);
       } else {
         el.style.opacity = '0';
         el.style.pointerEvents = 'none';
@@ -283,7 +329,15 @@ export class SceneRenderer {
 
   _removeEntity(id) {
     const entry = this._entities.get(id);
-    if (entry) { entry.el.remove(); this._entities.delete(id); }
+    if (entry) {
+      this._animator.cancelEntity(entry);
+      if (this._hoveredEntity === entry.el) {
+        this._hoveredEntity = null;
+        this._tooltip.classList.add('hidden');
+      }
+      entry.el.remove();
+      this._entities.delete(id);
+    }
   }
 
   /** Remove only runtime entities (used by overlay:clear). */
@@ -300,6 +354,8 @@ export class SceneRenderer {
 
   /** Remove all scene objects, overlays, and background. */
   clear() {
+    this._animator.cancelEntity(this._sceneEntity);
+    this._sceneEntity.motion = null;
     this.el.style.backgroundImage = '';
     this.el.style.backgroundColor = '#111';
     this.el.style.width  = '';
@@ -327,7 +383,8 @@ export class SceneRenderer {
       el.className = 'text-overlay';
       el.dataset.objectId = payload.id;
       this._applyTextContent(el, payload);
-      return { el, def: null, runtime: true, visible: true, kind: 'text-overlay', layer };
+      return { el, def: null, runtime: true, visible: true, kind: 'text-overlay', layer,
+        position: payload.position || {} };
     }
 
     if (payload.texture) {
@@ -349,7 +406,19 @@ export class SceneRenderer {
       entry.layer = layer;
     }
     if (entry.kind === 'image-overlay') this._applyImageContent(entry.el, payload);
-    if (entry.kind === 'text-overlay') this._applyTextContent(entry.el, payload);
+    if (entry.kind === 'text-overlay') {
+      this._animator.cancelEntity(entry);
+      this._applyTextContent(entry.el, payload);
+      entry.position = payload.position || {};
+      if (entry.motion) {
+        const previous = entry.motion;
+        entry.motion = null;
+        Object.assign(this._getMotionState(entry), {
+          rotation: previous.rotation, scaleX: previous.scaleX, scaleY: previous.scaleY,
+        });
+        this._applyMotionState(entry, []);
+      }
+    }
   }
 
   _resolveRuntimeLayer(payload = {}) {

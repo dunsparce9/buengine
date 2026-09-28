@@ -125,7 +125,7 @@ export function createActionRenderers(openActionEditor, {
       case 'show': return renderOverlay(action.show);
       case 'text': return renderTextAction(action.text);
       case 'hide': return renderOverlay(action.hide);
-      case 'effect': return renderEffect(action.effect);
+      case 'animate': return renderAnimate(action.animate);
       case 'playsound': return renderSound(action.playsound);
       case 'stopsound': return renderSound(action.stopsound);
       case 'item': return renderItem(action.item);
@@ -481,6 +481,24 @@ export function createActionRenderers(openActionEditor, {
         effectLabel.textContent = 'effect';
         body.append(effectLabel, effectBlock);
       }
+    }
+    return body;
+  }
+
+  function renderAnimate(data = {}) {
+    const body = document.createElement('div');
+    body.className = 'ae-body';
+    const scene = data.target === 'scene';
+    const props = [['target', scene ? 'Scene' : data.id || '(target)'],
+      ...Object.entries(data.to || {}).filter(([key]) => !scene || key === 'opacity')];
+    if (data.from?.opacity != null) props.push(['starting opacity', data.from.opacity]);
+    if (!scene && data.pivot) props.push(['pivot', data.pivot]);
+    props.push(['duration', `${data.seconds ?? 1}s`], ['easing', data.easing || 'ease-in-out']);
+    for (const [key, value] of props) {
+      const row = document.createElement('div');
+      row.className = 'ae-prop-row';
+      row.innerHTML = `<span class="ae-prop-key">${escapeHtml(key)}</span><span class="ae-prop-val">${escapeHtml(String(value))}</span>`;
+      body.appendChild(row);
     }
     return body;
   }

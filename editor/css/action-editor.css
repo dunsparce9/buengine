@@ -392,16 +392,25 @@ button.ae-chip:hover {
 }
 
 .ae-field-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   align-items: center;
   gap: 8px;
 }
 
+.ae-field-row > :not(.ae-field-label) {
+  justify-self: end;
+  max-width: 100%;
+}
+
+.ae-field-row > .ae-field-input { width: 100%; }
+.ae-field-row > .ae-field-number { width: 80px; }
+
 .ae-field-label {
   font-size: 11px;
   color: #a89984;
-  min-width: 80px;
-  flex-shrink: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   font-weight: 600;
@@ -432,6 +441,7 @@ button.ae-chip:hover {
 .ae-field-number { width: 80px; flex: 0 0 auto; }
 
 .ae-field-checkbox {
+  margin: 0;
   width: 16px;
   height: 16px;
   accent-color: #fe8019;
@@ -449,6 +459,8 @@ button.ae-chip:hover {
   display: flex;
   align-items: center;
   gap: 6px;
+  justify-content: flex-end;
+  width: 100%;
   flex: 1;
   min-width: 0;
 }
@@ -476,9 +488,60 @@ button.ae-chip:hover {
 
 .ae-color-hex {
   width: 80px;
+  max-width: calc(100% - 32px);
   flex: 0 0 auto;
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: 0.03em;
+}
+
+/* ── Action form pills ────────────────────────── */
+
+.ae-field-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.ae-field-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 6px;
+  border: 1px solid #504945;
+  border-radius: 999px;
+  background: #282828;
+  color: #a89984;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.ae-field-tab .material-symbols-outlined { font-size: 14px; }
+.ae-field-tab:hover { color: #ebdbb2; border-color: #a89984; }
+.ae-field-tab:focus-visible { outline: 2px solid #fe8019; outline-offset: 2px; }
+.ae-field-tab[aria-selected="true"] {
+  color: #8ec07c;
+  border-color: #8ec07c;
+  background: rgba(142, 192, 124, 0.1);
+}
+
+.ae-tab-dot {
+  width: 4px;
+  height: 4px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #fabd2f;
+  visibility: hidden;
+}
+
+.ae-tab-configured .ae-tab-dot { visibility: visible; }
+
+.ae-field-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
 }
 
 /* ── Action viewer: mini buttons ───────────────── */

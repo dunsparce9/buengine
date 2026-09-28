@@ -20,16 +20,20 @@ export class ActionRunner {
    * @param {import('./game-state.js').GameState} deps.state
    * @param {import('./inventory.js').Inventory} deps.inventory
    */
-  constructor({ bus, state, inventory, dialogs = { active: null, queue: [] } }) {
+  constructor({ bus, state, inventory, dialogs = { active: null, queue: [] }, animationFamily = null }) {
     this.bus = bus;
     this.state = state;
     this.inventory = inventory;
     this._dialogs = dialogs;
+    // Family tokens keep completed forks' nonblocking tweens cancellable by the root.
+    this._animationOwner = Symbol('animation owner');
+    this._animationFamily = animationFamily ?? Symbol('animation family');
+    this._ownsAnimationFamily = animationFamily == null;
     this._aborted = false;
     this._gotoFired = false;
     this._gotoTarget = null;
     this.running = false;
-    /** Resolve function for the currently awaited blocking promise (dialogue, choice, effect, etc.). */
+    /** Resolve function for the currently awaited blocking promise (dialogue, choice, animation, etc.). */
     this._pendingResolve = null;
     /** Resolvers waiting for the current run to fully unwind (see abort()). */
     this._unwindWaiters = [];
@@ -53,6 +57,8 @@ export class ActionRunner {
       : null;
     const childWaits = [];
     this._aborted = true;
+    this.bus.emit('entity:animate-cancel', this._ownsAnimationFamily
+      ? { family: this._animationFamily } : { owner: this._animationOwner });
     for (const child of this._children) childWaits.push(child.abort());
     this._children.clear();
     // Resolve any pending blocking promise so the run() loop can unwind cleanly.
@@ -104,6 +110,9 @@ export class ActionRunner {
         const shouldReturn = await this._dispatchAction(type, action, frames);
         if (shouldReturn) return;
       }
+    } catch (error) {
+      this.bus.emit('entity:animate-cancel', { owner: this._animationOwner });
+      throw error;
     } finally {
       this.running = false;
       const waiters = this._unwindWaiters;
@@ -130,7 +139,7 @@ export class ActionRunner {
       case 'show': await this._show(action.show); break;
       case 'text': await this._text(action.text); break;
       case 'hide': await this._hide(action.hide); break;
-      case 'effect': await this._effect(action.effect); break;
+      case 'animate': await this._animate(action.animate); break;
       case 'playsound': await this._playsound(action.playsound); break;
       case 'stopsound': await this._stopsound(action.stopsound); break;
       case 'set': this._applySet(action.set); break;
@@ -284,6 +293,7 @@ export class ActionRunner {
       state: this.state,
       inventory: this.inventory,
       dialogs: this._dialogs,
+      animationFamily: this._animationFamily,
     });
     child.sequences = this.sequences;
     child.currentObjectId = this.currentObjectId;
@@ -315,9 +325,11 @@ export class ActionRunner {
     });
   }
 
-  _effect(effectDef) {
+  _animate(def) {
+    if (def.id === 'this') def = { ...def, id: this.currentObjectId };
     return this._wait(onDone => {
-      this.bus.emit('scene:effect', { ...effectDef, onDone });
+      this.bus.emit('entity:animate', { ...def, owner: this._animationOwner,
+        family: this._animationFamily, onDone });
     });
   }
 

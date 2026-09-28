@@ -17,6 +17,8 @@
  *   summarizeAction, getBadges
  */
 
+const targetsObject = action => action.animate?.target !== 'scene';
+
 export const UNKNOWN_ACTION_META = {
   icon: 'help_outline',
   color: '#7c6f64',
@@ -256,19 +258,46 @@ export const ACTION_TYPES = {
     badges: (action) => (action.hide?.effect?.blocking ? ['blocking'] : []),
   },
 
-  effect: {
-    icon: 'auto_awesome',
-    color: '#b8bb26',
-    label: 'Effect',
-    quip: 'fade the whole scene',
-    fields: [
-      { key: 'effect.type',     label: 'Type',         type: 'select', options: ['', 'fade-in', 'fade-out'], required: true },
-      { key: 'effect.seconds',  label: 'Duration (s)', type: 'number', step: 0.5 },
-      { key: 'effect.blocking', label: 'Blocking',     type: 'boolean' },
+  animate: {
+    icon: 'animation',
+    color: '#8ec07c',
+    label: 'Animate',
+    quip: 'move, transform, or fade objects and scenes',
+    tabs: [
+      { group: 'Move', icon: 'open_with' },
+      { group: 'Rotate', icon: 'rotate_right' },
+      { group: 'Scale', icon: 'zoom_out_map' },
+      { group: 'Resize', icon: 'aspect_ratio' },
+      { group: 'Fade', icon: 'opacity' },
+      { group: 'Timing', icon: 'schedule' },
     ],
-    defaults: { effect: { type: 'fade-in', seconds: 1 } },
-    summary: (action) => `${action.effect?.type || 'effect'}${action.effect?.seconds != null ? ` ${action.effect.seconds}s` : ''}`,
-    badges: (action) => (action.effect?.blocking ? ['blocking'] : []),
+    fields: [
+      { key: 'animate.target', label: 'Target', type: 'select', options: ['object', 'scene'], optionLabels: { object: 'Object', scene: 'Scene' }, affectsLayout: true, group: 'Target' },
+      { key: 'animate.id', label: 'ID (or this)', type: 'string', required: true, group: 'Target', visibleWhen: targetsObject },
+      { key: 'animate.to.x', label: 'X (grid)', type: 'number', step: 0.1, group: 'Move', visibleWhen: targetsObject },
+      { key: 'animate.to.y', label: 'Y (grid)', type: 'number', step: 0.1, group: 'Move', visibleWhen: targetsObject },
+      { key: 'animate.to.rotation', label: 'Rotation (degrees)', type: 'number', step: 1, group: 'Rotate', visibleWhen: targetsObject },
+      { key: 'animate.pivot', label: 'Pivot', type: 'select', options: ['', 'center', 'top-left', 'top-center', 'top-right', 'middle-left', 'middle-center', 'middle-right', 'bottom-left', 'bottom-center', 'bottom-right'], group: 'Rotate', visibleWhen: targetsObject },
+      { key: 'animate.to.scale', label: 'Scale (multiplier)', type: 'number', step: 0.1, group: 'Scale', visibleWhen: targetsObject },
+      { key: 'animate.to.scaleX', label: 'Scale X (override)', type: 'number', step: 0.1, group: 'Scale', visibleWhen: targetsObject },
+      { key: 'animate.to.scaleY', label: 'Scale Y (override)', type: 'number', step: 0.1, group: 'Scale', visibleWhen: targetsObject },
+      { key: 'animate.to.w', label: 'Width (grid)', type: 'number', min: 0, step: 0.1, group: 'Resize', visibleWhen: targetsObject },
+      { key: 'animate.to.h', label: 'Height (grid)', type: 'number', min: 0, step: 0.1, group: 'Resize', visibleWhen: targetsObject },
+      { key: 'animate.from.opacity', label: 'Starting opacity (optional)', type: 'number', min: 0, max: 1, step: 0.1, group: 'Fade' },
+      { key: 'animate.to.opacity', label: 'Opacity (0–1)', type: 'number', min: 0, max: 1, step: 0.1, group: 'Fade' },
+      { key: 'animate.seconds', label: 'Duration (s; 0 = instant)', type: 'number', min: 0, step: 0.1, group: 'Timing' },
+      { key: 'animate.easing', label: 'Easing', type: 'select', options: ['', 'linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out'], group: 'Timing' },
+      { key: 'animate.blocking', label: 'Blocking', type: 'boolean', group: 'Timing' },
+    ],
+    defaults: { animate: { target: 'object', id: 'this', to: {}, seconds: 1, easing: 'ease-in-out', blocking: true } },
+    summary: (action) => {
+      const data = action.animate || {};
+      const scene = data.target === 'scene';
+      const props = Object.entries(data.to || {}).filter(([key]) => !scene || key === 'opacity')
+        .map(([key, value]) => `${key} ${value}${key === 'opacity' && data.from?.opacity != null ? ` (from ${data.from.opacity})` : ''}`).join(', ');
+      return `${scene ? 'Scene' : data.id || '(target)'} → ${props || '(no changes)'} | ${data.seconds ?? 1}s`;
+    },
+    badges: (action) => action.animate?.blocking ? ['blocking'] : [],
   },
 
   playsound: {

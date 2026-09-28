@@ -1,4 +1,4 @@
-const CACHE_NAME = 'buengine-editor-v8';
+const CACHE_NAME = 'buengine-editor-v12';
 const CORE_ASSETS = [
   './',
   './assets/icon.svg',

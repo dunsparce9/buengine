@@ -289,8 +289,10 @@
       "run": "intro_sequence"
     },
     {
-      "effect": {
-        "type": "fade-out",
+      "animate": {
+        "target": "scene",
+        "to": { "opacity": 0 },
+        "easing": "ease",
         "seconds": 2,
         "blocking": true
       }
