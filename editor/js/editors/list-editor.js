@@ -37,7 +37,7 @@ export function createActionsPill(initialCount, onClick) {
   pill.className = 'ae-mini-btn items-actions-pill';
   const render = (count = initialCount) => {
     pill.innerHTML = '<span class="material-symbols-outlined">list_alt</span> ' + count;
-    pill.title = `${count} action(s)`;
+    pill.dataset.tooltip = `${count} action(s)`;
   };
   render(initialCount);
   pill.addEventListener('click', () => onClick(render));

@@ -176,7 +176,7 @@ export function createActionRenderers(openActionEditor, {
         const dragHandle = document.createElement('span');
         dragHandle.className = 'ae-drag-handle ae-choice-drag-handle material-symbols-outlined';
         dragHandle.textContent = 'drag_indicator';
-        dragHandle.title = 'Drag to reorder';
+        dragHandle.dataset.tooltip = 'Drag to reorder';
         dragHandle.addEventListener('mousedown', (event) => {
           beginChoiceOptionDrag(event, optBlock, optHeader, choice, i, viewCtx);
         });
@@ -199,7 +199,8 @@ export function createActionRenderers(openActionEditor, {
           addBtn.className = 'ae-header-btn ae-add-btn';
           preventMouseFocus(addBtn);
           addBtn.type = 'button';
-          addBtn.title = 'Add action';
+          addBtn.dataset.tooltip = 'Add action';
+          addBtn.setAttribute('aria-label', 'Add action');
           addBtn.innerHTML = '<span class="material-symbols-outlined">add</span>';
           addBtn.addEventListener('click', async (event) => {
             event.stopPropagation();
@@ -210,7 +211,8 @@ export function createActionRenderers(openActionEditor, {
           cloneBtn.className = 'ae-header-btn ae-clone-btn';
           preventMouseFocus(cloneBtn);
           cloneBtn.type = 'button';
-          cloneBtn.title = 'Clone option';
+          cloneBtn.dataset.tooltip = 'Clone option';
+          cloneBtn.setAttribute('aria-label', 'Clone option');
           cloneBtn.innerHTML = '<span class="material-symbols-outlined">content_copy</span>';
           cloneBtn.addEventListener('click', (event) => {
             event.stopPropagation();
@@ -222,7 +224,8 @@ export function createActionRenderers(openActionEditor, {
           editBtn.className = 'ae-header-btn ae-edit-btn';
           preventMouseFocus(editBtn);
           editBtn.type = 'button';
-          editBtn.title = 'Edit option text';
+          editBtn.dataset.tooltip = 'Edit option text';
+          editBtn.setAttribute('aria-label', 'Edit option text');
           editBtn.innerHTML = '<span class="material-symbols-outlined">edit</span>';
           editBtn.addEventListener('click', (event) => {
             event.stopPropagation();
@@ -233,7 +236,8 @@ export function createActionRenderers(openActionEditor, {
           deleteBtn.className = 'ae-header-btn ae-delete-btn';
           preventMouseFocus(deleteBtn);
           deleteBtn.type = 'button';
-          deleteBtn.title = 'Delete option';
+          deleteBtn.dataset.tooltip = 'Delete option';
+          deleteBtn.setAttribute('aria-label', 'Delete option');
           deleteBtn.innerHTML = '<span class="material-symbols-outlined">delete</span>';
           deleteBtn.addEventListener('click', (event) => {
             event.stopPropagation();
@@ -289,7 +293,8 @@ export function createActionRenderers(openActionEditor, {
       nextTextEl.textContent = nextText || '—';
       input.replaceWith(nextTextEl);
 
-      editBtn.title = 'Edit option text';
+      editBtn.dataset.tooltip = 'Edit option text';
+      editBtn.setAttribute('aria-label', 'Edit option text');
       editBtn.innerHTML = '<span class="material-symbols-outlined">edit</span>';
 
       // Clicking the apply button moves focus onto it, which would keep the
@@ -297,7 +302,8 @@ export function createActionRenderers(openActionEditor, {
       if (document.activeElement === editBtn) editBtn.blur();
     };
 
-    editBtn.title = 'Apply option text';
+    editBtn.dataset.tooltip = 'Apply option text';
+    editBtn.setAttribute('aria-label', 'Apply option text');
     editBtn.innerHTML = '<span class="material-symbols-outlined">check</span>';
     editBtn.onclick = (event) => {
       event.stopPropagation();
@@ -584,7 +590,7 @@ export function createActionRenderers(openActionEditor, {
     chip.textContent = sceneId;
     if (canFocusScene) {
       chip.type = 'button';
-      chip.title = `Focus scene: ${sceneId}`;
+      chip.dataset.tooltip = `Focus scene: ${sceneId}`;
       chip.addEventListener('click', () => viewCtx.focusScene(sceneId));
     }
     body.appendChild(chip);
@@ -603,7 +609,7 @@ export function createActionRenderers(openActionEditor, {
     chip.textContent = sequenceName;
     if (canOpenSequence) {
       chip.type = 'button';
-      chip.title = `Open sequence: ${sequenceName}`;
+      chip.dataset.tooltip = `Open sequence: ${sequenceName}`;
       chip.addEventListener('click', () => openSequence(sequenceName, viewCtx));
     }
     body.appendChild(chip);
@@ -691,7 +697,7 @@ export function renderCollapsedSummary(action, type, shortenText, viewCtx = {}) 
   }
   if (onClick) {
     el.type = 'button';
-    el.title = title;
+    el.dataset.tooltip = title;
     el.addEventListener('click', (event) => {
       event.stopPropagation();
       onClick();

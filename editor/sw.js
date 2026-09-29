@@ -1,4 +1,4 @@
-const CACHE_VERSION = '060542133ec1c548';
+const CACHE_VERSION = '5df1329c44b39937';
 const RELEASE_BUILD = false;
 const CORE_ASSETS = [
   './',
@@ -14,6 +14,7 @@ const CORE_ASSETS = [
   './css/editor.css',
   './css/file-panel.css',
   './css/floating-window.css',
+  './css/hover-tooltip.css',
   './css/items-viewer.css',
   './css/layout.css',
   './css/menu.css',
@@ -24,6 +25,7 @@ const CORE_ASSETS = [
   './css/welcome.css',
   './index.html',
   './js/action-editor.js',
+  './js/action-editor/clipboard.js',
   './js/action-editor/drag.js',
   './js/action-editor/forms.js',
   './js/action-editor/index.js',
@@ -59,6 +61,7 @@ const CORE_ASSETS = [
   './js/ui/editor-toolbar.js',
   './js/ui/field-rows.js',
   './js/ui/floating-window.js',
+  './js/ui/hover-tooltip.js',
   './js/ui/menu.js',
   './js/ui/resize.js',
   './js/ui/section-header.js',

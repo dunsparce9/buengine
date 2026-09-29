@@ -90,7 +90,7 @@ export function createFormBuilders(openActionField) {
           });
           button.classList.toggle('ae-tab-configured', configured);
           const description = `${group}${configured ? ' — configured' : ''}`;
-          button.title = description;
+          button.dataset.tooltip = description;
           button.setAttribute('aria-label', description);
         }
       };
@@ -325,7 +325,8 @@ export function createFormBuilders(openActionField) {
         const removeBtn = document.createElement('button');
         removeBtn.className = 'ae-mini-btn ae-mini-btn-danger';
         removeBtn.innerHTML = '<span class="material-symbols-outlined">close</span>';
-        removeBtn.title = 'Remove';
+        removeBtn.dataset.tooltip = 'Remove';
+        removeBtn.setAttribute('aria-label', 'Remove');
 
         nameInput.addEventListener('change', () => {
           const nextKey = nameInput.value.trim();

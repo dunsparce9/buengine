@@ -55,6 +55,15 @@
   width: 20px;
 }
 
+.editor-toolbar-btn-delete:hover {
+  color: #fb4934;
+}
+
+.editor-toolbar-btn:disabled {
+  color: #665c54;
+  cursor: default;
+}
+
 .editor-toolbar-btn-collapse:hover {
   color: #83a598;
 }

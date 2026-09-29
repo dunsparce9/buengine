@@ -1,167 +1,34 @@
----
-description: Project-wide instructions for the büengine point-and-click game engine.
-applyTo: "**"
----
+# büengine agent docs
 
-# büengine — Agent Instructions
+büengine is a static, browser-only 2D point-and-click adventure engine.
 
-## Project Overview
-büengine is a **static, browser-only, 2D point-and-click adventure game engine**. Development uses ES modules served directly from files. An optional esbuild release step (`npm run build`) packages a static `dist/` website; no application server is needed. Games are stored in `games/` as self-contained folders, each with its own JSON scripts and assets.
+## Core principles
 
-## Testing and verification
-No testing, no browser automation or CI steps (syntax checks are fine). The user handles in-browser verification.
+- Vanilla JS and ES modules; no TypeScript, frameworks, browser dependencies, or backend.
+- Source must work from a static server without installing dependencies. Node.js 22+ and esbuild are for optional release tooling (`npm run build`). Never edit generated `dist/` files.
+- Games are self-contained folders under `games/`; `playground/` is the main example game.
+- Runtime modules communicate through `EventBus`. UI emits events; it does not start action runners or import other UI classes. Shared helpers are fine.
+- The editor is a separate app. Read `editor/AGENTS.md` for editor work; keep editor-only behavior under `editor/`.
 
-## Architecture
+## Ownership
 
-```
-index.html              ← single entry point (game selector + engine)
-css/style.css           ← import index for the split stylesheets in css/ (base, scene, dialogue, choice, overlay, hud, inventory, notifications, debug)
-js/
-  main.js               ← bootstrap, scene navigation, object-click routing, wires subsystems together
-  core/
-    event-bus.js        ← pub/sub decoupling
-    game-state.js       ← flags, current scene, history
-    script-loader.js    ← fetches & caches JSON scripts
-    action-runner.js    ← walks action arrays, dispatches commands
-    scene-renderer.js   ← backgrounds, scene objects, runtime image/text entities
-    entity-animator.js  ← per-property entity tweens, easing, pause and cancellation
-    sound-manager.js    ← audio playback, fade in/out
-    inventory.js        ← inventory state and item definitions
-    paths.js            ← game asset-path resolver (basePath + preview assetMap)
-  shared/
-    action-schema.js    ← runtime/editor action metadata, defaults, summaries, badges
-    script-data.js      ← runtime/editor JSON normalization + inline action traversal
-  ui/
-    dialogue-ui.js      ← dialogue box with typewriter effect
-    choice-ui.js        ← multiple-choice modal
-    object-options-ui.js ← scene-object right-click options menu
-    overlay-ui.js       ← title screen & pause menu
-    hud-ui.js           ← HUD taskbar
-    notification-ui.js  ← toast notifications
-    inventory-ui.js     ← inventory floating window and context menu
-    context-menu.js     ← shared runtime context menu
-    game-selector.js    ← game picker overlay
-    debug-hud.js        ← debug grid + tile/object readout
-editor/
-  AGENTS.md              ← editor-specific instructions
-games/
-  index.json             ← list of available game folder names
-  playground/            ← example game (main testing ground, fleshed-out)
-    _game.json           ← game manifest (title, startScene, inventory)
-    intro.json           ← scene (also abode.json, ending.json, ...)
-    images/              ← scene/object/item artwork
-    items/               ← item definitions
-      items.json         ← array of item definition objects
-    sounds/              ← audio assets (introbg.opus, objects/, common/)
-      common/            ← shared UI sounds (button-click, dialogue-click)
-  lmaooo/                ← another game (tiny, just to test game picker system)
-    ...
-```
+- `js/main.js`: bootstrap, navigation, player interaction routing.
+- `js/core/`: engine state, scripts, actions, rendering, animation, audio, inventory.
+- `js/ui/`: player UI; `css/` contains styles split by concern.
+- `js/shared/action-schema.js`: canonical action metadata, defaults, fields, summaries, badges.
+- `js/shared/script-data.js`: shared JSON normalization and action traversal.
+- Action changes must update runtime execution and the shared schema. Dispatch commands directly by type; do not add a second action language or duplicate registries.
 
-## Key Conventions
+## Runtime invariants
 
-### Source development and release builds
-All JS is vanilla ES-module (`type="module"`). No TypeScript or frameworks. Source development must keep working from a local static server without installing dependencies. `tools/build.mjs` uses esbuild only for optional release packaging: hashed/minified runtime and editor JS/CSS, source maps, copied games/public assets, rewritten output HTML, and a generated release editor service worker. Do not edit generated `dist/` files; update source and rebuild. Node.js 22+ is required for tooling, and esbuild is a development dependency only.
+- Preserve runner unwinding, abort ownership, fork concurrency, and shared dialogue/choice queuing. Busy left-clicks/hover are ignored; menu interactions wait for interruption to finish.
+- Report failures through `engine:error`; failed entry actions must not silently redirect.
+- Pause freezes animations/audio fades. Cancellation releases blocking waits without firing natural-completion effects. Replacement affects only overlapping animation properties.
+- Runtime poses must not mutate cached scene JSON. Scene re-entry resets geometry/opacity; hit regions follow transformed objects. Scene fades affect only the scene layer.
+- Keep script units consistent: geometry in tiles, `wait` in milliseconds, fades/animation/dialogue delay in seconds. Preserve condition semantics and loop/recursion guards.
 
-### Script format
-Scene scripts are JSON files in each game's folder (e.g. `games/playground/`). Each has:
-- `id` — unique scene identifier (matches filename)
-- `background` / `backgroundColor` — visual backdrop (when both are set, the image wins and `backgroundColor` is ignored)
-- `grid` — `{ "cols": N, "rows": N }` tile grid dimensions (default 16×9)
-- `elements` — e.g. `"elements": ["hud"]` controls HUD visibility for the scene
-- `objects[]` — scene objects (clickable regions, decorative images, etc.) with `{ id, x, y, w, h, label?, texture?, visible?, highlight?, cursor?, z?, options? }`. `id` is unique within the scene; `x`, `y` are tile coordinates; `w`, `h` are tile counts. Optional `label` shows a tooltip on hover. Optional `texture` renders an image snapped to the grid. Optional `visible: false` starts the object hidden (can be revealed via `show` action or in `onEnter`). Optional `highlight: false` disables the hover highlight (dashed border for plain objects, glow for textured objects). Optional `cursor` sets the CSS cursor on hover. Optional `z` sets the CSS z-index for stacking control. `options[]` uses the same shape as inventory item options: `{ text, icon?, actions[] }`. Left-click runs the first option; right-click opens the object options menu. Each executed object interaction auto-increments the flag `{sceneId}.{id}.clicks` **before** the actions run (so `clicks == 1` is true on the first click), so scripts can check repeat interactions via conditions (e.g. `"if": "intro.beer.clicks >= 3"`). Legacy object-level `actions[]` are still accepted for backward compatibility.
-- `sequences` — `{ "name": [...actions] }` named action sequences callable via `{ "run": "name" }`. `run` expands them inline at that point in the action list, so blocking behavior still comes from the individual actions inside the sequence. Supports nesting/recursion up to the 64-frame guard (see below).
-- `onEnter[]` — action array run when the scene is entered
+## Working rules
 
-### Runtime vs editor
-- `js/main.js` is the runtime entry point. `js/core/` holds engine services, `js/ui/` holds player-facing UI, and `js/shared/` holds neutral modules used by both apps.
-- `editor/` is a separate static app used to inspect and edit game folders via the browser File System Access API.
-- The runtime and editor intentionally share `js/shared/action-schema.js` as the single source of truth for action metadata, defaults, labels, and field definitions.
-- If an action type changes, update both the runtime execution path (`js/core/action-runner.js`) and the shared schema (`js/shared/action-schema.js`) so the editor stays in sync automatically.
-
-### Action commands
-Actions are objects in an array. Supported commands:
-| Command | Example |
-|---------|---------|
-| Dialogue | `{ "say": "Hello!", "speaker": "Ada", "accent": "#f0c040" }` — optional `"typewriterSpeed": N` (milliseconds per character, `0` = instant) and `"delay": N` (seconds) locks input & hides advance hint for N seconds |
-| Choice | `{ "choice": { "prompt": "...", "options": [{ "text": "...", "actions": [...] }] } }` |
-| Scene change | `{ "goto": "scene_id" }` |
-| Set flag | `{ "set": { "flag_name": true } }` |
-| Increment flag | `{ "set": { "flag_name": "+1" } }` — string `"+N"` / `"-N"` adds to current value (init 0) |
-| Increment (clamped) | `{ "set": { "flag_name": { "add": 1, "max": 5 } } }` — increment with optional `min`/`max` clamp |
-| Conditional (bool) | `{ "if": "flag_name", "then": [...], "else": [...] }` — truthiness check |
-| Conditional (cmp) | `{ "if": "flag_name >= 3", "then": [...], "else": [...] }` — numeric comparison (`==`, `!=`, `>`, `>=`, `<`, `<=`) |
-| Loop | `{ "loop": "flag_name < 3", "do": [...] }` — repeats the nested actions while the condition stays true (`then` is accepted as an alias for `do`) |
-| Wait | `{ "wait": 500 }` — duration in **milliseconds** |
-| Custom event | `{ "emit": "event_name" }` — optional `"payload"` is passed through to listeners |
-| Run sequence | `{ "run": "sequence_name" }` — expands the sequence inline; it is not its own blocking layer |
-| Fork sequence | `{ "fork": "sequence_name" }`, `{ "fork": { "run": "sequence_name" } }`, `{ "fork": { "actions": [...] } }`, or `{ "fork": [...] }` — starts a detached background action chain. Use this for passive timed sequences (flashcards, fades, sound cues) that should continue while the main chain waits on dialogue/choice |
-| Exit actions | `{ "exit": true }` |
-| Show object | `{ "show": "object_id" }` — string shorthand to make a scene object visible. Use `"this"` to reference the object whose actions are running. Full form: `{ "show": { "id": "...", "texture": "...", "layer": "overlay", "scaling": "fill", "z": 10, "effect": { "type": "fade-in", "seconds": 2, "blocking": false } } }` — if `id` matches a scene object, makes it visible; otherwise creates a runtime image/text entity. `layer: "background"` places it behind objects; `layer: "overlay"` places it above objects while still allowing clicks to pass through to scene objects underneath |
-| Text block | `{ "text": { "id": "hud", "text": "**Hello**", "color": "#ffffff", "fontFamily": "Georgia, serif", "fontSize": "24px", "backgroundColor": "#101010", "position": { "anchor": "bottom-center", "x": "0%", "y": "5%" }, "effect": { "type": "fade-in", "seconds": 1, "blocking": false } } }` — creates a runtime text entity. Supports rudimentary markdown: `**bold**`, `*italics*`, `__underline__`, `~~strikethrough~~`. `position.x` / `position.y` accept percentages of the scene viewport; values without `%` are treated as grid coordinates and snapped to the current scene grid. Leaving `backgroundColor` empty keeps the text background transparent. `anchor` can be any of `top-left`, `top-center`, `top-right`, `middle-left`, `middle-center`, `middle-right`, `bottom-left`, `bottom-center`, `bottom-right` |
-| Hide object | `{ "hide": "object_id" }` — string shorthand to hide a scene object. Use `"this"` for self-reference. Full form: `{ "hide": { "id": "...", "effect": { "type": "fade-out", "seconds": 1, "blocking": true } } }` — scene objects stay in DOM (can be re-shown); runtime image/text overlays are removed |
-| Animate | `{ "animate": { "id": "this", "to": { "x": 8, "y": 4, "rotation": 90, "scale": 1.5, "w": 3, "h": 2, "opacity": 0.5 }, "seconds": 1, "easing": "ease-in-out", "blocking": true } }` — animate any existing scene object or runtime image/text entity from its current pose. `target` defaults to `"object"`; `"scene"` animates whole-scene opacity and ignores object ID/geometry fields. All `to` fields are optional, absolute targets; `x`/`y`/`w`/`h` use fractional grid units, rotation uses degrees, scale uses multipliers (`scaleX`/`scaleY` override uniform `scale`), opacity uses 0–1. Optional `from.opacity` sets starting opacity immediately and requires `to.opacity`; otherwise opacity starts from the displayed value. A scene fade-in is `{ "animate": { "target": "scene", "from": { "opacity": 0 }, "to": { "opacity": 1 }, "seconds": 1 } }`; fade-out targets opacity 0. Text `x`/`y` stay offsets from its existing anchor. Duration defaults to 1 second; 0 applies instantly. Easing supports `linear`, `ease`, `ease-in`, `ease-out`, `ease-in-out` (default). Optional object `pivot` uses `center` (initial default) or a text-style anchor name and persists until changed. Blocking defaults to false in JSON; new editor cards have it checked. Empty `to` is a no-op; invalid values/timing/easing/targets/pivots and missing entities report an engine error. |
-| Play sound | `{ "playsound": { "id": "bgm", "path": "sounds/file.opus", "volume": 0.7, "fade": 1, "loop": true, "blocking": false } }` — `path` is game-relative (e.g. `"sounds/introbg.opus"`). `volume` (0–1, default 1), `fade` (seconds, default 0), `loop` (default false), `blocking` waits for fade-in to finish — or, when `fade` is 0 and `loop` is false, for playback to end |
-| Stop sound | `{ "stopsound": { "id": "bgm", "fade": 1, "blocking": true } }` — stops a playing sound by id; `fade` (seconds, default 0), `blocking` waits for fade-out to finish |
-| Item add/remove | `{ "item": { "id": "key", "qty": 1 } }` — adds item to inventory (negative `qty` removes). Requires inventory enabled in `_game.json` |
-
-**Condition semantics & safety guards:** Unset flags read as numeric `0` everywhere. Plain truthiness checks (`"if": "flag"`) treat unset or `0` as false. In comparisons (`==`, `!=`, `>`, `>=`, `<`, `<=`) operands are coerced with `Number()`, so booleans become `1`/`0` (`true == 1` is true); only when *both* sides are non-numeric strings do they compare lexicographically, and if either side coerces to `NaN` the comparison is false. Two guards prevent hangs: a `loop` whose condition never flips throws an Error after **10,000 iterations**, and frame nesting reaching **64 frames** (e.g. runaway recursive `{ "run": ... }`) throws an Error about recursive sequence expansion — both name the scene/condition where they fired.
-
-### Object hover actions
-
-Scene objects can define `onHover[]`, an action array using the same commands as options (e.g. `"onHover": [{ "run": "door_hint" }]`). It fires once per mouse entry, including on objects without labels. Hover uses the main runner and is ignored while it is busy or a scene transition is in progress; ignored entries are not queued. It supports `"this"` without incrementing `{sceneId}.{id}.clicks`. Leaving the object does not cancel its actions. Options remain click/menu interactions.
-
-### Inventory system
-
-Configured per-game in `_game.json`:
-- `"inventory": 12` — enables inventory with 12 slots
-- `"inventory": 0` or omitted — inventory disabled (HUD button hidden)
-
-Item definitions live in `items/items.json` inside each game folder. Each item:
-```json
-{
-  "id": "seal",
-  "name": "Seal",
-  "icon": "images/items/seal.png",
-  "stackable": false,
-  "droppable": true,
-  "options": [
-    { "text": "Stare at", "icon": "👁️", "actions": [{ "say": "...", "speaker": "..." }] }
-  ]
-}
-```
-
-Scripts can check inventory via conditions: `"if": "items.key.qty >= 1"` (uses `items.<id>.qty` syntax in `if` blocks). Truthiness check `"if": "items.key.qty"` returns true if qty > 0.
-
-The inventory UI is a draggable floating window with Grid and List display modes. Right-click items for defined options or Drop (Drop is hidden when the item sets `"droppable": false`).
-
-### Action lifecycle
-
-- Player interactions start through `main.js`: ordinary object left-clicks are ignored while busy; object right-click options and inventory options interrupt a running chain after waiting for its abort to finish. UI modules emit events instead of starting the runner themselves.
-- A runner executes one chain at a time and stays `running` until it fully unwinds. Choice branches use the same frame stack; `exit` ends the nearest choice branch or, outside a choice, the whole chain.
-- Main and forked runners share a small FIFO for dialogue/choice display. Aborting a chain removes its own pending prompt without dismissing another chain's UI. Passive fork effects and sounds continue concurrently.
-- Runtime errors are reported through `engine:error` and a notification; failed entry actions do not silently redirect to intro.
-- Audio commands consume their completion once on end/error/stop/replacement. Cancelling a fade does not execute its natural-completion side effect; pause freezes fades and defers new playback until resume.
-- Entity animations retain their final pose in runtime state without mutating cached scene JSON. Pause freezes them (including animations started while paused). New tweens replace only overlapping properties from their current pose; unrelated motion continues. A blocking tween waits until its remaining properties finish or are cancelled/replaced. Aborting the main runner cancels its animation family, including completed forks' passive tweens, at the current pose. Runtime entity removal and scene cleanup cancel their tweens and release blocking waits. Scene re-entry resets geometry; click regions, tooltips and debug hover follow the actual transformed DOM objects. Updating a text entity cancels its current tweens and reapplies its text position while retaining rotation/scale.
-- Scene and object opacity share the same animator, pause/cancellation and blocking behavior. Scene fades affect the scene layer only, leaving player UI untouched, and scene re-entry resets opacity. Whole-scene fades use Animate directly; the standalone Effect command has been removed. The shared schema defines conditional Animate fields. Opacity changes affect appearance; Show/Hide still control entity visibility/removal and interactivity, with their embedded fade settings.
-
-### Communication between modules
-Runtime behavior flows over `EventBus`. UI modules never import each other's classes — but they may import shared helpers (`core/paths.js`, `ui/context-menu.js`, `shared/action-schema.js`, `UI_SOUNDS` from `core/sound-manager.js`). Prefer `bus.emit()` / `bus.on()` for cross-module behavior.
-
-### DOM structure
-All game UI lives inside `#game-container`. The `#scene-layer` holds backgrounds and scene objects. The `#ui-layer` holds overlays, dialogues, and choice modals, using `.hidden` class toggling.
-
-## Editor
-
-The editor has its own separate instructions at `editor/AGENTS.md`. Refer to this file for editor-specific keywords: "editor:", "AE", "menubar", "panels" etc.
-
-## Coding Rules
-
-After changing editor web assets, `js/shared/action-schema.js`, `js/shared/script-data.js`, `assets/images/seal.png`, or editor service-worker logic, run `node editor/tools/generate-sw-precache.mjs` before finishing to refresh the editor's precache list and content-derived version. See `editor/AGENTS.md` for the editor update lifecycle.
-
-1. **Vanilla JS only** — no frameworks or browser dependencies; esbuild is permitted for optional release tooling.
-2. **Prefer events over imports** — use `bus.emit()` / `bus.on()` for cross-module communication.
-3. New UI components should follow the pattern: most take `bus`, query their own DOM elements, and subscribe to relevant events (a few take extra/different deps — e.g. `InventoryUI(bus, inventory)`, `GameSelector(onSelect)`, `DebugHud(getSceneData)`).
-4. Editor-only code lives under `editor/` and should not be bolted into runtime modules unless the feature is genuinely shared.
-5. ActionRunner dispatches commands directly by type; do not add a second execution language or private method names to the schema. Shared JSON-format helpers belong in `js/shared/script-data.js`. Shared action metadata belongs in `js/shared/action-schema.js`; do not fork separate action registries for engine vs editor. Summaries and header badges are derived there too (`summarizeAction`/`getBadges`) — the editor delegates instead of keeping parallel switches.
-6. Update this file (`buengine/AGENTS.md`) after significant **engine-side** changes if necessary. **If editor-side, remember editor has its own `editor/AGENTS.md`!**
+- No tests, browser automation, or CI steps. Syntax checks are fine; the user verifies in-browser.
+- After changing editor web assets, precached shared dependencies (including the schema, script helpers, or `assets/images/seal.png`), or worker logic, run `node editor/tools/generate-sw-precache.mjs`.
+- Keep agent docs small: durable constraints, ownership boundaries, and workflows only. No API catalogs, feature inventories, implementation trivia, or changelogs.

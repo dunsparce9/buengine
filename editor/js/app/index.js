@@ -3,6 +3,7 @@ import { renderViewport, initViewportInteractions } from '../panels/viewport.js'
 import { renderProperties } from '../panels/properties.js';
 import { initMenu } from '../ui/menu.js';
 import { initResizeHandles } from '../ui/resize.js';
+import { initHoverTooltips } from '../ui/hover-tooltip.js';
 import { hooks, state } from '../core/state.js';
 import { deleteObject } from '../core/scene-actions.js';
 import '../action-editor.js';
@@ -15,6 +16,7 @@ import { setupPWAInstall, installApp } from './pwa.js';
 import { initRecentFolders, handleOpenRecentFolder as dispatchOpenRecentFolder } from './recent-folders.js';
 
 hooks.renderFileList = renderFileList;
+initHoverTooltips();
 hooks.renderViewport = renderViewport;
 hooks.renderProperties = renderProperties;
 

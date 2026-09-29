@@ -84,7 +84,7 @@ export function updateRunLabels() {
     if (textNode) textNode.textContent = label;
   }
 
-  if (topRunBtn) topRunBtn.title = label;
+  if (topRunBtn) topRunBtn.dataset.tooltip = label;
 }
 
 export function showToast(message, type = 'info') {

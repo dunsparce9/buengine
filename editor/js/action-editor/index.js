@@ -1,8 +1,10 @@
 import { createFloatingWindow, closeWindowsFor } from '../ui/floating-window.js';
 import { containsReference } from '../../../js/shared/script-data.js';
 import { createEditorToolbar } from '../ui/editor-toolbar.js';
+import { promptForConfirmation } from '../ui/confirm-dialog.js';
 import { ACTION_TYPES, detectType, createDefaultAction, getActionMeta } from '../../../js/shared/action-schema.js';
 import { openEditors, editableLists, emptyDropZones } from './state.js';
+import { copyActions, readActionClipboard } from './clipboard.js';
 import {
   shortenText,
   cloneAction,
@@ -141,6 +143,43 @@ function moveActionBetweenEditors(sourceEditor, sourceIdx, targetEditor, targetI
 
 function buildEditorContent(container, editorState) {
   container.appendChild(createEditorToolbar({
+    copyAllDisabled: editorState.actions.length === 0,
+    onCopyAll: () => {
+      copyActions(editorState.actions);
+      const pasteDisabled = !readActionClipboard();
+      for (const editor of openEditors.values()) {
+        const button = editor.fw.body.querySelector('.editor-toolbar-btn-paste');
+        if (button) button.disabled = pasteDisabled;
+      }
+    },
+    pasteDisabled: !readActionClipboard(),
+    onPaste: () => {
+      const actions = readActionClipboard();
+      if (!actions) return;
+      editorState.pendingRevealIdx = editorState.actions.length;
+      editorState.actions.push(...actions);
+      notifyEditorChange(editorState);
+      editorState.rebuild();
+    },
+    deleteAllDisabled: editorState.actions.length === 0,
+    onDeleteAll: async () => {
+      if (!editorState.actions.length) return;
+      const confirmed = await promptForConfirmation({
+        title: 'Delete all actions',
+        icon: 'delete',
+        message: 'Delete all actions in this list, including their nested actions?',
+        confirmLabel: 'Delete all',
+      });
+      if (!confirmed || !editorState.fw.el.isConnected || !editorState.actions.length) return;
+      drag.cancelActionDrag();
+      cancelSimpleReorderDrag();
+      for (const action of editorState.actions) closeWindowsFor(action);
+      editorState.actions.splice(0);
+      editorState.editingIdx = null;
+      editorState.pendingRevealIdx = null;
+      notifyEditorChange(editorState);
+      editorState.rebuild();
+    },
     collapsed: editorState.collapsed,
     onToggleCollapse: () => {
       editorState.collapsed = !editorState.collapsed;
@@ -292,7 +331,8 @@ function buildEditableBlock(action, index, ctx) {
   const cloneBtn = document.createElement('button');
   cloneBtn.className = 'ae-header-btn ae-clone-btn';
   preventMouseFocus(cloneBtn);
-  cloneBtn.title = 'Clone';
+  cloneBtn.dataset.tooltip = 'Clone';
+  cloneBtn.setAttribute('aria-label', 'Clone');
   cloneBtn.innerHTML = '<span class="material-symbols-outlined">content_copy</span>';
   cloneBtn.addEventListener('click', (event) => {
     event.stopPropagation();
@@ -302,7 +342,8 @@ function buildEditableBlock(action, index, ctx) {
   const editBtn = document.createElement('button');
   editBtn.className = 'ae-header-btn ae-edit-btn';
   preventMouseFocus(editBtn);
-  editBtn.title = isEditing ? 'Done' : 'Edit';
+  editBtn.dataset.tooltip = isEditing ? 'Done' : 'Edit';
+  editBtn.setAttribute('aria-label', isEditing ? 'Done' : 'Edit');
   editBtn.innerHTML = `<span class="material-symbols-outlined">${isEditing ? 'check' : 'edit'}</span>`;
   editBtn.addEventListener('click', (event) => {
     event.stopPropagation();
@@ -312,7 +353,8 @@ function buildEditableBlock(action, index, ctx) {
   const delBtn = document.createElement('button');
   delBtn.className = 'ae-header-btn ae-delete-btn';
   preventMouseFocus(delBtn);
-  delBtn.title = 'Delete';
+  delBtn.dataset.tooltip = 'Delete';
+  delBtn.setAttribute('aria-label', 'Delete');
   delBtn.innerHTML = '<span class="material-symbols-outlined">delete</span>';
   delBtn.addEventListener('click', (event) => {
     event.stopPropagation();
@@ -325,7 +367,8 @@ function buildEditableBlock(action, index, ctx) {
     const addBtn = document.createElement('button');
     addBtn.className = 'ae-header-btn ae-add-btn';
     preventMouseFocus(addBtn);
-    addBtn.title = 'Add choice';
+    addBtn.dataset.tooltip = 'Add choice';
+    addBtn.setAttribute('aria-label', 'Add choice');
     addBtn.innerHTML = '<span class="material-symbols-outlined">add</span>';
     addBtn.addEventListener('click', (event) => {
       event.stopPropagation();

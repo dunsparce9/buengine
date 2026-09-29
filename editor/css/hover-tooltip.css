@@ -1,0 +1,39 @@
+/* izci HoverTooltip geometry and animation, using the editor's Gruvbox palette. */
+.hover-tooltip {
+  position: fixed;
+  z-index: 10000;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(240px, 70vw);
+  padding: 4px 7px;
+  border: 1px solid #3c3836;
+  border-radius: 5px;
+  background: #1d2021;
+  color: #ebdbb2;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.38);
+  font-size: 0.68rem;
+  font-weight: 400;
+  line-height: 1.25;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-2px) scale(0.98);
+  transform-origin: top right;
+  transition: opacity 55ms ease-out, transform 55ms ease-out;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.hover-tooltip.is-above {
+  transform: translateY(2px) scale(0.98);
+  transform-origin: bottom right;
+}
+
+.hover-tooltip.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hover-tooltip { transition: none; }
+}
