@@ -23,7 +23,7 @@ The editor is a separate static app at `editor/index.html`. Root instructions al
 
 ## Offline updates
 
-- After editor web-asset, precached dependency, or worker changes, run `node editor/tools/generate-sw-precache.mjs` (root `npm run precache`). Add new shared imports to the generator's dependency list. Do not manually bump cache versions or edit generated release output.
+- Always run `npm run build` after changes so `dist/` and its editor cache are updated for browser verification. Add new shared imports to the precache generator's dependency list. Do not manually bump cache versions or edit generated release output.
 - Keep the worker at its stable editor URL, caches scoped to its registration, and caching limited to known core assets. Preserve source network-first and release snapshot-first behavior.
 - Never activate updates automatically during install. Activate/reload only when clean; protect dirty tabs from activation elsewhere and retry pending updates after successful saves. First-time worker control must not reload. Runtime previews remain outside the editor worker scope.
 

@@ -138,6 +138,7 @@ export function openListModal({
     _openModals.delete(modalKey);
     fw.destroy();
   });
+  fw.refresh = () => modalState.rebuild();
   modalState.rebuild();
   fw.open();
   return fw;

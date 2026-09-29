@@ -3,6 +3,7 @@
  */
 
 import { state } from '../core/state.js';
+import { trackLoadedScript } from '../core/history.js';
 import { readFileText, collectAllPaths, findNode } from './fs-provider.js';
 
 import { normalizeSceneSequences } from '../../../js/shared/script-data.js';
@@ -26,6 +27,7 @@ export async function loadScript(id) {
   }
   if (scripts[id]) return scripts[id];
   scripts[id] = data;
+  trackLoadedScript(id);
   return data;
 }
 

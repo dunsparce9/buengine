@@ -42,6 +42,13 @@
         <button class="menu-action" data-action="exit"><span class="material-symbols-outlined">exit_to_app</span>Exit</button>
       </div>
     </div>
+    <div class="menu-item" data-menu="edit" data-requires-game hidden>
+      Edit
+      <div class="menu-dropdown" id="menu-edit">
+        <button class="menu-action" data-action="undo" disabled><span class="material-symbols-outlined">undo</span>Undo<span class="menu-shortcut">Ctrl+Z</span></button>
+        <button class="menu-action" data-action="redo" disabled><span class="material-symbols-outlined">redo</span>Redo<span class="menu-shortcut">Ctrl+Shift+Z / Ctrl+Y</span></button>
+      </div>
+    </div>
     <div class="menu-item" data-menu="run" data-requires-game hidden>
       Run
       <div class="menu-dropdown" id="menu-run">

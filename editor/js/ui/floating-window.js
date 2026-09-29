@@ -17,6 +17,19 @@ export function closeWindowsFor(owner) {
     if (model && containsReference(owner, model)) fw.destroy();
   }
 }
+/** Capture affected windows before history restores their model containers. */
+export function captureWindowRefresh(owners) {
+  const affected = [...transientWindows].filter(([, model]) =>
+    model && owners.some(owner => containsReference(owner, model)));
+  return (restoredOwners) => {
+    for (const [fw, model] of affected) {
+      if (!transientWindows.has(fw)) continue;
+      if (restoredOwners.some(owner => containsReference(owner, model)) && fw.refresh) fw.refresh();
+      else fw.destroy();
+    }
+  };
+}
+
 const OPENING_CLASS = 'fw-opening';
 const CLOSING_CLASS = 'fw-closing';
 function bringToFront(el) {

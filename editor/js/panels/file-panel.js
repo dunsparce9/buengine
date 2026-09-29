@@ -3,6 +3,7 @@
  */
 
 import { state, dom, hooks } from '../core/state.js';
+import { resetHistory } from '../core/history.js';
 import { showContextMenu } from '../ui/context-menu.js';
 import { createFloatingWindow, closeWindowsFor } from '../ui/floating-window.js';
 import { renameScene } from '../core/scene-actions.js';
@@ -97,6 +98,7 @@ function invalidatePath(path, workspace) {
   }
   state.assetURLCache = cache;
   state.scripts = { ...state.scripts };
+  resetHistory();
   if (workspace) workspace.scripts = state.scripts;
   hooks.updateWindowTitle();
   hooks.renderViewport();

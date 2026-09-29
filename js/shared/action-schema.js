@@ -313,7 +313,11 @@ export const ACTION_TYPES = {
       const scene = data.target === 'scene';
       const props = Object.entries(data.to || {}).filter(([key]) => !scene || key === 'opacity')
         .map(([key, value]) => `${key} ${value}${key === 'opacity' && data.from?.opacity != null ? ` (from ${data.from.opacity})` : ''}`).join(', ');
-      return `${scene ? 'Scene' : data.id || '(target)'} → ${props || '(no changes)'} | ${data.seconds ?? 1}s`;
+      const defaults = ACTION_TYPES.animate.defaults.animate;
+      const target = scene ? 'Scene' : (data.id && data.id !== defaults.id ? data.id : '');
+      const changes = props || '(no changes)';
+      const duration = data.seconds != null && data.seconds !== defaults.seconds ? ` | ${data.seconds}s` : '';
+      return `${target ? `${target} → ` : ''}${changes}${duration}`;
     },
     badges: (action) => action.animate?.blocking ? ['blocking'] : [],
   },

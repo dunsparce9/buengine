@@ -2,6 +2,7 @@ import { escapeHtml } from '../core/state.js';
 import {
   summarizeAction as schemaSummarizeAction,
   getBadges as schemaGetBadges,
+  getActionMeta,
 } from '../../../js/shared/action-schema.js';
 import { cloneAction, notifyEditorChange } from './utils.js';
 import { beginSimpleReorderDrag } from './drag.js';
@@ -37,6 +38,7 @@ export function createActionRenderers(openActionEditor, {
   buildNestedList,
   pickActionType,
   createDefaultAction,
+  appendActionToField,
 }) {
   function preventMouseFocus(button) {
     button.addEventListener('mousedown', (event) => {
@@ -391,21 +393,52 @@ export function createActionRenderers(openActionEditor, {
     cond.className = 'ae-if-condition';
     cond.innerHTML = `<span class="ae-if-keyword">if</span> <code>${escapeHtml(action.if)}</code>`;
     body.appendChild(cond);
-    if (Array.isArray(action.then) && action.then.length > 0) {
-      const thenLabel = document.createElement('div');
-      thenLabel.className = 'ae-branch-label ae-branch-then';
-      thenLabel.textContent = 'then';
-      body.appendChild(thenLabel);
-      const thenList = buildActionList(action.then, viewCtx);
-      body.appendChild(thenList);
-    }
-    if (Array.isArray(action.else) && action.else.length > 0) {
-      const elseLabel = document.createElement('div');
-      elseLabel.className = 'ae-branch-label ae-branch-else';
-      elseLabel.textContent = 'else';
-      body.appendChild(elseLabel);
-      const elseList = buildActionList(action.else, viewCtx);
-      body.appendChild(elseList);
+    for (const key of ['then', 'else']) {
+      const actions = Array.isArray(action[key]) ? action[key] : [];
+      if (!viewCtx.editorState && actions.length === 0) continue;
+
+      const branch = document.createElement('div');
+      branch.className = 'ae-if-branch';
+      const header = document.createElement('div');
+      header.className = 'ae-branch-header';
+      const label = document.createElement('span');
+      label.className = `ae-branch-label ae-branch-${key}`;
+      label.textContent = key;
+      header.appendChild(label);
+
+      if (viewCtx.editorState) {
+        header.tabIndex = 0;
+        const headerActions = document.createElement('div');
+        headerActions.className = 'ae-header-actions';
+        const addBtn = document.createElement('button');
+        addBtn.className = 'ae-header-btn ae-add-btn';
+        preventMouseFocus(addBtn);
+        addBtn.type = 'button';
+        addBtn.dataset.tooltip = `Add ${key} action`;
+        addBtn.setAttribute('aria-label', `Add ${key} action`);
+        addBtn.innerHTML = '<span class="material-symbols-outlined">add</span>';
+        addBtn.addEventListener('click', async (event) => {
+          event.stopPropagation();
+          const rootEditorState = getRootEditorState(viewCtx);
+          const type = await pickActionType?.(rootEditorState?.fw);
+          if (!type || !rootEditorState?.fw.el.isConnected || !header.isConnected) return;
+          appendActionToField(action, key, createDefaultAction(type));
+          commitInlineEdit(viewCtx);
+        });
+        headerActions.appendChild(addBtn);
+        header.appendChild(headerActions);
+      }
+
+      branch.appendChild(header);
+      if (actions.length > 0) {
+        branch.appendChild(buildActionList(actions, viewCtx));
+      } else {
+        const empty = document.createElement('div');
+        empty.className = 'ae-branch-empty';
+        empty.textContent = "No actions. Hover this branch's header and click '+' to add actions.";
+        branch.appendChild(empty);
+      }
+      body.appendChild(branch);
     }
     return body;
   }
@@ -435,7 +468,7 @@ export function createActionRenderers(openActionEditor, {
     const props = [];
     if (data.id) props.push(['id', data.id]);
     if (data.texture) props.push(['texture', data.texture]);
-    if (data.layer) props.push(['layer', data.layer]);
+    if (data.layer && data.layer !== 'overlay') props.push(['layer', data.layer]);
     if (data.scaling) props.push(['scaling', data.scaling]);
     for (const [k, v] of props) {
       const row = document.createElement('div');
@@ -466,10 +499,11 @@ export function createActionRenderers(openActionEditor, {
     }
     const props = [];
     if (data.id) props.push(['id', data.id]);
-    if (data.position?.anchor) props.push(['anchor', data.position.anchor]);
+    if (data.position?.anchor && data.position.anchor !== getActionMeta('text').defaults.text.position.anchor) props.push(['anchor', data.position.anchor]);
     if (data.position?.x != null && data.position.x !== '') props.push(['x', data.position.x]);
     if (data.position?.y != null && data.position.y !== '') props.push(['y', data.position.y]);
-    if (data.color) props.push(['color', data.color]);
+    const defaultColor = getActionMeta('text').fields.find(field => field.key === 'text.color').defaultValue;
+    if (data.color && data.color !== defaultColor) props.push(['color', data.color]);
     if (data.fontFamily) props.push(['fontFamily', data.fontFamily]);
     if (data.fontSize) props.push(['fontSize', data.fontSize]);
     if (data.backgroundColor) props.push(['backgroundColor', data.backgroundColor]);
@@ -495,11 +529,14 @@ export function createActionRenderers(openActionEditor, {
     const body = document.createElement('div');
     body.className = 'ae-body';
     const scene = data.target === 'scene';
-    const props = [['target', scene ? 'Scene' : data.id || '(target)'],
-      ...Object.entries(data.to || {}).filter(([key]) => !scene || key === 'opacity')];
+    const defaults = getActionMeta('animate').defaults.animate;
+    const props = [];
+    if (scene || (data.id && data.id !== defaults.id)) props.push(['target', scene ? 'Scene' : data.id]);
+    props.push(...Object.entries(data.to || {}).filter(([key]) => !scene || key === 'opacity'));
     if (data.from?.opacity != null) props.push(['starting opacity', data.from.opacity]);
     if (!scene && data.pivot) props.push(['pivot', data.pivot]);
-    props.push(['duration', `${data.seconds ?? 1}s`], ['easing', data.easing || 'ease-in-out']);
+    if (data.seconds != null && data.seconds !== defaults.seconds) props.push(['duration', `${data.seconds}s`]);
+    if (data.easing && data.easing !== defaults.easing) props.push(['easing', data.easing]);
     for (const [key, value] of props) {
       const row = document.createElement('div');
       row.className = 'ae-prop-row';
@@ -530,9 +567,9 @@ export function createActionRenderers(openActionEditor, {
     const props = [];
     if (data.id) props.push(['id', data.id]);
     if (data.path) props.push(['path', data.path]);
-    if (data.volume != null) props.push(['volume', data.volume]);
-    if (data.fade != null) props.push(['fade', `${data.fade}s`]);
-    if (data.loop != null) props.push(['loop', data.loop]);
+    if (data.volume != null && data.volume !== 1) props.push(['volume', data.volume]);
+    if (data.fade != null && data.fade !== 0) props.push(['fade', `${data.fade}s`]);
+    if (data.loop) props.push(['loop', data.loop]);
     for (const [k, v] of props) {
       const row = document.createElement('div');
       row.className = 'ae-prop-row';

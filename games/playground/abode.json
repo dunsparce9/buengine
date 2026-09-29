@@ -423,6 +423,25 @@
                     ]
                   },
                   {
+                    "text": "Fly",
+                    "actions": [
+                      {
+                        "animate": {
+                          "target": "object",
+                          "id": "this",
+                          "to": {
+                            "rotation": 30,
+                            "x": 1,
+                            "y": 1
+                          },
+                          "seconds": 1,
+                          "easing": "ease-in-out",
+                          "blocking": true
+                        }
+                      }
+                    ]
+                  },
+                  {
                     "text": "Send to Shadow Realm",
                     "actions": [
                       {

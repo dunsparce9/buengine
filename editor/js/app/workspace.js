@@ -1,5 +1,6 @@
 import { state, hooks, scriptPathFromId, collectImagePaths } from '../core/state.js';
 import { discoverScripts } from '../data/script-store.js';
+import { resetHistory, flushHistory, noteSavedScript } from '../core/history.js';
 import { openFolder, openFolderHandle, ensureHandlePermission, writeFile, deleteEntry, buildTree, clearAssetCache, cacheAssetURLs, findNode } from '../data/fs-provider.js';
 import { promptForConfirmation } from '../ui/confirm-dialog.js';
 import { renderFileList, selectScript, selectPath, expandFoldersForPath } from '../panels/file-panel.js';
@@ -74,6 +75,7 @@ export async function loadWorkspaceFromHandle(handle, { remember = false, initia
   state.selectedPath = null;
   state.dirtySet.clear();
   state.pendingScriptRenames.clear();
+  resetHistory();
   state.expandedFolders = new Set(['']);
   state.manifest = null;
   clearAssetCache();
@@ -129,6 +131,7 @@ hooks.openFolder = handleOpenFolder;
 /** Write one script. Rename source deletion happens only after the full group saves. */
 async function saveOne(id, workspace) {
   if (!isCurrentWorkspace(workspace)) return null;
+  flushHistory();
   const data = workspace.scripts[id];
   if (!data) return null;
   const path = scriptPathFromId(id);
@@ -137,6 +140,7 @@ async function saveOne(id, workspace) {
     const originalPath = state.pendingScriptRenames.get(id);
     await writeFile(path, json, workspace.root);
     if (!isCurrentWorkspace(workspace)) return null;
+    noteSavedScript(id, json);
     return { id, data, json, originalPath };
   } catch (err) {
     if (isCurrentWorkspace(workspace)) showToast(`Failed to save ${path}: ${err.message}`, 'error');
@@ -239,7 +243,10 @@ export async function saveAllFiles() {
     state.dirtySet.delete(id);
     saved++;
   }
-  if (renamedAny) await buildTree(workspace.root);
+  if (renamedAny) {
+    resetHistory();
+    await buildTree(workspace.root);
+  }
   if (!isCurrentWorkspace(workspace)) return;
   renderFileList();
   showToast(`Saved ${saved} file(s)`);

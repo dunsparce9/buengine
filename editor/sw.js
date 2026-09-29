@@ -1,4 +1,4 @@
-const CACHE_VERSION = '5df1329c44b39937';
+const CACHE_VERSION = '2a18ef104762061c';
 const RELEASE_BUILD = false;
 const CORE_ASSETS = [
   './',
@@ -40,6 +40,7 @@ const CORE_ASSETS = [
   './js/app/ui.js',
   './js/app/workspace.js',
   './js/core/action-context.js',
+  './js/core/history.js',
   './js/core/items-actions.js',
   './js/core/scene-actions.js',
   './js/core/state.js',

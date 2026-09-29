@@ -4,6 +4,7 @@
  */
 
 import { state, dom, hooks, markDirty } from '../core/state.js';
+import { beginHistoryGroup, endHistoryGroup } from '../core/history.js';
 import { addObject, deleteObject, uniqueObjectId } from '../core/scene-actions.js';
 import { makeActionViewerContext } from '../core/action-context.js';
 import { showContextMenu } from '../ui/context-menu.js';
@@ -393,6 +394,7 @@ function addResizeHandles(objectEl, obj) {
 /* ── Drag to move ──────────────────────────────── */
 
 function startMove(e, obj) {
+  beginHistoryGroup();
   e.preventDefault();
   const { gx, gy } = pxToGrid(e.clientX, e.clientY);
   const offsetX = gx - obj.x;
@@ -419,6 +421,7 @@ function startMove(e, obj) {
     document.removeEventListener('mouseup', onUp);
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
+    endHistoryGroup();
     hooks.renderProperties();
   }
 
@@ -431,6 +434,7 @@ function startMove(e, obj) {
 /* ── Drag to resize ────────────────────────────── */
 
 function startResize(e, obj, edge) {
+  beginHistoryGroup();
   const startX = obj.x, startY = obj.y, startW = obj.w, startH = obj.h;
   const { cols, rows } = getSceneGrid();
   const sceneId = state.selectedId;
@@ -466,6 +470,7 @@ function startResize(e, obj, edge) {
     document.removeEventListener('mouseup', onUp);
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
+    endHistoryGroup();
     hooks.renderProperties();
   }
 

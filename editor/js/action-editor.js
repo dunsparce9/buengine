@@ -1,1 +1,1 @@
-export { openActionEditor, openActionField } from './action-editor/index.js';
+export { openActionEditor, openActionField, clearActionDrafts } from './action-editor/index.js';

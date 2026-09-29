@@ -19,15 +19,25 @@ import { createDragController, cancelSimpleReorderDrag } from './drag.js';
 const inlineEditorStates = new WeakMap();
 const fieldDrafts = new WeakMap();
 
-/** Missing arrays stay local until the first edit, so inspecting data is read-only. */
-export function openActionField(title, owner, key, opts = {}) {
+export function clearActionDrafts(owners) {
+  for (const owner of owners) fieldDrafts.delete(owner);
+}
+
+function getActionFieldActions(owner, key) {
   let drafts = fieldDrafts.get(owner);
   if (!drafts) fieldDrafts.set(owner, drafts = new Map());
   const actions = Array.isArray(owner[key]) ? owner[key] : (drafts.get(key) || []);
   drafts.set(key, actions);
+  return actions;
+}
+
+/** Missing arrays stay local until the first edit, so inspecting data is read-only. */
+export function openActionField(title, owner, key, opts = {}) {
+  const actions = getActionFieldActions(owner, key);
   openActionEditor(title, actions, {
     ...opts,
     fieldOwner: owner,
+    fieldKey: key,
     owner: Array.isArray(owner[key]) ? actions : owner,
     onChange() {
       owner[key] = actions;
@@ -41,6 +51,11 @@ const renderers = createActionRenderers(openActionEditor, {
   buildNestedList,
   pickActionType,
   createDefaultAction,
+  appendActionToField(owner, key, action) {
+    const actions = getActionFieldActions(owner, key);
+    actions.push(action);
+    owner[key] = actions;
+  },
 });
 const forms = createFormBuilders(openActionField);
 const drag = createDragController({ moveActionBetweenEditors });
@@ -98,6 +113,17 @@ export function openActionEditor(title, actions, opts = {}) {
     openEditors.delete(editorKey);
     fw.destroy();
   });
+  fw.refresh = () => {
+    const { fieldOwner, fieldKey } = editorState.opts;
+    if (fieldOwner && fieldOwner[fieldKey] !== editorState.actions) {
+      fieldDrafts.delete(fieldOwner);
+      fw.destroy();
+      return;
+    }
+    editorState.editingIdx = null;
+    editorState.pendingRevealIdx = null;
+    editorState.rebuild();
+  };
   editorState.rebuild();
   fw.open();
 }

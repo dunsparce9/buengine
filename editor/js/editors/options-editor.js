@@ -25,6 +25,10 @@ export function createDefaultObjectOption() {
 }
 const legacyOptions = new WeakMap();
 
+export function clearOptionDrafts(owners) {
+  for (const owner of owners) legacyOptions.delete(owner);
+}
+
 export function openOptionsModal({
   target,
   scriptId,

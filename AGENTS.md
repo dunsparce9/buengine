@@ -5,7 +5,7 @@ büengine is a static, browser-only 2D point-and-click adventure engine.
 ## Core principles
 
 - Vanilla JS and ES modules; no TypeScript, frameworks, browser dependencies, or backend.
-- Source must work from a static server without installing dependencies. Node.js 22+ and esbuild are for optional release tooling (`npm run build`). Never edit generated `dist/` files.
+- Source must work from a static server without installing dependencies. Node.js 22+ and esbuild are for release tooling (`npm run build`). Never edit generated `dist/` files.
 - Games are self-contained folders under `games/`; `playground/` is the main example game.
 - Runtime modules communicate through `EventBus`. UI emits events; it does not start action runners or import other UI classes. Shared helpers are fine.
 - The editor is a separate app. Read `editor/AGENTS.md` for editor work; keep editor-only behavior under `editor/`.
@@ -30,5 +30,5 @@ büengine is a static, browser-only 2D point-and-click adventure engine.
 ## Working rules
 
 - No tests, browser automation, or CI steps. Syntax checks are fine; the user verifies in-browser.
-- After changing editor web assets, precached shared dependencies (including the schema, script helpers, or `assets/images/seal.png`), or worker logic, run `node editor/tools/generate-sw-precache.mjs`.
+- Always run `npm run build` after changes so `dist/` and its editor cache are updated for browser verification.
 - Keep agent docs small: durable constraints, ownership boundaries, and workflows only. No API catalogs, feature inventories, implementation trivia, or changelogs.

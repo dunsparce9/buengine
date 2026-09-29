@@ -6,7 +6,9 @@ import { initResizeHandles } from '../ui/resize.js';
 import { initHoverTooltips } from '../ui/hover-tooltip.js';
 import { hooks, state } from '../core/state.js';
 import { deleteObject } from '../core/scene-actions.js';
-import '../action-editor.js';
+import { undo, redo, canUndo, canRedo } from '../core/history.js';
+import { clearActionDrafts } from '../action-editor.js';
+import { clearOptionDrafts } from '../editors/options-editor.js';
 
 import { updateMenuVisibility, updateWindowTitle, openAboutWindow, hasUnsavedChanges, showToast } from './ui.js';
 import { handleOpenFolder, handleOpenRecentFolder, saveCurrentFile, saveAllFiles, confirmDiscardUnsavedChanges } from './workspace.js';
@@ -19,6 +21,15 @@ hooks.renderFileList = renderFileList;
 initHoverTooltips();
 hooks.renderViewport = renderViewport;
 hooks.renderProperties = renderProperties;
+hooks.historyRestored = owners => {
+  clearActionDrafts(owners);
+  clearOptionDrafts(owners);
+};
+
+hooks.updateHistory = () => {
+  document.querySelector('[data-action="undo"]').disabled = !canUndo();
+  document.querySelector('[data-action="redo"]').disabled = !canRedo();
+};
 
 let suppressBeforeUnloadPrompt = false;
 
@@ -30,6 +41,8 @@ function allowNextInAppNavigation() {
 }
 
 initMenu({
+  undo,
+  redo,
   'open-folder': handleOpenFolder,
   'open-recent-folder': dispatchOpenRecentFolder,
   save: saveCurrentFile,
@@ -69,6 +82,14 @@ function isEditableTarget(target) {
 }
 
 document.addEventListener('keydown', (event) => {
+  const key = event.key.toLowerCase();
+  if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.isComposing
+      && !isEditableTarget(event.target) && (key === 'z' || key === 'y')) {
+    event.preventDefault();
+    if (key === 'y' || event.shiftKey) redo();
+    else undo();
+    return;
+  }
   if (event.ctrlKey && event.key === 's') {
     event.preventDefault();
     saveCurrentFile();

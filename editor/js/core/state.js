@@ -46,6 +46,9 @@ export const hooks = {
   renderProperties: () => {},
   updateWindowTitle: () => {},
   afterSave:        () => {},
+  recordChange:     () => {},
+  updateHistory:    () => {},
+  historyRestored:  () => {},
 };
 
 /* ── Utilities ─────────────────────────────────── */
@@ -57,6 +60,7 @@ export function escapeHtml(s) {
 }
 
 export function markDirty(id) {
+  hooks.recordChange();
   if (!state.dirtySet.has(id)) {
     state.dirtySet.add(id);
     hooks.renderFileList();
