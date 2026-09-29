@@ -305,6 +305,27 @@ function revealPendingAction(container, editorState) {
   });
 }
 
+function appendHeaderBadges(header, action, type) {
+  const badges = getBadges(action, type);
+  for (const badgeText of badges) {
+    if (badgeText === 'blocking') continue;
+    const badge = document.createElement('span');
+    badge.className = 'ae-badge';
+    badge.textContent = badgeText;
+    header.appendChild(badge);
+  }
+  if (badges.includes('blocking')) {
+    header.classList.add('ae-has-blocking');
+    const icon = document.createElement('span');
+    icon.className = 'ae-blocking-icon material-symbols-outlined';
+    icon.textContent = 'block';
+    icon.dataset.tooltip = 'Blocking';
+    icon.setAttribute('role', 'img');
+    icon.setAttribute('aria-label', 'Blocking');
+    header.appendChild(icon);
+  }
+}
+
 function buildEditableBlock(action, index, ctx) {
   const type = detectType(action);
   const meta = getActionMeta(type);
@@ -328,6 +349,10 @@ function buildEditableBlock(action, index, ctx) {
   idx.className = 'ae-index';
   idx.textContent = index + 1;
 
+  const position = document.createElement('span');
+  position.className = 'ae-action-position';
+  position.append(idx, dragHandle);
+
   const icon = document.createElement('span');
   icon.className = 'ae-icon material-symbols-outlined';
   icon.style.color = meta.color;
@@ -337,7 +362,7 @@ function buildEditableBlock(action, index, ctx) {
   label.className = 'ae-label';
   label.textContent = meta.label;
 
-  header.append(dragHandle, idx, icon, label);
+  header.append(position, icon, label);
 
   if (isCollapsed) {
     const summary = renderCollapsedSummary(action, type, shortenText, {
@@ -347,12 +372,7 @@ function buildEditableBlock(action, index, ctx) {
     header.appendChild(summary);
   }
 
-  for (const badgeText of getBadges(action, type)) {
-    const badge = document.createElement('span');
-    badge.className = 'ae-badge';
-    badge.textContent = badgeText;
-    header.appendChild(badge);
-  }
+  appendHeaderBadges(header, action, type);
 
   const cloneBtn = document.createElement('button');
   cloneBtn.className = 'ae-header-btn ae-clone-btn';
@@ -449,12 +469,7 @@ function buildReadOnlyList(actions, viewCtx = {}) {
     labelEl.textContent = meta.label;
     header.append(idxEl, iconEl, labelEl);
 
-    for (const badgeText of getBadges(actions[i], type)) {
-      const badge = document.createElement('span');
-      badge.className = 'ae-badge';
-      badge.textContent = badgeText;
-      header.appendChild(badge);
-    }
+    appendHeaderBadges(header, actions[i], type);
 
     block.appendChild(header);
     const body = renderers.renderActionBody(actions[i], type, viewCtx);

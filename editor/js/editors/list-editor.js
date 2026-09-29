@@ -27,7 +27,7 @@ export function notifyListChange(scriptId, onChange) {
 }
 
 /**
- * Shared "N action(s)" pill button. The adapter supplies the click behavior
+ * Shared action-count pill button. The adapter supplies the click behavior
  * (usually opening the ActionEditor); `render` lets the opener refresh the
  * count without rebuilding the whole table.
  */
@@ -37,7 +37,7 @@ export function createActionsPill(initialCount, onClick) {
   pill.className = 'ae-mini-btn items-actions-pill';
   const render = (count = initialCount) => {
     pill.innerHTML = '<span class="material-symbols-outlined">list_alt</span> ' + count;
-    pill.dataset.tooltip = `${count} action(s)`;
+    pill.dataset.tooltip = `${count} action${count === 1 ? '' : 's'}`;
   };
   render(initialCount);
   pill.addEventListener('click', () => onClick(render));

@@ -91,6 +91,23 @@ export function createActionRenderers(openActionEditor, {
     return empty;
   }
 
+  function createEmptyAddAction(onAdd) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'ae-empty-add-action';
+    const icon = document.createElement('span');
+    icon.className = 'material-symbols-outlined';
+    icon.textContent = 'add';
+    icon.setAttribute('aria-hidden', 'true');
+    button.append(icon, 'Add action');
+    preventMouseFocus(button);
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      onAdd();
+    });
+    return button;
+  }
+
   function getForkSequenceName(forkDef) {
     if (typeof forkDef === 'string') return forkDef;
     if (typeof forkDef?.run === 'string') return forkDef.run;
@@ -187,11 +204,15 @@ export function createActionRenderers(openActionEditor, {
         idx.className = 'ae-choice-option-idx';
         idx.textContent = i + 1;
 
+        const position = document.createElement('span');
+        position.className = 'ae-action-position';
+        position.append(idx, dragHandle);
+
         const text = document.createElement('span');
         text.className = 'ae-choice-option-text';
         text.textContent = opt.text || '—';
 
-        optHeader.append(dragHandle, idx, text);
+        optHeader.append(position, text);
 
         if (viewCtx.editorState) {
           const headerActions = document.createElement('div');
@@ -257,7 +278,7 @@ export function createActionRenderers(openActionEditor, {
           const nested = buildActionList(opt.actions, viewCtx);
           optBlock.appendChild(nested);
         } else if (viewCtx.editorState) {
-          optBlock.appendChild(createChoiceEmptyState("Nothing interesting happens. Hover this option's header and click '+' to add actions."));
+          optBlock.appendChild(createEmptyAddAction(() => addChoiceOptionAction(opt, viewCtx)));
         }
         optionsWrap.appendChild(optBlock);
       }
@@ -406,6 +427,14 @@ export function createActionRenderers(openActionEditor, {
       label.textContent = key;
       header.appendChild(label);
 
+      const addAction = async () => {
+        const rootEditorState = getRootEditorState(viewCtx);
+        const type = await pickActionType?.(rootEditorState?.fw);
+        if (!type || !rootEditorState?.fw.el.isConnected || !header.isConnected) return;
+        appendActionToField(action, key, createDefaultAction(type));
+        commitInlineEdit(viewCtx);
+      };
+
       if (viewCtx.editorState) {
         header.tabIndex = 0;
         const headerActions = document.createElement('div');
@@ -417,13 +446,9 @@ export function createActionRenderers(openActionEditor, {
         addBtn.dataset.tooltip = `Add ${key} action`;
         addBtn.setAttribute('aria-label', `Add ${key} action`);
         addBtn.innerHTML = '<span class="material-symbols-outlined">add</span>';
-        addBtn.addEventListener('click', async (event) => {
+        addBtn.addEventListener('click', (event) => {
           event.stopPropagation();
-          const rootEditorState = getRootEditorState(viewCtx);
-          const type = await pickActionType?.(rootEditorState?.fw);
-          if (!type || !rootEditorState?.fw.el.isConnected || !header.isConnected) return;
-          appendActionToField(action, key, createDefaultAction(type));
-          commitInlineEdit(viewCtx);
+          addAction();
         });
         headerActions.appendChild(addBtn);
         header.appendChild(headerActions);
@@ -433,10 +458,7 @@ export function createActionRenderers(openActionEditor, {
       if (actions.length > 0) {
         branch.appendChild(buildActionList(actions, viewCtx));
       } else {
-        const empty = document.createElement('div');
-        empty.className = 'ae-branch-empty';
-        empty.textContent = "No actions. Hover this branch's header and click '+' to add actions.";
-        branch.appendChild(empty);
+        branch.appendChild(createEmptyAddAction(addAction));
       }
       body.appendChild(branch);
     }

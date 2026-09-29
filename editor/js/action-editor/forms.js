@@ -386,12 +386,12 @@ export function createFormBuilders(openActionField) {
 
       const btn = document.createElement('button');
       btn.className = 'ae-mini-btn';
-      btn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${action[key]?.length || 0} action(s)`;
+      btn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${action[key]?.length || 0} action${action[key]?.length === 1 ? '' : 's'}`;
       btn.addEventListener('click', () => {
         openActionField(label, action, key, {
           onChange() {
             ctx.onFieldChange();
-            btn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${action[key].length} action(s)`;
+            btn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${action[key].length} action${action[key].length === 1 ? '' : 's'}`;
           },
           sceneId: ctx.opts.sceneId,
           sceneData: ctx.opts.sceneData,
@@ -430,7 +430,7 @@ export function createFormBuilders(openActionField) {
     };
 
     const renderLabel = () => {
-      btn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${getLoopActions().length} action(s)`;
+      btn.innerHTML = `<span class="material-symbols-outlined">list_alt</span> ${getLoopActions().length} action${getLoopActions().length === 1 ? '' : 's'}`;
     };
 
     renderLabel();

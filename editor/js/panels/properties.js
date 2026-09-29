@@ -401,7 +401,7 @@ function addActionLinkGroup(title, rows, onClick) {
 
     const link = document.createElement('span');
     link.className = 'prop-action-link';
-    link.textContent = `${count} action(s)`;
+    link.textContent = `${count} action${count === 1 ? '' : 's'}`;
     link.addEventListener('click', onClick);
 
     row.append(keyEl, link);
@@ -432,7 +432,7 @@ function addOptionsLinkGroup(title, options, onManage, onOpenOptionActions) {
     const row = document.createElement('div');
     row.className = 'prop-row';
     const key = document.createElement('span');
-    key.className = 'prop-key';
+    key.className = 'prop-key prop-option-name';
     key.textContent = opt.text || `Option ${i + 1}`;
 
     const meta = document.createElement('span');
@@ -441,15 +441,13 @@ function addOptionsLinkGroup(title, options, onManage, onOpenOptionActions) {
     const icon = document.createElement('span');
     icon.textContent = opt.icon || '—';
 
-    const separator = document.createElement('span');
-    separator.textContent = '·';
-
     const link = document.createElement('span');
     link.className = 'prop-action-link';
-    link.textContent = `${Array.isArray(opt.actions) ? opt.actions.length : 0} action(s)`;
+    const count = Array.isArray(opt.actions) ? opt.actions.length : 0;
+    link.textContent = `${count} action${count === 1 ? '' : 's'}`;
     link.addEventListener('click', () => onOpenOptionActions(i));
 
-    meta.append(icon, separator, link);
+    meta.append(icon, link);
     row.append(key, meta);
     group.appendChild(row);
   }
@@ -492,7 +490,8 @@ function addSequencesGroup(data, names) {
 
     const link = document.createElement('span');
     link.className = 'prop-action-link';
-    link.textContent = `${actions?.length || 0} action(s)`;
+    const count = actions?.length || 0;
+    link.textContent = `${count} action${count === 1 ? '' : 's'}`;
     link.addEventListener('click', () =>
       openActionField(`${data.id} — ${name}`, data.sequences, name,
         makeActionEditorOpts(data, () => {
@@ -508,4 +507,3 @@ function addSequencesGroup(data, names) {
 
   dom.propsContent.appendChild(group);
 }
-

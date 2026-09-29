@@ -350,7 +350,7 @@ function renderReadonlyOptions(item, container, scriptId) {
     row.className = 'prop-row';
 
     const key = document.createElement('span');
-    key.className = 'prop-key';
+    key.className = 'prop-key prop-option-name';
     key.textContent = opt.text || `Option ${i + 1}`;
 
     const meta = document.createElement('span');
@@ -359,12 +359,10 @@ function renderReadonlyOptions(item, container, scriptId) {
     const icon = document.createElement('span');
     icon.textContent = opt.icon || '—';
 
-    const separator = document.createElement('span');
-    separator.textContent = '·';
-
     const link = document.createElement('span');
     link.className = 'prop-action-link';
-    link.textContent = `${Array.isArray(opt.actions) ? opt.actions.length : 0} action(s)`;
+    const count = Array.isArray(opt.actions) ? opt.actions.length : 0;
+    link.textContent = `${count} action${count === 1 ? '' : 's'}`;
     link.addEventListener('click', () => {
       openActionField(
         `${ownerLabel} — ${opt.text || 'Option ' + (i + 1)}`,
@@ -379,7 +377,7 @@ function renderReadonlyOptions(item, container, scriptId) {
       );
     });
 
-    meta.append(icon, separator, link);
+    meta.append(icon, link);
     row.append(key, meta);
     group.appendChild(row);
   }

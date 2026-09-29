@@ -387,7 +387,7 @@ async function handleExternalDrop(files, targetFolder, workspace = captureWorksp
     await buildTree(workspace.root);
     if (!isCurrentWorkspace(workspace)) return;
     renderFileList();
-    hooks.toast?.(`Added ${count} file(s)`);
+    hooks.toast?.(`Added ${count} file${count === 1 ? '' : 's'}`);
   }
 }
 

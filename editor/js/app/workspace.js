@@ -249,6 +249,6 @@ export async function saveAllFiles() {
   }
   if (!isCurrentWorkspace(workspace)) return;
   renderFileList();
-  showToast(`Saved ${saved} file(s)`);
+  showToast(`Saved ${saved} file${saved === 1 ? '' : 's'}`);
   hooks.afterSave();
 }
