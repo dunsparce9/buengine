@@ -144,6 +144,7 @@ export function createActionRenderers(openActionEditor, {
       case 'fork': return renderFork(action.fork, '#8ec07c', viewCtx);
       case 'exit': return null;
       case 'show': return renderOverlay(action.show);
+      case 'texture': return renderTexture(action.texture);
       case 'text': return renderTextAction(action.text);
       case 'hide': return renderOverlay(action.hide);
       case 'animate': return renderAnimate(action.animate);
@@ -410,54 +411,59 @@ export function createActionRenderers(openActionEditor, {
     cond.innerHTML = `<span class="ae-if-keyword">if</span> <code>${escapeHtml(formatCondition(action.if))}</code>`;
     body.appendChild(cond);
     for (const key of ['then', 'else']) {
-      const actions = Array.isArray(action[key]) ? action[key] : [];
-      if (!viewCtx.editorState && actions.length === 0) continue;
-
-      const branch = document.createElement('div');
-      branch.className = 'ae-if-branch';
-      const header = document.createElement('div');
-      header.className = 'ae-branch-header';
-      const label = document.createElement('span');
-      label.className = `ae-branch-label ae-branch-${key}`;
-      label.textContent = key;
-      header.appendChild(label);
-
-      const addAction = async () => {
-        const rootEditorState = getRootEditorState(viewCtx);
-        const type = await pickActionType?.(rootEditorState?.fw);
-        if (!type || !rootEditorState?.fw.el.isConnected || !header.isConnected) return;
-        appendActionToField(action, key, createDefaultAction(type));
-        commitInlineEdit(viewCtx);
-      };
-
-      if (viewCtx.editorState) {
-        header.tabIndex = 0;
-        const headerActions = document.createElement('div');
-        headerActions.className = 'ae-header-actions';
-        const addBtn = document.createElement('button');
-        addBtn.className = 'ae-header-btn ae-add-btn';
-        preventMouseFocus(addBtn);
-        addBtn.type = 'button';
-        addBtn.dataset.tooltip = `Add ${key} action`;
-        addBtn.setAttribute('aria-label', `Add ${key} action`);
-        addBtn.innerHTML = '<span class="material-symbols-outlined">add</span>';
-        addBtn.addEventListener('click', (event) => {
-          event.stopPropagation();
-          addAction();
-        });
-        headerActions.appendChild(addBtn);
-        header.appendChild(headerActions);
-      }
-
-      branch.appendChild(header);
-      if (actions.length > 0) {
-        branch.appendChild(buildActionList(actions, viewCtx));
-      } else {
-        branch.appendChild(createEmptyAddAction(addAction, action, key, viewCtx));
-      }
-      body.appendChild(branch);
+      const branch = renderActionBranch(action, key, key, key, viewCtx);
+      if (branch) body.appendChild(branch);
     }
     return body;
+  }
+
+  function renderActionBranch(action, key, branchLabel, color, viewCtx) {
+    const actions = Array.isArray(action[key]) ? action[key] : [];
+    if (!viewCtx.editorState && actions.length === 0) return null;
+
+    const branch = document.createElement('div');
+    branch.className = 'ae-if-branch';
+    const header = document.createElement('div');
+    header.className = 'ae-branch-header';
+    const label = document.createElement('span');
+    label.className = `ae-branch-label ae-branch-${color}`;
+    label.textContent = branchLabel;
+    header.appendChild(label);
+
+    const addAction = async () => {
+      const rootEditorState = getRootEditorState(viewCtx);
+      const type = await pickActionType?.(rootEditorState?.fw);
+      if (!type || !rootEditorState?.fw.el.isConnected || !header.isConnected) return;
+      appendActionToField(action, key, createDefaultAction(type));
+      commitInlineEdit(viewCtx);
+    };
+
+    if (viewCtx.editorState) {
+      header.tabIndex = 0;
+      const headerActions = document.createElement('div');
+      headerActions.className = 'ae-header-actions';
+      const addBtn = document.createElement('button');
+      addBtn.className = 'ae-header-btn ae-add-btn';
+      preventMouseFocus(addBtn);
+      addBtn.type = 'button';
+      addBtn.dataset.tooltip = `Add ${branchLabel} action`;
+      addBtn.setAttribute('aria-label', `Add ${branchLabel} action`);
+      addBtn.innerHTML = '<span class="material-symbols-outlined">add</span>';
+      addBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        addAction();
+      });
+      headerActions.appendChild(addBtn);
+      header.appendChild(headerActions);
+    }
+
+    branch.appendChild(header);
+    if (actions.length > 0) {
+      branch.appendChild(buildActionList(actions, viewCtx));
+    } else {
+      branch.appendChild(createEmptyAddAction(addAction, action, key, viewCtx));
+    }
+    return branch;
   }
 
   function renderLoop(action, viewCtx = {}) {
@@ -468,14 +474,21 @@ export function createActionRenderers(openActionEditor, {
     const repeat = typeof action.loop === 'number' ? `${action.loop} times` : formatCondition(action.loop);
     cond.innerHTML = `<span class="ae-if-keyword">loop</span> <code>${escapeHtml(repeat)}</code>`;
     body.appendChild(cond);
-    const loopActions = Array.isArray(action.do) ? action.do : (Array.isArray(action.then) ? action.then : []);
-    if (loopActions.length > 0) {
-      const doLabel = document.createElement('div');
-      doLabel.className = 'ae-branch-label ae-branch-loop';
-      doLabel.textContent = 'do';
-      body.appendChild(doLabel);
-      const doList = buildActionList(loopActions, viewCtx);
-      body.appendChild(doList);
+    const key = Array.isArray(action.do) || !Array.isArray(action.then) ? 'do' : 'then';
+    const branch = renderActionBranch(action, key, 'do', 'loop', viewCtx);
+    if (branch) body.appendChild(branch);
+    return body;
+  }
+
+  function renderTexture(data = {}) {
+    const body = document.createElement('div');
+    body.className = 'ae-body';
+    for (const [key, value] of [['id', data.id], ['path', data.path]]) {
+      if (!value) continue;
+      const row = document.createElement('div');
+      row.className = 'ae-prop-row';
+      row.innerHTML = `<span class="ae-prop-key">${key}</span><span class="ae-prop-val">${escapeHtml(String(value))}</span>`;
+      body.appendChild(row);
     }
     return body;
   }

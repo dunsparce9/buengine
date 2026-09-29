@@ -128,6 +128,17 @@ export class Inventory {
     return this.getQty(id) >= qty;
   }
 
+  snapshot() {
+    return { capacity: this.capacity, definitions: [...this._defs], items: [...this._items] };
+  }
+
+  restore(snapshot) {
+    this.capacity = snapshot.capacity;
+    this._defs = new Map(snapshot.definitions);
+    this._items = new Map(snapshot.items);
+    this.bus.emit('inventory:changed');
+  }
+
   /** Clear all held items (e.g. on new game). */
   reset() {
     this._items.clear();

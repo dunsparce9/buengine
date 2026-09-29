@@ -1,19 +1,10 @@
 /**
- * Parameterized table-style list editor (review phase 5, item 19).
- *
- * This is the single implementation behind the item/object "Options" modal
- * and the scene "Sequences" modal, which were ~80% identical (floating-window
- * dedup, toolbar, table skeleton, collapsed mode, context menus, actions
- * pill). Both `options-editor.js` and `sequence-editor.js` are now thin
- * domain adapters over `openListModal()` below.
- *
- * CSS class names are intentionally shared (`options-editor-body`, etc.) so
- * no stylesheet changes are needed.
+ * Shared table editor for item/object options and scene sequences.
+ * Owns floating windows, editable rows, context menus and the add field.
  */
 
 import { hooks, markDirty } from '../core/state.js';
 import { createFloatingWindow } from '../ui/floating-window.js';
-import { createEditorToolbar } from '../ui/editor-toolbar.js';
 import { showContextMenu } from '../ui/context-menu.js';
 
 /** @type {Map<string, { fw: ReturnType<typeof createFloatingWindow>, state: object }>} */
@@ -78,8 +69,6 @@ export function showRowMenu(x, y, label, onCreate, onDelete) {
  * @param {(x: number, y: number, st: object, row: any, index: number) => void} [opts.onRowContextMenu]
  * @param {(st: object) => void} opts.onAdd
  * @param {string} [opts.addTitle]
- * @param {string} [opts.collapseTitleCollapsed]
- * @param {string} [opts.collapseTitleExpanded]
  */
 export function openListModal({
   modalKey,
@@ -97,8 +86,6 @@ export function openListModal({
   onRowContextMenu = null,
   onAdd,
   addTitle = 'Add',
-  collapseTitleCollapsed = 'Expand',
-  collapseTitleExpanded = 'Collapse',
 }) {
   const existing = _openModals.get(modalKey);
   if (existing && !existing.fw.el.classList.contains('hidden')) {
@@ -126,7 +113,6 @@ export function openListModal({
 
   const modalState = {
     fw,
-    collapsed: false,
     ...initialState,
     rebuild() {
       buildListContent(fw.body, modalState);
@@ -147,37 +133,19 @@ export function openListModal({
     container.innerHTML = '';
     container.oncontextmenu = null;
 
-    const toolbar = createEditorToolbar({
-      collapsed: st.collapsed,
-      onToggleCollapse: () => {
-        st.collapsed = !st.collapsed;
-        st.rebuild();
-      },
-      addLabel: 'Add',
-      addTitle,
-      addAriaLabel: addTitle,
-      onAdd: () => onAdd(st),
-      collapseTitleCollapsed,
-      collapseTitleExpanded,
-      extraClassName: 'options-editor-toolbar',
-    });
-    container.appendChild(toolbar);
-
     const content = document.createElement('div');
     content.className = 'options-editor-content';
     container.appendChild(content);
 
-    content.oncontextmenu = st.collapsed
-      ? null
-      : (e) => {
-          const row = e.target.closest('.items-options-row');
-          if (row) return;
-          e.preventDefault();
-          onEmptyContextMenu?.(e.clientX, e.clientY, st);
-        };
+    content.oncontextmenu = (e) => {
+      const row = e.target.closest('.items-options-row');
+      if (row) return;
+      e.preventDefault();
+      onEmptyContextMenu?.(e.clientX, e.clientY, st);
+    };
 
     const table = document.createElement('table');
-    table.className = `items-options-table${st.collapsed ? ' items-options-table-compact' : ''}`;
+    table.className = 'items-options-table';
 
     const thead = document.createElement('thead');
     const headRow = document.createElement('tr');
@@ -195,7 +163,7 @@ export function openListModal({
     for (let i = 0; i < rows.length; i++) {
       const tr = document.createElement('tr');
       tr.className = 'items-options-row';
-      if (!st.collapsed && typeof onRowContextMenu === 'function') {
+      if (typeof onRowContextMenu === 'function') {
         const row = rows[i];
         const index = i;
         tr.addEventListener('contextmenu', (e) => {
@@ -212,5 +180,16 @@ export function openListModal({
     content.appendChild(table);
 
     if (!rows.length) renderEmpty(content, st);
+
+    const addField = document.createElement('button');
+    addField.type = 'button';
+    addField.className = 'list-editor-add-field';
+    const addIcon = document.createElement('span');
+    addIcon.className = 'material-symbols-outlined';
+    addIcon.setAttribute('aria-hidden', 'true');
+    addIcon.textContent = 'add';
+    addField.append(addIcon, document.createTextNode(addTitle));
+    addField.addEventListener('click', () => onAdd(st));
+    content.appendChild(addField);
   }
 }

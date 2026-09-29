@@ -13,6 +13,9 @@ import { evaluateExpression, numericValue, compareValues } from '../shared/expre
 const MAX_LOOP_ITERATIONS = 10000;
 /** Max frame-stack depth before recursive sequence expansion (`run`) is treated as runaway. */
 const MAX_FRAME_DEPTH = 64;
+let ownerSerial = 0;
+const ownerPrefix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+const newOwner = () => `${ownerPrefix}-${++ownerSerial}`;
 
 export class ActionRunner {
   /**
@@ -27,8 +30,8 @@ export class ActionRunner {
     this.inventory = inventory;
     this._dialogs = dialogs;
     // Family tokens keep completed forks' nonblocking tweens cancellable by the root.
-    this._animationOwner = Symbol('animation owner');
-    this._animationFamily = animationFamily ?? Symbol('animation family');
+    this._animationOwner = newOwner();
+    this._animationFamily = animationFamily ?? newOwner();
     this._ownsAnimationFamily = animationFamily == null;
     this._aborted = false;
     this._gotoFired = false;
@@ -44,6 +47,10 @@ export class ActionRunner {
     this.sequences = {};
     /** @type {Set<ActionRunner>} Child runners spawned via `fork`. */
     this._children = new Set();
+    this._frames = [];
+    this._pending = null;
+    this._waitSerial = 0;
+    this._paused = false;
   }
 
   /**
@@ -74,7 +81,7 @@ export class ActionRunner {
    * Execute an array of action commands sequentially.
    * @param {object[]} actions
    */
-  async run(actions) {
+  async run(actions, saved = null) {
     if (this.running) throw new Error('Action runner: another action chain is still running' + this._errorContext());
     this._aborted = false;
     this._gotoFired = false;
@@ -82,9 +89,29 @@ export class ActionRunner {
     this.running = true;
 
     try {
-      const frames = [{ actions, index: 0 }];
+      const frames = this._frames = saved ? saved.frames : [{ actions, index: 0 }];
+      if (saved?.pending) {
+        const pending = saved.pending;
+        let value;
+        if (pending.kind === 'dialogue' || pending.kind === 'choice') {
+          value = await this._dialog(pending.kind, pending.data, pending.id);
+        } else if (pending.kind === 'delay') {
+          await this._delay(pending.remaining, pending.id);
+        } else if (pending.kind === 'pause') {
+          if (this._paused) await this._waitForResume(pending.id);
+        } else {
+          await this._wait(done => this.bus.on('action:complete', ({ id, value }) => {
+            if (id === pending.id) done(value);
+          }), pending);
+        }
+        if (!this._aborted && pending.kind === 'choice') {
+          this._pushFrame(frames, value?.actions, 'choice branch', true);
+        }
+      }
 
       while (frames.length) {
+        if (this._aborted || this._gotoFired) return;
+        if (this._paused) await this._waitForResume();
         if (this._aborted || this._gotoFired) return;
 
         const frame = frames[frames.length - 1];
@@ -113,6 +140,7 @@ export class ActionRunner {
 
         const type = detectType(action);
         const shouldReturn = await this._dispatchAction(type, action, frames);
+        this.bus.emit('action:progress');
         if (shouldReturn) return;
       }
     } catch (error) {
@@ -120,6 +148,7 @@ export class ActionRunner {
       throw error;
     } finally {
       this.running = false;
+      this._frames = [];
       const waiters = this._unwindWaiters;
       this._unwindWaiters = [];
       for (const resolve of waiters) resolve();
@@ -127,7 +156,64 @@ export class ActionRunner {
       if (!this._aborted && this._gotoFired && this._gotoTarget) {
         this.bus.emit('scene:goto', this._gotoTarget);
       }
+      this.bus.emit('action:progress');
     }
+  }
+
+  snapshot() {
+    const pending = this._pending && { ...this._pending };
+    if (pending?.kind === 'delay') {
+      pending.remaining = pending.deadline == null ? pending.remaining
+        : Math.max(0, pending.deadline - performance.now());
+      delete pending.deadline;
+    }
+    return {
+      running: this.running && !this._aborted, frames: this._frames, pending,
+      gotoTarget: !this._aborted && this._gotoFired ? this._gotoTarget : null,
+      objectId: this.currentObjectId, owner: this._animationOwner, family: this._animationFamily,
+      waitSerial: this._waitSerial, children: [...this._children].map(child => child.snapshot()),
+      dialogOrder: this._ownsAnimationFamily
+        ? [this._dialogs.active, ...this._dialogs.queue].filter(Boolean).map(job => job.id) : undefined,
+    };
+  }
+
+  /** Reattach saved waits instead of replaying commands which already changed state. */
+  resume(saved) {
+    this._aborted = false;
+    this._gotoFired = !!saved.gotoTarget;
+    this._gotoTarget = saved.gotoTarget || null;
+    this.currentObjectId = saved.objectId;
+    this._animationOwner = saved.owner;
+    this._animationFamily = saved.family;
+    this._waitSerial = saved.waitSerial;
+    if (saved.dialogOrder) this._dialogs.restoreOrder = new Map(saved.dialogOrder.map((id, i) => [id, i]));
+    for (const child of saved.children) this._spawnChild(null, child);
+    if (saved.gotoTarget) queueMicrotask(() => {
+      if (!this._aborted) this.bus.emit('scene:goto', saved.gotoTarget);
+    });
+    return saved.running ? this.run(null, saved) : Promise.resolve();
+  }
+
+  setPaused(paused) {
+    this._paused = paused;
+    if (this._pending?.kind === 'delay') {
+      if (paused && this._pending.deadline != null) {
+        this._pending.remaining = Math.max(0, this._pending.deadline - performance.now());
+        this._pending.deadline = null;
+        clearTimeout(this._delayTimer);
+      } else if (!paused && this._pending.deadline == null) {
+        this._startDelay();
+      }
+    }
+    if (!paused) this._resumeDone?.();
+    for (const child of this._children) child.setPaused(paused);
+  }
+
+  _waitForResume(id) {
+    return this._wait(done => {
+      this._resumeDone = done;
+      return () => { this._resumeDone = null; };
+    }, { kind: 'pause', id });
   }
 
   /* ── private helpers ──────────────────────────── */
@@ -142,6 +228,7 @@ export class ActionRunner {
       }
       case 'wait': await this._delay(action.wait); break;
       case 'show': await this._show(action.show); break;
+      case 'texture': this._texture(action.texture); break;
       case 'text': await this._text(action.text); break;
       case 'hide': await this._hide(action.hide); break;
       case 'animate': await this._animate(action.animate); break;
@@ -201,7 +288,7 @@ export class ActionRunner {
   }
 
   /** One cancellable wait per runner. Completion consumes its callback and cleanup. */
-  _wait(start) {
+  _wait(start, descriptor = { kind: 'external' }) {
     return new Promise((resolve, reject) => {
       let settled = false;
       let cleanup;
@@ -209,15 +296,19 @@ export class ActionRunner {
         if (settled) return;
         settled = true;
         if (this._pendingResolve === finish) this._pendingResolve = null;
+        if (this._pending?.id === finish.saveId) this._pending = null;
         cleanup?.();
         if (error) reject(error);
         else resolve(value);
       };
       const finish = value => settle(value);
+      finish.saveId = descriptor.id || `${this._animationOwner}:${++this._waitSerial}`;
+      this._pending = { ...descriptor, id: finish.saveId };
       const fail = error => settle(undefined, error);
       this._pendingResolve = finish;
       try {
         cleanup = start(finish, fail);
+        if (settled) cleanup?.();
       } catch (error) {
         fail(error);
       }
@@ -225,11 +316,13 @@ export class ActionRunner {
   }
 
   /** Main and forked chains take turns using the shared dialogue/choice UI. */
-  _dialog(kind, data) {
+  _dialog(kind, data, id) {
     return this._wait((done, fail) => {
       const dialogs = this._dialogs;
-      const job = { runner: this, kind, data, done, fail, completed: false };
+      const job = { runner: this, kind, data, done, fail, id: done.saveId, completed: false };
       dialogs.queue.push(job);
+      if (dialogs.restoreOrder) dialogs.queue.sort((a, b) =>
+        (dialogs.restoreOrder.get(a.id) ?? Infinity) - (dialogs.restoreOrder.get(b.id) ?? Infinity));
       // Install cleanup before showing UI (a bus listener can complete synchronously).
       queueMicrotask(() => this._showNextDialog());
       return () => {
@@ -241,7 +334,7 @@ export class ActionRunner {
         }
         this._showNextDialog();
       };
-    });
+    }, { kind, data, id });
   }
 
   _showNextDialog() {
@@ -252,6 +345,7 @@ export class ActionRunner {
     try {
       this.bus.emit(`${job.kind}:show`, {
         ...job.data,
+        waitId: job.id,
         [job.kind === 'choice' ? 'onPick' : 'onDone']: value => {
           job.completed = true;
           job.done(value);
@@ -279,11 +373,17 @@ export class ActionRunner {
     });
   }
 
-  _delay(ms) {
+  _delay(ms, id) {
     return this._wait(done => {
-      const timer = setTimeout(done, ms);
-      return () => clearTimeout(timer);
-    });
+      this._delayDone = done;
+      if (!this._paused) this._startDelay();
+      return () => { clearTimeout(this._delayTimer); this._delayDone = null; };
+    }, { kind: 'delay', remaining: ms, deadline: null, id });
+  }
+
+  _startDelay() {
+    this._pending.deadline = performance.now() + this._pending.remaining;
+    this._delayTimer = setTimeout(this._delayDone, this._pending.remaining);
   }
 
   _resolveForkActions(forkDef) {
@@ -300,7 +400,7 @@ export class ActionRunner {
     return null;
   }
 
-  _spawnChild(actions) {
+  _spawnChild(actions, saved = null) {
     const child = new ActionRunner({
       bus: this.bus,
       state: this.state,
@@ -310,8 +410,9 @@ export class ActionRunner {
     });
     child.sequences = this.sequences;
     child.currentObjectId = this.currentObjectId;
+    child.setPaused(this._paused);
     this._children.add(child);
-    child.run(actions).catch(error => this.bus.emit('engine:error', error)).finally(() => {
+    (saved ? child.resume(saved) : child.run(actions)).catch(error => this.bus.emit('engine:error', error)).finally(() => {
       this._children.delete(child);
     });
   }
@@ -320,13 +421,28 @@ export class ActionRunner {
     if (typeof showDef === 'string') showDef = { id: showDef };
     if (showDef.id === 'this') showDef = { ...showDef, id: this.currentObjectId };
     return this._wait(onDone => {
-      this.bus.emit('overlay:show', { ...showDef, onDone });
+      this.bus.emit('overlay:show', { ...showDef, onDone, owner: this._animationOwner, family: this._animationFamily });
     });
+  }
+
+  _texture(def) {
+    if (!def || typeof def !== 'object' || Array.isArray(def)) {
+      throw new Error('Texture: definition must be an object' + this._errorContext());
+    }
+    const id = def.id === 'this' ? this.currentObjectId : def.id;
+    if (typeof id !== 'string' || !id.trim()) {
+      throw new Error('Texture: an object ID or this inside an object interaction is required' + this._errorContext());
+    }
+    if (typeof def.path !== 'string' || !def.path.trim()) {
+      throw new Error('Texture: a non-empty image path is required' + this._errorContext());
+    }
+    this.bus.emit('entity:texture', { id, path: def.path });
   }
 
   _text(textDef) {
     return this._wait(onDone => {
-      this.bus.emit('overlay:show', { ...textDef, kind: 'text', onDone });
+      this.bus.emit('overlay:show', { ...textDef, kind: 'text', onDone,
+        owner: this._animationOwner, family: this._animationFamily });
     });
   }
 
@@ -334,7 +450,7 @@ export class ActionRunner {
     if (typeof hideDef === 'string') hideDef = { id: hideDef };
     if (hideDef.id === 'this') hideDef = { ...hideDef, id: this.currentObjectId };
     return this._wait(onDone => {
-      this.bus.emit('overlay:hide', { ...hideDef, onDone });
+      this.bus.emit('overlay:hide', { ...hideDef, onDone, owner: this._animationOwner, family: this._animationFamily });
     });
   }
 

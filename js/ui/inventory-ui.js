@@ -46,6 +46,19 @@ export class InventoryUI {
     if (this._open) { this.close(); } else { this.open(); }
   }
 
+  snapshot() {
+    return { open: this._open, mode: this._mode, style: this._win?.el.style.cssText };
+  }
+
+  restore(snapshot) {
+    this.close();
+    this._mode = snapshot.mode;
+    if (snapshot.open) {
+      this.open();
+      if (this._win && snapshot.style) this._win.el.style.cssText = snapshot.style;
+    }
+  }
+
   open() {
     if (!this.inventory.enabled) return;
     if (this._open) return;
@@ -122,6 +135,7 @@ export class InventoryUI {
 
     // Center within game-container (use offset dimensions for local coords)
     requestAnimationFrame(() => {
+      if (!el.isConnected || el.style.left || el.style.top) return;
       const container = document.getElementById('game-container');
       el.style.left = `${(container.offsetWidth - el.offsetWidth) / 2}px`;
       el.style.top = `${(container.offsetHeight - el.offsetHeight) / 2}px`;

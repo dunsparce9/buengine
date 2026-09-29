@@ -48,12 +48,14 @@ export class SceneRenderer {
       getEntity: (id, target) => target === 'scene' ? this._sceneEntity : this._entities.get(id),
       getState: entry => this._getMotionState(entry),
       applyState: (entry, keys) => this._applyMotionState(entry, keys),
+      completeEffect: (entry, completion) => this._finishHide(entry, completion.version),
     });
 
     window.addEventListener('resize', () => this._fitToContainer());
 
     bus.on('overlay:show',  (payload) => this._showEntity(payload));
     bus.on('overlay:hide',  (payload) => this._hideEntity(payload));
+    bus.on('entity:texture', (payload) => this._setTexture(payload));
     bus.on('overlay:clear', ()        => this._clearRuntimeEntities());
   }
 
@@ -253,33 +255,6 @@ export class SceneRenderer {
     if (this._hoveredEntity === el) this._positionTooltip(el);
   }
 
-  /**
-   * Wait for an opacity transition to complete, racing `transitionend`
-   * against a timeout fallback. The fallback covers cases where the event
-   * never fires (e.g. a second consecutive fade-out where opacity is
-   * already at the target value, so no CSS transition runs). Resolution
-   * is idempotent — whichever fires first wins and the other is cleared.
-   * @param {HTMLElement} el
-   * @param {number} seconds  transition duration in seconds
-   * @param {function} onDone
-   */
-  _waitForTransition(el, seconds, onDone) {
-    let settled = false;
-    const settle = () => {
-      if (settled) return;
-      settled = true;
-      el.removeEventListener('transitionend', handleEnd);
-      clearTimeout(timer);
-      onDone?.();
-    };
-    const handleEnd = event => {
-      if (event.target === el && event.propertyName === 'opacity') settle();
-    };
-    // +50ms slack so the fallback only fires if transitionend truly never will
-    const timer = setTimeout(settle, seconds * 1000 + 50);
-    el.addEventListener('transitionend', handleEnd);
-  }
-
   /* ── Unified entity show/hide ────────────────── */
 
   /**
@@ -292,7 +267,7 @@ export class SceneRenderer {
 
     if (entry) {
       this._updateRuntimeEntity(entry, payload);
-      this._revealEntity(entry, effect, onDone);
+      this._revealEntity(entry, effect, onDone, payload);
       return;
     }
 
@@ -300,7 +275,7 @@ export class SceneRenderer {
     if (runtime) {
       this._getEntityHost(runtime.layer).appendChild(runtime.el);
       this._entities.set(id, runtime);
-      this._applyFadeIn(runtime.el, effect, onDone);
+      this._applyFadeIn(runtime, effect, onDone, payload);
       return;
     }
 
@@ -308,29 +283,43 @@ export class SceneRenderer {
     onDone?.();
   }
 
+  /** Swap only the image; retain visibility, hit regions, and active motion. */
+  _setTexture({ id, path }) {
+    const entry = this._entities.get(id);
+    if (!entry) throw new Error(`Texture: entity "${id}" does not exist`);
+    if (entry.kind !== 'scene-object' && entry.kind !== 'image-overlay') {
+      throw new Error(`Texture: entity "${id}" is not a scene object or image overlay`);
+    }
+    entry.el.style.backgroundImage = `url('${CSS.escape(Paths.resolve(path))}')`;
+    entry.texture = path;
+    if (entry.kind === 'scene-object') entry.el.classList.add('scene-object-textured');
+  }
+
   /**
    * Hide an entity by id. Scene objects stay in the DOM (can be re-shown).
    * Runtime entities are removed from the DOM after the transition.
    */
-  _hideEntity({ id, effect, onDone }) {
+  _hideEntity({ id, effect, onDone, owner, family }) {
     const entry = this._entities.get(id);
     if (!entry) { onDone?.(); return; }
 
-    const el = entry.el;
     const version = entry.visibilityVersion = (entry.visibilityVersion || 0) + 1;
+    entry.el.style.pointerEvents = 'none';
+    this._animator.start({ id, to: { opacity: 0 },
+      seconds: effect?.type === 'fade-out' ? (effect.seconds || 0) : 0,
+      easing: 'ease', blocking: effect?.blocking, owner, family, onDone,
+      completion: { kind: 'hide', version } });
+  }
 
-    const finish = () => {
-      if (this._entities.get(id) !== entry || entry.visibilityVersion !== version) return;
-      entry.visible = false;
-      if (entry.runtime) {
-        this._removeEntity(id);
-      } else {
-        el.style.opacity = '0';
-        el.style.pointerEvents = 'none';
-      }
-    };
-
-    this._applyFadeOut(el, effect, finish, onDone);
+  _finishHide(entry, version) {
+    const id = entry.el.dataset.objectId;
+    if (this._entities.get(id) !== entry || entry.visibilityVersion !== version) return;
+    entry.visible = false;
+    if (entry.runtime) this._removeEntity(id);
+    else {
+      entry.el.style.opacity = '0';
+      entry.el.style.pointerEvents = 'none';
+    }
   }
 
   _removeEntity(id) {
@@ -373,12 +362,12 @@ export class SceneRenderer {
     this._clearAllEntities();
   }
 
-  _revealEntity(entry, effect, onDone) {
+  _revealEntity(entry, effect, onDone, ownership) {
     entry.visibilityVersion = (entry.visibilityVersion || 0) + 1;
     const el = entry.el;
     entry.visible = true;
     el.style.pointerEvents = entry.runtime ? 'none' : '';
-    this._applyFadeIn(el, effect, onDone);
+    this._applyFadeIn(entry, effect, onDone, ownership);
   }
 
   _createRuntimeEntity(payload) {
@@ -390,7 +379,7 @@ export class SceneRenderer {
       el.dataset.objectId = payload.id;
       this._applyTextContent(el, payload);
       return { el, def: null, runtime: true, visible: true, kind: 'text-overlay', layer,
-        position: payload.position || {} };
+        content: this._entityContent(payload), position: payload.position || {} };
     }
 
     if (payload.texture) {
@@ -398,7 +387,8 @@ export class SceneRenderer {
       el.className = 'image-overlay';
       el.dataset.objectId = payload.id;
       this._applyImageContent(el, payload);
-      return { el, def: null, runtime: true, visible: true, kind: 'image-overlay', layer };
+      return { el, def: null, runtime: true, visible: true, kind: 'image-overlay', layer,
+        content: this._entityContent(payload) };
     }
 
     return null;
@@ -406,13 +396,19 @@ export class SceneRenderer {
 
   _updateRuntimeEntity(entry, payload) {
     if (!entry.runtime) return;
+    entry.content = { ...entry.content, ...this._entityContent(payload) };
     const layer = this._resolveRuntimeLayer(payload);
     if (layer !== entry.layer) {
       this._getEntityHost(layer).appendChild(entry.el);
       entry.layer = layer;
     }
-    if (entry.kind === 'image-overlay') this._applyImageContent(entry.el, payload);
+    if (entry.kind === 'image-overlay') {
+      this._applyImageContent(entry.el, payload);
+      if (payload.texture) entry.texture = payload.texture;
+    }
     if (entry.kind === 'text-overlay') {
+      entry.content = { ...this._entityContent(payload), kind: 'text',
+        z: payload.z ?? entry.content.z };
       this._animator.cancelEntity(entry);
       this._applyTextContent(entry.el, payload);
       entry.position = payload.position || {};
@@ -429,6 +425,49 @@ export class SceneRenderer {
 
   _resolveRuntimeLayer(payload = {}) {
     return payload.layer === 'background' ? 'background' : 'overlay';
+  }
+
+  _entityContent(payload) {
+    const { onDone, owner, family, effect, ...content } = payload;
+    return content;
+  }
+
+  snapshot() {
+    const capture = entry => ({
+      id: entry.el.dataset.objectId, runtime: entry.runtime, visible: entry.visible,
+      kind: entry.kind, layer: entry.layer, content: entry.content, texture: entry.texture,
+      motion: entry.motion && { ...entry.motion, opacity: Number(getComputedStyle(entry.el).opacity) },
+      style: entry.el.style.cssText, position: entry.position, anchorTransform: entry.anchorTransform,
+      resizedWidth: entry.resizedWidth, resizedHeight: entry.resizedHeight,
+      visibilityVersion: entry.visibilityVersion,
+    });
+    return {
+      opacity: Number(getComputedStyle(this.el).opacity),
+      entities: [...this._entities.values()].map(capture), animations: this._animator.snapshot(),
+    };
+  }
+
+  restore(snapshot, resolve) {
+    this.el.style.opacity = String(snapshot.opacity);
+    this._sceneEntity.motion = { opacity: snapshot.opacity };
+    for (const saved of snapshot.entities) {
+      let entry = this._entities.get(saved.id);
+      if (saved.runtime) {
+        if (entry) this._removeEntity(saved.id);
+        entry = this._createRuntimeEntity(saved.content);
+        if (!entry) throw new Error(`Cannot restore entity "${saved.id}"`);
+        this._entities.set(saved.id, entry);
+        this._getEntityHost(saved.layer).appendChild(entry.el);
+      }
+      if (!entry) throw new Error(`Cannot restore object "${saved.id}"`);
+      const { id, style, ...properties } = saved;
+      Object.assign(entry, properties);
+      entry.el.style.cssText = style;
+      entry.el.style.transition = '';
+      const texture = saved.texture || saved.content?.texture || entry.def?.texture;
+      if (texture) this._setTexture({ id, path: texture });
+    }
+    this._animator.restore(snapshot.animations, resolve);
   }
 
   _getEntityHost(layer) {
@@ -573,48 +612,14 @@ export class SceneRenderer {
     }[ch]));
   }
 
-  _applyFadeIn(el, effect, onDone) {
+  _applyFadeIn(entry, effect, onDone, { owner, family } = {}) {
     if (effect?.type === 'fade-in' && effect.seconds > 0) {
-      el.style.transition = 'none';
-      el.style.opacity = '0';
-      el.offsetWidth; // force reflow
-      el.style.transition = `opacity ${effect.seconds}s ease`;
-      el.style.opacity = '1';
-
-      if (effect.blocking) {
-        this._waitForTransition(el, effect.seconds, () => onDone?.());
-      } else {
-        onDone?.();
-      }
+      this._animator.start({ id: entry.el.dataset.objectId, from: { opacity: 0 }, to: { opacity: 1 },
+        seconds: effect.seconds, easing: 'ease', blocking: effect.blocking, owner, family, onDone });
       return;
     }
-
-    el.style.opacity = '';
-    el.style.transition = '';
-    onDone?.();
-  }
-
-  _applyFadeOut(el, effect, finish, onDone) {
-    if (effect?.type === 'fade-out' && effect.seconds > 0) {
-      const current = getComputedStyle(el).opacity;
-      el.style.transition = 'none';
-      el.style.opacity = current;
-      el.offsetWidth; // force reflow
-
-      el.style.transition = `opacity ${effect.seconds}s ease`;
-      el.style.opacity = '0';
-      el.style.pointerEvents = 'none';
-
-      if (effect.blocking) {
-        this._waitForTransition(el, effect.seconds, () => { finish(); onDone?.(); });
-      } else {
-        onDone?.();
-        this._waitForTransition(el, effect.seconds, () => finish());
-      }
-      return;
-    }
-
-    finish();
+    // Immediate visibility replaces any older opacity tween too.
+    this._animator.start({ id: entry.el.dataset.objectId, to: { opacity: 1 }, seconds: 0, owner, family });
     onDone?.();
   }
 }

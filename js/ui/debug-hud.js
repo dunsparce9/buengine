@@ -44,6 +44,12 @@ export class DebugHud {
     this.debugScene.textContent = `Scene: ${id}`;
   }
 
+  restore(active) {
+    this.active = active;
+    this.gridOverlay.classList.toggle('hidden', !active);
+    this.debugBox.classList.toggle('hidden', !active);
+  }
+
   /** @private */
   _onMouseMove(e) {
     const data = this.getSceneData();

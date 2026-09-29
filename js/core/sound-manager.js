@@ -64,6 +64,7 @@ export class SoundManager {
     audio.volume = fade > 0 ? 0 : volume;
     const entry = {
       audio,
+      path,
       volume,
       fadeIn: fade,
       onDone: blocking && (fade > 0 || !loop) ? onDone : null,
@@ -79,6 +80,7 @@ export class SoundManager {
 
   /** Start or resume this entry; stale play promises cannot alter a replacement. */
   _startPlayback(id, entry) {
+    if (entry.ready === false) { entry.wantsPlayback = true; return; }
     const pending = entry.audio.play();
     entry.playPromise = pending;
     pending.then(() => {
@@ -146,6 +148,7 @@ export class SoundManager {
     this._sounds.delete(id);
     entry.playPromise = null;
     entry.audio.onended = entry.audio.onerror = null;
+    entry.audio.onloadedmetadata = null;
     entry.audio.pause();
     entry.audio.src = '';
     this._complete(entry);
@@ -168,7 +171,7 @@ export class SoundManager {
       const audio = entry.audio;
       if (entry.pausedByOverlay) continue;
       entry.pausedByOverlay = true;
-      entry._wasPlaying = !audio.paused || !!entry.playPromise;
+      entry._wasPlaying = !audio.paused || !!entry.playPromise || !!entry.wantsPlayback;
       // pause() can reject a pending play(). Only a fresh resume may restart it.
       entry.playPromise = null;
       audio.pause();
@@ -185,6 +188,53 @@ export class SoundManager {
       entry.pausedByOverlay = false;
       if (entry._wasPlaying) this._startPlayback(id, entry);
       delete entry._wasPlaying;
+    }
+  }
+
+  snapshot() {
+    return [...this._sounds].map(([id, entry]) => ({
+      id, path: entry.path, time: entry.ready === false ? entry.resumeTime : entry.audio.currentTime, loop: entry.audio.loop,
+      volume: entry.volume, currentVolume: entry.audio.volume, muted: entry.audio.muted,
+      playbackRate: entry.audio.playbackRate, playing: entry.pausedByOverlay
+        ? entry._wasPlaying : (!entry.audio.paused || !!entry.playPromise || !!entry.wantsPlayback),
+      fadeIn: entry.fadeIn, stopping: !!entry.stopping, waitId: entry.onDone?.saveId,
+      fade: entry.fade && { to: entry.fade.to,
+        remaining: entry.fade.duration * (1 - entry.fade.step / entry.fade.steps) },
+    }));
+  }
+
+  restore(sounds, resolve) {
+    this._stopAll();
+    for (const saved of sounds) {
+      const audio = new Audio(Paths.resolve(saved.path));
+      audio.loop = saved.loop;
+      audio.volume = saved.currentVolume;
+      audio.muted = saved.muted;
+      audio.playbackRate = saved.playbackRate;
+      const onDone = saved.waitId ? () => resolve(saved.waitId) : null;
+      if (onDone) onDone.saveId = saved.waitId;
+      const entry = { audio, path: saved.path, volume: saved.volume,
+        fadeIn: saved.fadeIn, stopping: saved.stopping, onDone,
+        pausedByOverlay: this._paused, _wasPlaying: saved.playing };
+      this._sounds.set(saved.id, entry);
+      audio.onended = audio.onerror = () => this._stopImmediate(saved.id, entry);
+      // Seeking waits for metadata, before the first resumed playback.
+      entry.ready = false;
+      entry.resumeTime = saved.time;
+      entry.wantsPlayback = saved.playing;
+      audio.onloadedmetadata = () => {
+        audio.onloadedmetadata = null;
+        if (this._sounds.get(saved.id) !== entry) return;
+        try { audio.currentTime = saved.time; } catch { /* A stream can be unseekable. */ }
+        entry.ready = true;
+        entry.wantsPlayback = false;
+        if (!this._paused && saved.playing) this._startPlayback(saved.id, entry);
+      };
+      if (saved.fade) {
+        this._fadeVolume(entry, saved.currentVolume, saved.fade.to, saved.fade.remaining,
+          () => entry.stopping ? this._stopImmediate(saved.id, entry) : this._complete(entry));
+      }
+      audio.load();
     }
   }
 
@@ -208,10 +258,11 @@ export class SoundManager {
 
     this._cancelEntryFade(entry);
 
-    const state = { timer: null };
+    const state = { timer: null, from, to, duration, step: 0, steps };
     state.timer = setInterval(() => {
       if (entry.fade !== state || audio.paused || entry.pausedByOverlay) return;
       step++;
+      state.step = step;
       if (step >= steps) {
         audio.volume = Math.max(0, Math.min(1, to));
         this._cancelEntryFade(entry);

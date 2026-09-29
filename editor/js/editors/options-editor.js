@@ -1,8 +1,8 @@
 /**
  * Shared options modal/editor for items and scene objects.
  *
- * Thin domain adapter over the parameterized `list-editor.js` (review
- * phase 5): window lifecycle, toolbar, table skeleton and the actions pill
+ * Thin domain adapter over `list-editor.js`: window lifecycle,
+ * table skeleton, add field and the actions pill
  * live in one place; only option-row rendering stays here.
  */
 
@@ -73,12 +73,10 @@ export function openOptionsModal({
     getRows: (st) => getOptionsPreview(st.target),
     buildRowCells: (tr, { modalState: st, row: opt, index: i }) =>
       buildOptionRowCells(tr, st, opt, i),
-    renderEmpty: (content, st) => {
+    renderEmpty: (content) => {
       const empty = document.createElement('div');
       empty.className = 'items-viewer-empty';
-      empty.textContent = st.collapsed
-        ? 'No options defined.'
-        : 'No options defined. Right-click to create one.';
+      empty.textContent = 'No options defined.';
       content.appendChild(empty);
     },
     onEmptyContextMenu: (x, y, st) =>
@@ -87,8 +85,6 @@ export function openOptionsModal({
       showRowMenu(x, y, 'New option', () => createNewOption(st), () => deleteOption(st, index)),
     onAdd: (st) => createNewOption(st),
     addTitle: 'Add option',
-    collapseTitleCollapsed: 'Expand options',
-    collapseTitleExpanded: 'Collapse options',
   });
 }
 
@@ -109,65 +105,44 @@ function buildOptionRowCells(tr, st, opt, i) {
 
   const tdIcon = document.createElement('td');
   tdIcon.className = 'items-opt-td-icon';
-  if (st.collapsed) {
-    const iconText = document.createElement('span');
-    iconText.className = 'items-options-compact-text items-options-compact-icon';
-    iconText.textContent = opt.icon || '—';
-    tdIcon.appendChild(iconText);
-  } else {
-    const iconInput = document.createElement('input');
-    iconInput.type = 'text';
-    iconInput.className = 'items-options-input items-options-icon-input';
-    iconInput.value = opt.icon || '';
-    iconInput.placeholder = 'Icon';
-    iconInput.addEventListener('input', () => {
-      opt.icon = iconInput.value || undefined;
-      notifyListChange(scriptId, onChange);
-    });
-    tdIcon.appendChild(iconInput);
-  }
+  const iconInput = document.createElement('input');
+  iconInput.type = 'text';
+  iconInput.className = 'items-options-input items-options-icon-input';
+  iconInput.value = opt.icon || '';
+  iconInput.placeholder = 'Icon';
+  iconInput.addEventListener('input', () => {
+    opt.icon = iconInput.value || undefined;
+    notifyListChange(scriptId, onChange);
+  });
+  tdIcon.appendChild(iconInput);
   tr.appendChild(tdIcon);
 
   const tdText = document.createElement('td');
   tdText.className = 'items-opt-td-text';
-  if (st.collapsed) {
-    const textValue = document.createElement('span');
-    textValue.className = 'items-options-compact-text';
-    textValue.textContent = opt.text || `Option ${i + 1}`;
-    tdText.appendChild(textValue);
-  } else {
-    const textInput = document.createElement('input');
-    textInput.type = 'text';
-    textInput.className = 'items-options-input';
-    textInput.value = opt.text || '';
-    textInput.placeholder = 'Option text';
-    textInput.addEventListener('input', () => {
-      opt.text = textInput.value || undefined;
-      notifyListChange(scriptId, onChange);
-    });
-    tdText.appendChild(textInput);
-  }
+  const textInput = document.createElement('input');
+  textInput.type = 'text';
+  textInput.className = 'items-options-input';
+  textInput.value = opt.text || '';
+  textInput.placeholder = 'Option text';
+  textInput.addEventListener('input', () => {
+    opt.text = textInput.value || undefined;
+    notifyListChange(scriptId, onChange);
+  });
+  tdText.appendChild(textInput);
   tr.appendChild(tdText);
 
   const tdActions = document.createElement('td');
   tdActions.className = 'items-opt-td-actions';
   const actions = Array.isArray(opt.actions) ? opt.actions : [];
-  if (st.collapsed) {
-    const count = document.createElement('span');
-    count.className = 'items-options-compact-actions';
-    count.textContent = `${actions.length} action${actions.length === 1 ? '' : 's'}`;
-    tdActions.appendChild(count);
-  } else {
-    tdActions.appendChild(createOptionActionsPill({
-      ownerLabel,
-      optionIndex: i,
-      option: opt,
-      actions,
-      scriptId,
-      onChange,
-      actionViewerContext,
-    }));
-  }
+  tdActions.appendChild(createOptionActionsPill({
+    ownerLabel,
+    optionIndex: i,
+    option: opt,
+    actions,
+    scriptId,
+    onChange,
+    actionViewerContext,
+  }));
   tr.appendChild(tdActions);
 }
 

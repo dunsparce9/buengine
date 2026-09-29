@@ -15,7 +15,7 @@ export function parseExpression(source) {
   while (offset < source.length) {
     if (/\s/.test(source[offset])) { offset++; continue; }
     const rest = source.slice(offset);
-    const match = /^(\{[^{}]+\}|"(?:[^"\\]|\\.)*"|(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|true\b|false\b|null\b|==|!=|>=|<=|&&|\|\||[()+\-*/%!<>])/.exec(rest);
+    const match = /^(\{[^{}]+\}|"(?:[^"\\]|\\.)*"|(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|true\b|false\b|null\b|[A-Za-z_][A-Za-z_0-9]*|==|!=|>=|<=|&&|\|\||[(),+\-*/%!<>])/.exec(rest);
     if (!match) throw new Error(`Unexpected text at position ${offset + 1}. Use {flag} for variables and "quotes" for text.`);
     tokens.push(match[0]);
     offset += match[0].length;
@@ -32,6 +32,22 @@ export function parseExpression(source) {
     } else if (token === '(') {
       node = expression(0, depth + 1);
       if (tokens[index++] !== ')') throw new Error('Expected a closing parenthesis.');
+    } else if (/^[A-Za-z_][A-Za-z_0-9]*$/.test(token) && !['true', 'false', 'null'].includes(token)) {
+      if (!['min', 'max', 'random'].includes(token)) throw new Error(`Unknown function: ${token}. Use {flag} for variables.`);
+      if (tokens[index++] !== '(') throw new Error(`Expected an opening parenthesis after ${token}.`);
+      const args = [];
+      if (tokens[index] !== ')') {
+        do {
+          args.push(expression(0, depth + 1));
+          if (tokens[index] !== ',') break;
+          index++;
+        } while (true);
+      }
+      if (tokens[index++] !== ')') throw new Error('Expected a comma or closing parenthesis.');
+      if (token === 'random' ? args.length !== 2 : args.length === 0) {
+        throw new Error(token === 'random' ? 'random requires exactly two bounds.' : `${token} requires at least one value.`);
+      }
+      node = { call: token, args };
     } else if (token.startsWith('{')) {
       const name = token.slice(1, -1).trim();
       if (!name) throw new Error('Variable name cannot be empty.');
@@ -87,6 +103,21 @@ export function evaluateExpression(source, resolve) {
   function evaluate(node) {
     if (Object.hasOwn(node, 'literal')) return node.literal;
     if (Object.hasOwn(node, 'reference')) return resolve(node.reference) ?? 0;
+    if (node.call) {
+      const values = node.args.map(arg => numericValue(evaluate(arg)));
+      switch (node.call) {
+        case 'min': return Math.min(...values);
+        case 'max': return Math.max(...values);
+        case 'random': {
+          const [low, high] = values;
+          const count = high - low + 1;
+          if (!Number.isSafeInteger(low) || !Number.isSafeInteger(high) || low > high || !Number.isSafeInteger(count)) {
+            throw new Error('random requires safe integer bounds, low <= high, and a safe integer range size.');
+          }
+          return Math.min(high, low + Math.floor(Math.random() * count));
+        }
+      }
+    }
     if (node.value) {
       const value = evaluate(node.value);
       if (node.op === '!') return !value;

@@ -1,6 +1,5 @@
 /**
  * Central game state: current scene, flags, visited history.
- * Persists nothing to disk by default — extend later for save/load.
  */
 export class GameState {
   constructor() {
@@ -30,6 +29,16 @@ export class GameState {
   pushScene(sceneId) {
     this.currentScene = sceneId;
     this.history.push(sceneId);
+  }
+
+  snapshot() {
+    return { currentScene: this.currentScene, flags: [...this.flags], history: [...this.history] };
+  }
+
+  restore(snapshot) {
+    this.currentScene = snapshot.currentScene;
+    this.flags = new Map(snapshot.flags);
+    this.history = [...snapshot.history];
   }
 
   /** Reset all state (e.g. new game). */

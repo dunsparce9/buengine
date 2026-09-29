@@ -58,7 +58,11 @@
 
           <button id="title-start-btn" class="btn title-start-btn" type="button">
             <span class="material-symbols-outlined" aria-hidden="true">play_arrow</span>
-            <span>Start</span>
+            <span id="title-start-label">Start</span>
+          </button>
+          <button id="title-new-game-btn" class="btn title-start-btn hidden" type="button">
+            <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>
+            <span>New Game</span>
           </button>
         </div>
       </div>
@@ -67,7 +71,10 @@
         <div class="overlay-content">
           <h2>Paused</h2>
           <button id="pause-resume-btn" class="btn">Resume</button>
+          <button id="pause-save-btn" class="btn">Save</button>
+          <button id="pause-load-btn" class="btn">Load</button>
           <button id="pause-title-btn" class="btn">Title Screen</button>
+          <p id="pause-save-status" role="status" aria-live="polite"></p>
         </div>
       </div>
 

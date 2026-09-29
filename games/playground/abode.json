@@ -66,47 +66,21 @@
     ],
     "beerspam": [
       {
-        "playsound": {
-          "id": "beer",
-          "path": "sounds/objects/clink.opus",
-          "volume": 0.1,
-          "loop": false,
-          "blocking": false
-        }
-      },
-      {
-        "wait": 100
-      },
-      {
-        "playsound": {
-          "id": "beer",
-          "path": "sounds/objects/clink.opus",
-          "volume": 0.1,
-          "loop": false,
-          "blocking": false
-        }
-      },
-      {
-        "wait": 100
-      },
-      {
-        "playsound": {
-          "id": "beer",
-          "path": "sounds/objects/clink.opus",
-          "volume": 0.1,
-          "loop": false,
-          "blocking": false
-        }
-      },
-      {
-        "wait": 100
-      },
-      {
-        "playsound": {
-          "id": "beer",
-          "path": "sounds/objects/clink.opus",
-          "volume": 0.1
-        }
+        "loop": 4,
+        "do": [
+          {
+            "playsound": {
+              "id": "beer",
+              "path": "sounds/objects/clink.opus",
+              "volume": 0.1,
+              "loop": false,
+              "blocking": false
+            }
+          },
+          {
+            "wait": 100
+          }
+        ]
       }
     ],
     "pick_up_seal": [

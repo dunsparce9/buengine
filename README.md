@@ -126,6 +126,46 @@ other properties continue. Interrupting a running chain cancels its animations a
 their current pose; removing an entity or leaving the scene also cancels motion.
 Use named sequences and Fork for multi-step/background choreography.
 
+### Texture swaps
+
+Add **Texture** in the Action Editor to replace a scene object's image or an
+existing image overlay created by Show. Use an object ID or `this` inside an
+object interaction, and an image path relative to the game folder:
+
+```json
+{ "texture": { "id": "this", "path": "assets/chest-open.png" } }
+```
+
+The swap applies immediately and preserves visibility, position, size, hit region,
+and active animations. It also works on hidden objects without revealing them.
+Scene re-entry restores the original scene textures; use entry actions and flags
+to reapply persistent puzzle states. Missing targets, text overlays, and empty
+image paths report an engine error.
+
+### Saving games
+
+Progress saves automatically after actions, every second during play, and when
+leaving the game or hiding/closing its tab. Saves live in this browser's local
+storage, separately for each game and hosting directory. Editor previews use a
+separate save namespace.
+
+Once a save exists, the title screen offers **Continue** and **New Game**. Continue
+restores the snapshot without replaying scene entry actions; New Game clears both
+save slots and starts over. Games that skip the title still show it when a save
+exists so the player can choose.
+
+Press **Escape** for **Save** and **Load**. Save writes a separate manual snapshot;
+autosaving never overwrites it. Load prefers the manual save, falling back to the
+automatic one. Continue uses the automatic save, falling back to the manual one.
+
+Snapshots include the scene, flags/history, inventory and definitions, all object
+visibility/textures/transforms, image/text overlays, scene opacity, active
+animations and fades, audio playback positions and fades, unfinished action
+stacks/forks/waits, dialogue typing/delay, queued choices/dialogue, and the HUD and
+inventory window state. No script-level save exclusions are applied. Pausing
+freezes script waits and dialogue typing/delay as well as animations/audio.
+Storage failures are reported as engine errors.
+
 ### Contributions
 
 Every PR must include proof of beer: max 10 MB JPG showcasing one (1) standard can of beer that was consumed during PR creation.

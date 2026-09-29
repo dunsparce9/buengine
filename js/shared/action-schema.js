@@ -94,7 +94,7 @@ export const ACTION_TYPES = {
     icon: 'flag',
     color: '#fabd2f',
     label: 'Set flag',
-    quip: 'flip or count flags',
+    quip: 'set flags with values or expressions, including min, max, and random',
     operations: SET_OPERATIONS,
     fields: [],
     defaults: { set: {} },
@@ -110,7 +110,7 @@ export const ACTION_TYPES = {
     icon: 'call_split',
     color: '#fe8019',
     label: 'If',
-    quip: 'branch on a condition',
+    quip: 'branch on a condition with values or expressions, including min, max, and random',
     fields: [
       { key: 'if', label: 'Condition', type: 'condition', operators: COMPARISON_OPERATORS, required: true },
     ],
@@ -237,6 +237,21 @@ export const ACTION_TYPES = {
     defaults: { show: { id: '' } },
     summary: (action) => action.show?.id || action.show?.texture || String(action.show || '(target)'),
     badges: (action) => (action.show?.effect?.blocking ? ['blocking'] : []),
+  },
+
+  texture: {
+    category: 'Visuals',
+    icon: 'image',
+    color: '#d3869b',
+    label: 'Texture',
+    quip: 'swap an existing object image',
+    fields: [
+      { key: 'texture.id', label: 'ID (or this)', type: 'string', required: true },
+      { key: 'texture.path', label: 'Image path', type: 'string', required: true },
+    ],
+    defaults: { texture: { id: 'this', path: '' } },
+    summary: (action, shorten) => `${action.texture?.id || '(target)'} → ${shorten(action.texture?.path || '(image)')}`,
+    badges: () => [],
   },
 
   text: {

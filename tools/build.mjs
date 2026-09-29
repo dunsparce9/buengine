@@ -1,5 +1,5 @@
 import { build } from 'esbuild';
-import { cp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generatePrecache } from '../editor/tools/generate-sw-precache.mjs';
@@ -16,7 +16,11 @@ const actualDist = await realpath(dist).catch((error) => {
 if (resolve(actualDist) !== resolve(dist) || dirname(dist) !== resolve(root)) {
   throw new Error('Refusing to clean a dist directory outside this project.');
 }
-await rm(dist, { recursive: true, force: true });
+// Keep the directory itself: Windows can lock it while a static server uses it.
+await mkdir(dist, { recursive: true });
+for (const name of await readdir(dist)) {
+  await rm(join(dist, name), { recursive: true, force: true });
+}
 await mkdir(join(dist, 'editor'), { recursive: true });
 
 const result = await build({

@@ -73,7 +73,7 @@ export function scriptPathFromId(id) {
 
 /**
  * Collect all image paths referenced across loaded scripts.
- * Covers scene backgrounds, object textures, `show.texture` action refs,
+ * Covers scene backgrounds, object textures, Show/Texture action refs,
  * and inventory item icons. Returns a sorted, deduplicated array of paths.
  *
  * This is the single implementation — callers must not keep a parallel
@@ -83,6 +83,7 @@ export function collectImagePaths() {
   const paths = new Set();
   const visit = (action) => {
     if (action.show?.texture) paths.add(action.show.texture);
+    if (action.texture?.path) paths.add(action.texture.path);
   };
   for (const data of Object.values(state.scripts)) {
     if (!data || typeof data !== 'object') continue;

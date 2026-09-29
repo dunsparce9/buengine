@@ -12,6 +12,10 @@
 .overlay-content h2 { font-size: 2rem; margin-bottom: 1rem; }
 .overlay-content p  { font-size: 1.2rem; margin-bottom: 1.5rem; opacity: 0.8; }
 
+/* Saving must remain accessible over choices, inventory, and the HUD. */
+#pause-screen { z-index: 400; }
+#pause-save-status { min-height: 1.2em; margin: 0.75rem 0 0; font-size: 0.8rem; }
+
 /* ── Game selector ─────────────────────────────── */
 #game-selector {
   overflow-y: auto;
@@ -180,6 +184,9 @@
   outline: 2px solid #ddd;
   outline-offset: 3px;
 }
+
+#title-new-game-btn { margin-top: 0.5rem; }
+.btn:disabled { opacity: 0.4; cursor: default; }
 
 @media (max-width: 520px) {
   .selector-content {

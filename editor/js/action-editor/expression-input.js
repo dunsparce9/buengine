@@ -77,7 +77,7 @@ export function buildExpressionInput(value, label, ctx, onCommit, { raw = false,
   button.className = 'ae-mini-btn';
   button.textContent = '…';
   button.setAttribute('aria-label', `Expression guide for ${label}`);
-  button.dataset.tooltip = 'Insert a variable or operator';
+  button.dataset.tooltip = 'Insert a variable, operator, or function';
   button.setAttribute('aria-expanded', 'false');
   line.appendChild(button);
   const guide = document.createElement('div');
@@ -88,7 +88,7 @@ export function buildExpressionInput(value, label, ctx, onCommit, { raw = false,
   button.setAttribute('aria-controls', guide.id);
   guide.hidden = true;
   const help = document.createElement('div');
-  help.textContent = 'Use {flag} for variables, "quotes" for text. Examples: {score} + 1, !{enabled}.';
+  help.textContent = 'Use {flag} for variables, "quotes" for text. Examples: {score} + 1, !{enabled}, min({health} + 10, 100), max(0, {coins} - 5). min/max accept one or more values. random(1, 6) picks a whole number from 1 through 6, including both bounds; it rolls again each time it is evaluated. Functions can be nested.';
   guide.appendChild(help);
   const referenceInput = document.createElement('input');
   referenceInput.className = 'ae-field-input';
@@ -139,6 +139,7 @@ export function buildExpressionInput(value, label, ctx, onCommit, { raw = false,
     ['Not !', '!'], ['And &&', ' && '], ['Or ||', ' || '],
     ['Equal ==', ' == '], ['Not equal !=', ' != '], ['Greater >', ' > '], ['At least >=', ' >= '],
     ['Less <', ' < '], ['At most <=', ' <= '], ['(', '('], [')', ')'], ['true', 'true'], ['false', 'false'], ['Text ""', '""'],
+    ['Min', 'min(0, 100)'], ['Max', 'max(0, 100)'], ['Random', 'random(1, 6)'],
   ]) insertButton(name, text, operators);
   guide.appendChild(operators);
   if (!guideHost) wrap.appendChild(guide);

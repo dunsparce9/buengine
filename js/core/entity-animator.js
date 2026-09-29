@@ -26,14 +26,15 @@ function ease(progress, curve) {
 }
 
 export class EntityAnimator {
-  constructor(bus, { getEntity, getState, applyState }) {
+  constructor(bus, { getEntity, getState, applyState, completeEffect }) {
     this._getEntity = getEntity;
     this._getState = getState;
     this._applyState = applyState;
+    this._completeEffect = completeEffect;
     this._jobs = new Set();
     this._paused = false;
     this._frame = null;
-    bus.on('entity:animate', payload => this._start(payload));
+    bus.on('entity:animate', payload => this.start(payload));
     bus.on('entity:animate-cancel', ({ owner, family }) => {
       this._cancel(job => family != null ? job.family === family : job.owner === owner);
     });
@@ -41,7 +42,7 @@ export class EntityAnimator {
     bus.on('overlay:resumed', () => this._resume());
   }
 
-  _start({ target = 'object', id, from = {}, to = {}, seconds = 1, easing = 'ease-in-out', pivot, blocking, owner, family, onDone }) {
+  start({ target = 'object', id, from = {}, to = {}, seconds = 1, easing = 'ease-in-out', pivot, blocking, owner, family, onDone, completion }) {
     if (target !== 'object' && target !== 'scene') throw new Error(`Animate: unsupported target "${target}"`);
     const entry = this._getEntity(id, target);
     if (!entry) throw new Error(`Animate: entity "${id ?? 'this'}" does not exist`);
@@ -90,12 +91,14 @@ export class EntityAnimator {
     if (seconds === 0) {
       Object.assign(state, targets);
       this._applyState(entry, keys);
+      if (completion) this._completeEffect(entry, completion);
       onDone?.();
       return;
     }
     const tracks = Object.fromEntries(keys.map(key => [key, [state[key], targets[key]]]));
     this._jobs.add({ entry, state, tracks, duration: seconds * 1000, elapsed: 0, updatedAt: now,
-      curve: easing === 'linear' ? null : CURVES[easing], owner, family, onDone: blocking ? onDone : null });
+      curve: easing === 'linear' ? null : CURVES[easing], owner, family, completion,
+      onDone: blocking ? onDone : null });
     if (!blocking) onDone?.();
     this._schedule();
   }
@@ -120,14 +123,15 @@ export class EntityAnimator {
         job.state[key] = progress === 1 ? to : from + (to - from) * amount;
       }
       this._applyState(job.entry, Object.keys(job.tracks));
-      if (progress === 1) this._finish(job);
+      if (progress === 1) this._finish(job, true);
     }
   }
 
-  _finish(job) {
+  _finish(job, natural = false) {
     if (!this._jobs.delete(job)) return;
     const done = job.onDone;
     job.onDone = null;
+    if (natural && job.completion) this._completeEffect(job.entry, job.completion);
     done?.();
     if (!this._jobs.size && this._frame != null) {
       cancelAnimationFrame(this._frame);
@@ -141,6 +145,26 @@ export class EntityAnimator {
   }
 
   cancelEntity(entry) { this._cancel(job => job.entry === entry); }
+
+  snapshot() {
+    return [...this._jobs].map(job => ({
+      id: job.entry.el.dataset.objectId, target: job.entry.kind === 'scene' ? 'scene' : 'object',
+      tracks: job.tracks, duration: job.duration, elapsed: job.elapsed, curve: job.curve,
+      owner: job.owner, family: job.family, completion: job.completion, waitId: job.onDone?.saveId,
+    }));
+  }
+
+  restore(jobs, resolve) {
+    for (const saved of jobs) {
+      const entry = this._getEntity(saved.id, saved.target);
+      if (!entry) throw new Error(`Saved animation target "${saved.id}" does not exist`);
+      const onDone = saved.waitId ? () => resolve(saved.waitId) : null;
+      if (onDone) onDone.saveId = saved.waitId;
+      this._jobs.add({ ...saved, entry, state: this._getState(entry), updatedAt: performance.now(),
+        onDone });
+    }
+    this._schedule();
+  }
 
   _pause() {
     if (this._paused) return;

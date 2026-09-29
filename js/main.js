@@ -16,6 +16,7 @@ import { GameSelector }    from './ui/game-selector.js';
 import { DebugHud }        from './ui/debug-hud.js';
 import { Paths }           from './core/paths.js';
 import { walkActions }     from './shared/script-data.js';
+import { SaveStore }       from './core/save-store.js';
 
 /* ── Bootstrap ──────────────────────────────────── */
 
@@ -29,13 +30,17 @@ const runner      = new ActionRunner({ bus, state, inventory });
 const gridOverlay = document.getElementById('grid-overlay');
 const gameContainer = document.getElementById('game-container');
 
+// Capture the world before UI listeners close windows during navigation.
+bus.on('game:title', () => saveGame());
+bus.on('game:quit', () => saveGame());
+
 // UI subsystems (they self-register on the bus)
-new DialogueUI(bus);
+const dialogue = new DialogueUI(bus);
 new ChoiceUI(bus);
 const overlay = new OverlayUI(bus);
 const sound   = new SoundManager(bus);
 const hud = new HudUI(bus);
-new InventoryUI(bus, inventory);
+const inventoryUI = new InventoryUI(bus, inventory);
 new NotificationUI(bus);
 new ObjectOptionsUI(bus);
 
@@ -44,6 +49,10 @@ const gameSelector = new GameSelector((id) => selectGame(id));
 
 /** Currently loaded scene data keyed by id. */
 let currentSceneData = null;
+const saves = new SaveStore();
+let gameActive = false;
+let saveTimer = null;
+let saveError = null;
 const debugHud = new DebugHud(() => currentSceneData);
 
 gameContainer.addEventListener('contextmenu', (e) => {
@@ -51,8 +60,64 @@ gameContainer.addEventListener('contextmenu', (e) => {
 });
 
 /* ── Pause ↔ audio lifecycle ────────────────────── */
-bus.on('overlay:paused',  () => sound.pauseAll());
-bus.on('overlay:resumed', () => sound.resumeAll());
+bus.on('overlay:paused',  () => { sound.pauseAll(); runner.setPaused(true); });
+bus.on('overlay:resumed', () => { sound.resumeAll(); runner.setPaused(false); });
+
+function setGameActive(active) {
+  gameActive = active;
+  bus.emit('game:active', active);
+}
+
+function readSave(manual = false) {
+  let error;
+  for (const slot of manual ? ['manual', 'auto'] : ['auto', 'manual']) {
+    try {
+      const saved = saves.read(slot);
+      if (saved) return saved;
+    } catch (failure) { error = failure; }
+  }
+  if (error) throw error;
+  return null;
+}
+
+function saveGame(manual = false) {
+  if (!gameActive || transitionInProgress || !currentSceneData) return false;
+  try {
+    const written = saves.write({
+      state: state.snapshot(), inventory: inventory.snapshot(), sceneData: currentSceneData,
+      scripts: loader.snapshot(), scene: scene.snapshot(), runner: runner.snapshot(),
+      sound: sound.snapshot(), dialogue: dialogue.snapshot(), paused: overlay.isPaused,
+      ui: { hud: !hud.el.classList.contains('hidden'), inventory: inventoryUI.snapshot(), debug: debugHud.active },
+    }, manual ? 'manual' : 'auto');
+    if (!written) return false;
+    saveError = null;
+    bus.emit('save:available', true);
+    if (manual) {
+      bus.emit('save:status', 'Game saved.');
+      if (!overlay.isPaused) bus.emit('notification:show', { title: 'Game saved', content: 'Progress saved in this browser.' });
+    }
+    return true;
+  } catch (error) {
+    if (manual) bus.emit('save:status', `Save failed: ${error.message}`);
+    if (manual || saveError !== error.message) {
+      reportEngineError(new Error(`Unable to save game: ${error.message}`));
+    }
+    saveError = error.message;
+    return false;
+  }
+}
+
+// Timed snapshots also capture changes between commands: typing, motion, and audio.
+setInterval(() => saveGame(), 1000);
+bus.on('action:progress', () => {
+  if (saveTimer != null) return;
+  saveTimer = setTimeout(() => { saveTimer = null; saveGame(); }, 0);
+});
+window.addEventListener('pagehide', () => saveGame());
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') saveGame();
+});
+bus.on('game:save', () => saveGame(true));
 
 /* ── Scene navigation ───────────────────────────── */
 
@@ -151,6 +216,7 @@ async function gotoScene(id, epoch = ++sceneEpoch) {
     runner.sequences = getSceneSequences(data);
     runner.currentObjectId = null;
     state.pushScene(id);
+    setGameActive(true);
     bus.emit('overlay:clear');
     scene.render(data);
     debugHud.setScene(id);
@@ -173,6 +239,7 @@ async function gotoScene(id, epoch = ++sceneEpoch) {
     if (Array.isArray(data.onEnter) && epoch === sceneEpoch) {
       await runner.run(data.onEnter);
     }
+    if (epoch === sceneEpoch) saveGame();
   } finally {
     if (epoch === sceneEpoch) transitionInProgress = false;
   }
@@ -190,7 +257,7 @@ function trackObjectClick(obj) {
 
 /** All player interactions share the runner and the same interruption policy. */
 async function runPlayerActions(actions, { object = null, interrupt = false, trackClick = true } = {}) {
-  if (transitionInProgress || !currentSceneData) return;
+  if (overlay.isPaused || transitionInProgress || !currentSceneData) return;
   if (runner.running && (!interrupt || !actions?.length)) return;
   const serial = ++interactionSerial;
   const epoch = sceneEpoch;
@@ -236,7 +303,10 @@ bus.on('object:contextmenu', ({ obj, clientX, clientY }) => {
 });
 
 /* ── Scene goto (from action runner) ────────────── */
-bus.on('scene:goto', id => { gotoScene(id).catch(reportEngineError); });
+bus.on('scene:goto', id => {
+  saveGame();
+  gotoScene(id).catch(reportEngineError);
+});
 
 /* ── Game selection (engine wiring) ─────────────── */
 
@@ -245,6 +315,7 @@ function selectGame(id) {
   const basePath = `games/${id}`;
   loader.setBasePath(basePath);
   Paths.basePath = basePath;
+  saves.select(`${loader.isPreview ? 'preview:' : ''}${id}`);
   gameSelector.hide();
   showTitle(epoch);
 }
@@ -256,11 +327,15 @@ async function showTitle(epoch = sceneEpoch) {
   try {
     const manifest = await loader.load('_game');
     if (epoch !== sceneEpoch) return;
-    if (manifest.skipTitleScreen) {
+    if (!saves.game) saves.select(`preview:${manifest.title || 'local'}`);
+    let hasSave = false;
+    try { hasSave = !!readSave(); } catch (error) { reportEngineError(error); }
+    bus.emit('save:available', hasSave);
+    if (manifest.skipTitleScreen && !hasSave) {
       bus.emit('game:start');
       return;
     }
-    overlay.showTitle({ title: manifest.title, subtitle: manifest.subtitle });
+    overlay.showTitle({ title: manifest.title, subtitle: manifest.subtitle, hasSave });
   } catch (error) {
     if (epoch !== sceneEpoch) return;
     reportEngineError(error);
@@ -284,11 +359,20 @@ async function bootGame(sceneId, { reset = false } = {}) {
     await runner.abort();
     if (epoch !== sceneEpoch) return;
     if (reset) {
+      try { saves.clear(); } catch (error) {
+        reportEngineError(new Error(`Unable to clear previous saves: ${error.message}`));
+      }
+      bus.emit('save:available', false);
       state.reset();
       inventory.reset();
     }
     const manifest = await loader.load('_game');
     if (epoch !== sceneEpoch) return;
+    if (!saves.game) saves.select(`preview:${manifest.title || 'local'}`);
+    bus.emit('sound:stopall');
+    overlay.hideTitle();
+    overlay.hidePause();
+    bus.emit('overlay:resumed');
     inventory.configure(manifest.inventory || 0);
     const defs = inventory.enabled ? await loader.load('items/items', { optional: true }) : [];
     if (epoch !== sceneEpoch) return;
@@ -305,8 +389,86 @@ async function bootGame(sceneId, { reset = false } = {}) {
 /** Start a new game: reset state, load first scene. */
 bus.on('game:start', () => bootGame('', { reset: true }));
 
+async function loadGame(continuing = false) {
+  let saved;
+  try {
+    saved = readSave(!continuing);
+    if (!saved) throw new Error('No saved game is available.');
+  } catch (error) {
+    reportEngineError(error);
+    bus.emit('save:status', `Load failed: ${error.message}`);
+    if (continuing) showTitle();
+    return;
+  }
+  const epoch = ++sceneEpoch;
+  transitionInProgress = true;
+  setGameActive(false);
+  bus.emit('save:status', 'Loading…');
+  try {
+    await runner.abort();
+    if (epoch !== sceneEpoch) return;
+    bus.emit('sound:stopall');
+    bus.emit('overlay:paused');
+    scene.clear();
+    await preloadAssets(saved.sceneData);
+    if (epoch !== sceneEpoch) return;
+    loader.restore(saved.scripts);
+    state.restore(saved.state);
+    inventory.restore(saved.inventory);
+    currentSceneData = saved.sceneData;
+    runner.sequences = getSceneSequences(currentSceneData);
+    scene.render(currentSceneData);
+    dialogue.restore(saved.dialogue);
+    // Register every restored wait before reconnecting animation/audio completions.
+    runner.resume(saved.runner).catch(reportEngineError);
+    const complete = (id, value) => bus.emit('action:complete', { id, value });
+    scene.restore(saved.scene, complete);
+    sound.restore(saved.sound, complete);
+    bus.emit('hud:inventory-enabled', inventory.enabled);
+    bus.emit(saved.ui.hud ? 'hud:show' : 'hud:hide');
+    inventoryUI.restore(saved.ui.inventory);
+    debugHud.setScene(state.currentScene);
+    debugHud.restore(saved.ui.debug);
+    gridOverlay.style.setProperty('--grid-cols', currentSceneData.grid?.cols ?? 16);
+    gridOverlay.style.setProperty('--grid-rows', currentSceneData.grid?.rows ?? 9);
+    setGameActive(true);
+    transitionInProgress = false;
+    overlay.hideTitle();
+    if (!continuing && saved.paused) overlay.showPause();
+    else {
+      overlay.hidePause();
+      bus.emit('overlay:resumed');
+    }
+    bus.emit('save:available', true);
+    preloadNeighbors(currentSceneData);
+    if (!continuing) {
+      bus.emit('save:status', 'Game loaded.');
+      if (!overlay.isPaused) bus.emit('notification:show', { title: 'Game loaded', content: 'Saved progress restored.' });
+    }
+  } catch (error) {
+    if (epoch === sceneEpoch) {
+      await runner.abort();
+      if (epoch !== sceneEpoch) return;
+      bus.emit('sound:stopall');
+      scene.clear();
+      currentSceneData = null;
+      setGameActive(false);
+      overlay.hidePause();
+      bus.emit('overlay:resumed');
+      reportEngineError(new Error(`Unable to load game: ${error.message}`));
+      showTitle(epoch);
+    }
+  } finally {
+    if (epoch === sceneEpoch) transitionInProgress = false;
+  }
+}
+
+bus.on('game:continue', () => loadGame(true));
+bus.on('game:load', () => loadGame());
+
 /** Return to title screen. */
 bus.on('game:title', () => {
+  setGameActive(false);
   ++sceneEpoch;
   transitionInProgress = false;
   currentSceneData = null;
@@ -320,6 +482,7 @@ bus.on('game:title', () => {
 
 /** Quit: return to the selector, unless this was launched from the local editor preview. */
 bus.on('game:quit', () => {
+  setGameActive(false);
   ++sceneEpoch;
   transitionInProgress = false;
   currentSceneData = null;
@@ -331,6 +494,7 @@ bus.on('game:quit', () => {
   overlay.hidePause();
   state.reset();
   inventory.reset();
+  saves.select(null);
   if (loader.isPreview && loader.assetMap) {
     window.close();
     return;

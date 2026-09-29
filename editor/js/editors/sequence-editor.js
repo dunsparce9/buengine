@@ -1,8 +1,8 @@
 /**
  * Scene sequences editor.
  *
- * Thin domain adapter over the parameterized `list-editor.js` (review
- * phase 5): window lifecycle, toolbar, table skeleton and the actions pill
+ * Thin domain adapter over `list-editor.js`: window lifecycle,
+ * table skeleton, add field and the actions pill
  * live in one place; only sequence-name handling stays here.
  */
 
@@ -48,14 +48,10 @@ export function openSequencesModal({
     getRows: (st) => Object.keys(st.sceneData.sequences || {}),
     buildRowCells: (tr, { modalState: st, row: name }) =>
       buildSequenceRowCells(tr, st, name),
-    renderEmpty: (content, st) => {
+    renderEmpty: (content) => {
       const empty = document.createElement('div');
       empty.className = 'items-viewer-empty';
-      if (st.collapsed) {
-        empty.textContent = 'No sequences defined.';
-      } else {
-        empty.innerHTML = 'Sequences are a shared list of actions, reusable across objects or items.<br>Right-click (or click Add) to create a sequence.';
-      }
+      empty.textContent = 'Sequences are a shared list of actions, reusable across objects or items.';
       content.appendChild(empty);
     },
     onEmptyContextMenu: (x, y, st) =>
@@ -64,8 +60,6 @@ export function openSequencesModal({
       showRowMenu(x, y, 'New sequence', () => createNewSequence(st), () => confirmDeleteSequence(st, name)),
     onAdd: (st) => createNewSequence(st),
     addTitle: 'Add sequence',
-    collapseTitleCollapsed: 'Expand sequences',
-    collapseTitleExpanded: 'Collapse sequences',
   });
 }
 
@@ -81,40 +75,26 @@ function buildSequenceRowCells(tr, st, name) {
 
   const tdName = document.createElement('td');
   tdName.className = 'sequences-td-name';
-  if (st.collapsed) {
-    const textValue = document.createElement('span');
-    textValue.className = 'items-options-compact-text';
-    textValue.textContent = name;
-    tdName.appendChild(textValue);
-  } else {
-    const nameInput = document.createElement('input');
-    nameInput.type = 'text';
-    nameInput.className = 'items-options-input';
-    nameInput.value = name;
-    nameInput.placeholder = 'Sequence name';
-    nameInput.addEventListener('change', () => renameSequence(st, name, nameInput));
-    tdName.appendChild(nameInput);
-  }
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.className = 'items-options-input';
+  nameInput.value = name;
+  nameInput.placeholder = 'Sequence name';
+  nameInput.addEventListener('change', () => renameSequence(st, name, nameInput));
+  tdName.appendChild(nameInput);
   tr.appendChild(tdName);
 
   const tdActions = document.createElement('td');
   tdActions.className = 'items-opt-td-actions';
-  if (st.collapsed) {
-    const count = document.createElement('span');
-    count.className = 'items-options-compact-actions';
-    count.textContent = `${actions.length} action${actions.length === 1 ? '' : 's'}`;
-    tdActions.appendChild(count);
-  } else {
-    tdActions.appendChild(createSequenceActionsPill({
-      sceneId: st.sceneData.id,
-      name,
-      actions,
-      sequences,
-      scriptId: st.scriptId,
-      onChange: st.onChange,
-      actionViewerContext: st.actionViewerContext,
-    }));
-  }
+  tdActions.appendChild(createSequenceActionsPill({
+    sceneId: st.sceneData.id,
+    name,
+    actions,
+    sequences,
+    scriptId: st.scriptId,
+    onChange: st.onChange,
+    actionViewerContext: st.actionViewerContext,
+  }));
   tr.appendChild(tdActions);
 }
 

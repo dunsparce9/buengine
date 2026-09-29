@@ -57,6 +57,10 @@ export class ScriptLoader {
   /** Whether a script is already available (including preview overrides). */
   has(id) { return this._cache.has(id); }
 
+  snapshot() { return [...this._cache]; }
+
+  restore(scripts) { this._cache = new Map(scripts); }
+
   /**
    * Load a script by ID (filename without extension).
    * @param {string} id  e.g. "intro" → {basePath}/intro.json
