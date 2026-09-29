@@ -1,4 +1,4 @@
-const CACHE_VERSION = '2a18ef104762061c';
+const CACHE_VERSION = 'd0246accf3e7cd13';
 const RELEASE_BUILD = false;
 const CORE_ASSETS = [
   './',
@@ -6,6 +6,7 @@ const CORE_ASSETS = [
   '../assets/images/seal.png',
   '../css/material-symbols.css',
   '../js/shared/action-schema.js',
+  '../js/shared/expressions.js',
   '../js/shared/script-data.js',
   './assets/icon.svg',
   './css/action-editor.css',
@@ -27,6 +28,7 @@ const CORE_ASSETS = [
   './js/action-editor.js',
   './js/action-editor/clipboard.js',
   './js/action-editor/drag.js',
+  './js/action-editor/expression-input.js',
   './js/action-editor/forms.js',
   './js/action-editor/index.js',
   './js/action-editor/renderers.js',

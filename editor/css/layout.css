@@ -2,7 +2,7 @@
 #editor-layout {
   display: grid;
   grid-template-columns: var(--left-w, 220px) 5px 1fr 5px var(--right-w, 260px);
-  height: calc(100vh - 30px);
+  height: calc(100vh - var(--menu-bar-height) - var(--menu-bar-top));
   overflow: hidden;
 }
 

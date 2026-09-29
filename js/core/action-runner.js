@@ -7,6 +7,7 @@
  * avoid maintaining a second full command list here.
  */
 import { detectType } from '../shared/action-schema.js';
+import { evaluateExpression, numericValue, compareValues } from '../shared/expressions.js';
 
 /** Max iterations of a single `loop` statement before assuming an infinite loop. */
 const MAX_LOOP_ITERATIONS = 10000;
@@ -88,7 +89,11 @@ export class ActionRunner {
 
         const frame = frames[frames.length - 1];
         if (frame.index >= frame.actions.length) {
-          if (frame.loopCondition && this._evalCondition(frame.loopCondition)) {
+          if (frame.remaining != null) {
+            frame.remaining -= 1;
+            if (frame.remaining > 0) frame.index = 0;
+            else frames.pop();
+          } else if (frame.loopCondition && this._evalCondition(frame.loopCondition)) {
             frame.iterations += 1;
             if (frame.iterations > MAX_LOOP_ITERATIONS) {
               throw new Error(
@@ -155,7 +160,15 @@ export class ActionRunner {
       }
       case 'loop': {
         const actions = this._resolveLoopActions(action);
-        if (actions?.length && this._evalCondition(action.loop)) {
+        if (typeof action.loop === 'number') {
+          if (!Number.isSafeInteger(action.loop) || action.loop < 0 || action.loop > MAX_LOOP_ITERATIONS) {
+            throw new Error(`Action runner: loop count must be an integer from 0 to ${MAX_LOOP_ITERATIONS}` + this._errorContext());
+          }
+          if (actions?.length && action.loop > 0) {
+            this._checkFrameDepth(frames, 'loop');
+            frames.push({ actions, index: 0, remaining: action.loop });
+          }
+        } else if (actions?.length && this._evalCondition(action.loop)) {
           this._checkFrameDepth(frames, 'loop');
           frames.push({ actions, index: 0, loopCondition: action.loop, iterations: 0 });
         }
@@ -371,11 +384,23 @@ export class ActionRunner {
 
   /**
    * Apply a `set` action, supporting booleans, direct values,
-   * string increment ("+1", "-2"), and object increment ({ add, max, min }).
+   * legacy increments and explicit expressions ({ expr, operation, max, min }).
    */
   _applySet(setObj) {
     for (const [key, spec] of Object.entries(setObj)) {
-      if (typeof spec === 'string' && /^[+-]\d+$/.test(spec)) {
+      if (spec && typeof spec === 'object' && Object.hasOwn(spec, 'expr')) {
+        const operand = evaluateExpression(spec.expr, name => this._resolveExpressionReference(name));
+        const operation = spec.operation || 'set';
+        let value;
+        if (operation === 'set') value = operand;
+        else if (operation === 'add' || operation === 'subtract') {
+          value = numericValue(numericValue(this.state.getFlag(key) ?? 0) +
+            numericValue(operand) * (operation === 'subtract' ? -1 : 1));
+        } else throw new Error(`Unknown flag operation: ${operation}`);
+        if (spec.max != null) value = Math.min(numericValue(value), numericValue(spec.max));
+        if (spec.min != null) value = Math.max(numericValue(value), numericValue(spec.min));
+        this.state.setFlag(key, value);
+      } else if (typeof spec === 'string' && /^[+-]\d+$/.test(spec)) {
         // String increment shorthand: "+1", "-3", etc.
         const delta = parseInt(spec, 10);
         const cur = this.state.getFlag(key) ?? 0;
@@ -391,6 +416,11 @@ export class ActionRunner {
         this.state.setFlag(key, spec);
       }
     }
+  }
+
+  _resolveExpressionReference(name) {
+    const item = /^items\.(.+?)\.qty$/.exec(name);
+    return item ? this.inventory.getQty(item[1]) : (this.state.getFlag(name) ?? 0);
   }
 
   /** @type {RegExp} Matches "flag_name op value" comparison expressions */
@@ -437,30 +467,6 @@ export class ActionRunner {
   }
 
   /**
-   * Coerce a pair of resolved operands for comparison.
-   *
-   * Semantics: operands are coerced with `Number()` — booleans become 1/0
-   * (so `true == 1`). Only when BOTH sides are non-numeric strings do they
-   * compare lexicographically as strings. If either side coerces to NaN
-   * (and string-string doesn't apply), the comparison is unresolvable and
-   * null is returned (every comparison yields false).
-   *
-   * @returns {[number|string, number|string]|null}
-   */
-  _coerceComparison(left, right) {
-    const lNum = Number(left);
-    const rNum = Number(right);
-    if (
-      Number.isNaN(lNum) && Number.isNaN(rNum) &&
-      typeof left === 'string' && typeof right === 'string'
-    ) {
-      return [left, right];
-    }
-    if (Number.isNaN(lNum) || Number.isNaN(rNum)) return null;
-    return [lNum, rNum];
-  }
-
-  /**
    * Evaluate an `if`/`loop` condition.
    * - Plain name → truthiness check (unset flags read as 0 → false).
    * - "flag op value" → comparison with Number() coercion; booleans coerce
@@ -471,6 +477,13 @@ export class ActionRunner {
    * Supports `items.<id>.qty` for inventory checks.
    */
   _evalCondition(expr) {
+    if (expr && typeof expr === 'object') {
+      const resolve = name => this._resolveExpressionReference(name);
+      const left = evaluateExpression(expr.left, resolve);
+      if (expr.operator === 'truthy') return Boolean(left);
+      if (expr.operator === 'falsy') return !left;
+      return compareValues(left, expr.operator, evaluateExpression(expr.right, resolve));
+    }
     if (typeof expr === 'boolean') return expr;
 
     const m = ActionRunner._CMP_RE.exec(expr);
@@ -491,15 +504,6 @@ export class ActionRunner {
 
     const left = this._resolveConditionOperand(m[1]);
     const right = this._resolveConditionOperand(m[3]);
-    const pair = this._coerceComparison(left, right);
-    switch (m[2]) {
-      case '==': return pair !== null && pair[0] === pair[1];
-      case '!=': return pair !== null && pair[0] !== pair[1];
-      case '>':  return pair !== null && pair[0] > pair[1];
-      case '>=': return pair !== null && pair[0] >= pair[1];
-      case '<':  return pair !== null && pair[0] < pair[1];
-      case '<=': return pair !== null && pair[0] <= pair[1];
-      default:   return false;
-    }
+    return compareValues(left, m[2], right);
   }
 }

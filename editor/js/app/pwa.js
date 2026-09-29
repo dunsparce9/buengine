@@ -83,9 +83,10 @@ export function setupPWAInstall() {
   updateWindowTitle();
   updateInstallMenuVisibility();
 
-  window.matchMedia('(display-mode: standalone)').addEventListener('change', () => {
+  window.matchMedia('(display-mode: standalone), (display-mode: window-controls-overlay)').addEventListener('change', () => {
     updateRunLabels();
     updateWindowTitle();
+    updateInstallMenuVisibility();
   });
 
   window.addEventListener('beforeinstallprompt', (event) => {

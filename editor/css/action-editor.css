@@ -29,7 +29,8 @@
   gap: 4px;
   padding: 3px 6px;
   background: rgba(0,0,0,0.15);
-  min-height: 26px;
+  /* Reserve the 22px hover buttons plus vertical padding even when hidden. */
+  min-height: 28px;
 }
 
 .ae-block-header,
@@ -686,8 +687,6 @@ button.ae-chip:hover {
   align-items: center;
   gap: 4px;
 }
-.ae-set-edit-row .ae-field-input:first-child { flex: 2; }
-.ae-set-edit-row .ae-field-input:nth-child(2) { flex: 3; }
 
 /* ── Action viewer: if branches editor ─────────── */
 
@@ -834,3 +833,38 @@ button.ae-chip:hover {
   background: rgba(254, 128, 25, 0.08);
   color: #fe8019;
 }
+
+/* Value expressions and their local insertion guides. */
+.ae-condition-field { grid-template-columns: 1fr; }
+.ae-condition-field > .ae-field-label { display: none; }
+.ae-condition-field > .ae-condition-editor { justify-self: stretch; }
+.ae-condition-editor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(80px, 145px) minmax(0, 1fr); align-items: start; gap: 4px; min-width: 0; }
+.ae-condition-editor.ae-condition-unary { grid-template-columns: minmax(0, 1fr) minmax(80px, 145px); }
+.ae-condition-editor > select { width: 100%; }
+.ae-expression { min-width: 0; }
+.ae-expression[hidden], .ae-expression-guide[hidden] { display: none; }
+.ae-expression-line { display: flex; align-items: center; gap: 4px; }
+.ae-expression-line > input { width: 100%; font-family: monospace; }
+.ae-expression-error { font-size: 11px; color: #fb4934; margin-top: 3px; }
+.ae-expression-error:empty { display: none; }
+.ae-expression input[aria-invalid="true"] { border-color: #fb4934; }
+.ae-expression-guide {
+  margin-top: 5px; padding: 8px; border: 1px solid #504945; border-radius: 3px;
+  background: #1d2021; color: #a89984; font-size: 11px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.ae-expression-references, .ae-expression-operators { display: flex; flex-wrap: wrap; gap: 4px; }
+.ae-expression-references { max-height: 130px; overflow-y: auto; }
+.ae-set-edit-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.4fr) auto; align-items: start; gap: 4px; }
+.ae-set-edit-row > .ae-field-input:first-child { width: 100%; }
+.ae-set-edit-row > select.ae-field-input { width: auto; max-width: 100%; }
+.ae-expression-line > .ae-mini-btn { flex: none; }
+
+.ae-condition-editor > .ae-expression-guide,
+.ae-set-edit-row > .ae-expression-guide { grid-column: 1 / -1; min-width: 0; }
+.ae-condition-editor > select,
+.ae-set-edit-row > .ae-field-input,
+.ae-expression-line > .ae-field-input,
+.ae-expression-line > .ae-mini-btn,
+.ae-set-edit-row > .ae-mini-btn { box-sizing: border-box; height: 28px; line-height: 18px; }
+.ae-expression-guide > .ae-field-input { flex: none; box-sizing: border-box; width: 100%; height: 28px; }

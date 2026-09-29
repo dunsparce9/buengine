@@ -1,8 +1,13 @@
+:root {
+  --menu-bar-height: 30px;
+  --menu-bar-top: 0px;
+}
+
 /* ── Menu bar ──────────────────────────────────── */
 #menu-bar {
   position: relative;
   display: flex;
-  height: 30px;
+  height: var(--menu-bar-height);
   background: #1d2021;
   border-bottom: 1px solid #3c3836;
   user-select: none;
@@ -12,7 +17,8 @@
 .menu-item {
   position: relative;
   padding: 0 14px;
-  line-height: 30px;
+  line-height: var(--menu-bar-height);
+  flex-shrink: 0;
   cursor: pointer;
   font-size: 13px;
 }
@@ -127,30 +133,53 @@
   color: #928374;
 }
 
-/* ── Run button ────────────────────────────────── */
-.menu-spacer {
+/* ── Window title ──────────────────────────────── */
+#menu-title {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   flex: 1;
+  min-width: 0;
+  padding: 0 14px;
+  font-size: 13px;
 }
 
-.menu-run-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  align-self: center;
-  margin-right: 10px;
-  padding: 2px 14px;
-  background: #98971a;
-  color: #ebdbb2;
-  border: none;
-  border-radius: 3px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  letter-spacing: 0.03em;
+#menu-title-file,
+#menu-title-game {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.menu-run-btn .material-symbols-outlined {
-  font-size: 15px;
+
+#menu-title-file {
+  color: #fbf1c7;
 }
-.menu-run-btn:hover {
-  background: #b8bb26;
+
+#menu-title-game {
+  color: #a89984;
+}
+
+@media (display-mode: window-controls-overlay) {
+  #menu-title {
+    display: flex;
+  }
+
+  :root {
+    --menu-bar-height: max(30px, env(titlebar-area-height, 30px));
+    --menu-bar-top: env(titlebar-area-y, 0px);
+  }
+
+  #menu-bar {
+    margin-top: var(--menu-bar-top);
+    margin-left: env(titlebar-area-x, 0px);
+    width: env(titlebar-area-width, 100%);
+    -webkit-app-region: drag;
+    app-region: drag;
+  }
+
+  .menu-item {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
 }

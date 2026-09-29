@@ -31,7 +31,7 @@ export function generatePrecache({ root = PROJECT_DIR, releaseBuild = false, ext
   const editorAssets = walk(editorDir).filter((path) => path !== swPath)
     .map((path) => `./${slash(relative(editorDir, path))}`);
   const sharedAssets = releaseBuild ? [] : [
-    '../js/shared/action-schema.js', '../js/shared/script-data.js',
+    '../js/shared/action-schema.js', '../js/shared/script-data.js', '../js/shared/expressions.js',
     '../css/material-symbols.css', '../assets/fonts/material-symbols-outlined.ttf',
   ];
   const assets = [...new Set([

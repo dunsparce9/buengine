@@ -82,7 +82,7 @@ export function renderProperties() {
 
 function renderGameProps(data) {
   addEditablePropGroup('Game manifest', [
-    { key: 'title',      value: data.title      ?? '', onChange: v => { data.title = v; markDirty('_game'); } },
+    { key: 'title',      value: data.title      ?? '', onChange: v => { data.title = v; markDirty('_game'); hooks.updateWindowTitle(); } },
     { key: 'subtitle',   value: data.subtitle   ?? '', onChange: v => { data.subtitle = v; markDirty('_game'); } },
     { key: 'startScene', value: data.startScene ?? '', onChange: v => { data.startScene = v; markDirty('_game'); } },
   ], dom.propsContent, createGroupTitle);

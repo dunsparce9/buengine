@@ -298,24 +298,55 @@
       "h": 3,
       "onHover": [
         {
-          "animate": {
-            "id": "this",
-            "to": {
-              "scale": 1.08
+          "if": {
+            "left": "{embiggened}",
+            "operator": "==",
+            "right": "true"
+          },
+          "then": [
+            {
+              "animate": {
+                "id": "this",
+                "to": {
+                  "scale": 6
+                },
+                "seconds": 0.15,
+                "blocking": true
+              }
             },
-            "seconds": 0.15,
-            "blocking": true
-          }
-        },
-        {
-          "animate": {
-            "id": "this",
-            "to": {
-              "scale": 1
+            {
+              "animate": {
+                "id": "this",
+                "to": {
+                  "scale": 5
+                },
+                "seconds": 0.15,
+                "blocking": true
+              }
+            }
+          ],
+          "else": [
+            {
+              "animate": {
+                "id": "this",
+                "to": {
+                  "scale": 1.08
+                },
+                "seconds": 0.15,
+                "blocking": true
+              }
             },
-            "seconds": 0.15,
-            "blocking": true
-          }
+            {
+              "animate": {
+                "id": "this",
+                "to": {
+                  "scale": 1
+                },
+                "seconds": 0.15,
+                "blocking": true
+              }
+            }
+          ]
         }
       ],
       "options": [
@@ -410,15 +441,38 @@
                     "text": "Embiggen",
                     "actions": [
                       {
-                        "animate": {
-                          "target": "object",
-                          "id": "this",
-                          "to": {
-                            "scale": 5
+                        "if": {
+                          "left": "{embiggened}",
+                          "operator": "==",
+                          "right": "true"
+                        },
+                        "then": [
+                          {
+                            "say": "The seal cannot be embiggened further.",
+                            "speaker": ""
+                          }
+                        ],
+                        "else": [
+                          {
+                            "animate": {
+                              "target": "object",
+                              "id": "this",
+                              "to": {
+                                "scale": 5
+                              },
+                              "seconds": 2,
+                              "easing": "ease-in-out"
+                            }
                           },
-                          "seconds": 2,
-                          "easing": "ease-in-out"
-                        }
+                          {
+                            "set": {
+                              "embiggened": {
+                                "expr": "true",
+                                "operation": "set"
+                              }
+                            }
+                          }
+                        ]
                       }
                     ]
                   },
@@ -431,12 +485,34 @@
                           "id": "this",
                           "to": {
                             "rotation": 30,
-                            "x": 1,
-                            "y": 1
+                            "x": -4,
+                            "y": -4
                           },
                           "seconds": 1,
                           "easing": "ease-in-out",
                           "blocking": true
+                        }
+                      },
+                      {
+                        "say": "The seal flew away.",
+                        "speaker": ""
+                      },
+                      {
+                        "set": {
+                          "seal_flew": {
+                            "expr": "true",
+                            "operation": "set"
+                          }
+                        }
+                      },
+                      {
+                        "hide": {
+                          "id": "bow"
+                        }
+                      },
+                      {
+                        "show": {
+                          "id": "bow_shootable"
                         }
                       }
                     ]
@@ -518,6 +594,78 @@
       "options": [],
       "label": "Plate of whatever the fuck",
       "cursor": "default"
+    },
+    {
+      "id": "bow_shootable",
+      "x": 9,
+      "y": 1,
+      "w": 2,
+      "h": 3,
+      "options": [
+        {
+          "text": "Shoot",
+          "icon": "",
+          "actions": [
+            {
+              "if": {
+                "left": "{arrow_shot}",
+                "operator": "==",
+                "right": "true"
+              },
+              "then": [],
+              "else": [
+                {
+                  "set": {
+                    "arrow_shot": {
+                      "expr": "true",
+                      "operation": "set"
+                    }
+                  }
+                },
+                {
+                  "say": "YOU SHOT THE SEAL\nOH GOD",
+                  "speaker": "Narrator????"
+                },
+                {
+                  "say": "ITS BLEEDING",
+                  "speaker": "Narrator????"
+                },
+                {
+                  "say": "WHAT THE FUCK",
+                  "speaker": "Narrator????"
+                }
+              ]
+            },
+            {
+              "say": "BÜE",
+              "speaker": "SEAL (DEAD)",
+              "accent": "#ff5252"
+            }
+          ]
+        }
+      ],
+      "label": "Bow",
+      "visible": false
+    },
+    {
+      "id": "bow",
+      "x": 9,
+      "y": 1,
+      "w": 2,
+      "h": 3,
+      "options": [
+        {
+          "text": "Inspect",
+          "icon": "",
+          "actions": [
+            {
+              "say": "Yep, it's a bow. Wonder when i'll get to use it.",
+              "speaker": ""
+            }
+          ]
+        }
+      ],
+      "label": "Bow"
     }
   ],
   "onEnter": [

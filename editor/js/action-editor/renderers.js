@@ -1,3 +1,4 @@
+import { formatCondition, formatSetValue } from '../../../js/shared/expressions.js';
 import { escapeHtml } from '../core/state.js';
 import {
   summarizeAction as schemaSummarizeAction,
@@ -39,6 +40,7 @@ export function createActionRenderers(openActionEditor, {
   pickActionType,
   createDefaultAction,
   appendActionToField,
+  registerEmptyActionField,
 }) {
   function preventMouseFocus(button) {
     button.addEventListener('mousedown', (event) => {
@@ -72,8 +74,7 @@ export function createActionRenderers(openActionEditor, {
     const rootEditorState = getRootEditorState(viewCtx);
     const type = await pickActionType?.(rootEditorState?.fw);
     if (!type || !rootEditorState?.fw.el.isConnected) return;
-    if (!Array.isArray(opt.actions)) opt.actions = [];
-    opt.actions.push(createDefaultAction(type));
+    appendActionToField(opt, 'actions', createDefaultAction(type));
     commitInlineEdit(viewCtx);
   }
 
@@ -91,7 +92,7 @@ export function createActionRenderers(openActionEditor, {
     return empty;
   }
 
-  function createEmptyAddAction(onAdd) {
+  function createEmptyAddAction(onAdd, owner, key, viewCtx) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'ae-empty-add-action';
@@ -105,6 +106,7 @@ export function createActionRenderers(openActionEditor, {
       event.stopPropagation();
       onAdd();
     });
+    registerEmptyActionField(button, owner, key, viewCtx);
     return button;
   }
 
@@ -278,7 +280,7 @@ export function createActionRenderers(openActionEditor, {
           const nested = buildActionList(opt.actions, viewCtx);
           optBlock.appendChild(nested);
         } else if (viewCtx.editorState) {
-          optBlock.appendChild(createEmptyAddAction(() => addChoiceOptionAction(opt, viewCtx)));
+          optBlock.appendChild(createEmptyAddAction(() => addChoiceOptionAction(opt, viewCtx), opt, 'actions', viewCtx));
         }
         optionsWrap.appendChild(optBlock);
       }
@@ -393,14 +395,7 @@ export function createActionRenderers(openActionEditor, {
       arrow.textContent = '←';
       const val = document.createElement('span');
       val.className = 'ae-flag-value';
-      if (typeof value === 'object' && value !== null) {
-        let desc = `add ${value.add ?? 0}`;
-        if (value.min != null) desc += `, min ${value.min}`;
-        if (value.max != null) desc += `, max ${value.max}`;
-        val.textContent = desc;
-      } else {
-        val.textContent = String(value);
-      }
+      val.textContent = formatSetValue(value);
       row.append(name, arrow, val);
       body.appendChild(row);
     }
@@ -412,7 +407,7 @@ export function createActionRenderers(openActionEditor, {
     body.className = 'ae-body ae-if-body';
     const cond = document.createElement('div');
     cond.className = 'ae-if-condition';
-    cond.innerHTML = `<span class="ae-if-keyword">if</span> <code>${escapeHtml(action.if)}</code>`;
+    cond.innerHTML = `<span class="ae-if-keyword">if</span> <code>${escapeHtml(formatCondition(action.if))}</code>`;
     body.appendChild(cond);
     for (const key of ['then', 'else']) {
       const actions = Array.isArray(action[key]) ? action[key] : [];
@@ -458,7 +453,7 @@ export function createActionRenderers(openActionEditor, {
       if (actions.length > 0) {
         branch.appendChild(buildActionList(actions, viewCtx));
       } else {
-        branch.appendChild(createEmptyAddAction(addAction));
+        branch.appendChild(createEmptyAddAction(addAction, action, key, viewCtx));
       }
       body.appendChild(branch);
     }
@@ -470,7 +465,8 @@ export function createActionRenderers(openActionEditor, {
     body.className = 'ae-body ae-if-body';
     const cond = document.createElement('div');
     cond.className = 'ae-if-condition';
-    cond.innerHTML = `<span class="ae-if-keyword">loop</span> <code>${escapeHtml(action.loop)}</code>`;
+    const repeat = typeof action.loop === 'number' ? `${action.loop} times` : formatCondition(action.loop);
+    cond.innerHTML = `<span class="ae-if-keyword">loop</span> <code>${escapeHtml(repeat)}</code>`;
     body.appendChild(cond);
     const loopActions = Array.isArray(action.do) ? action.do : (Array.isArray(action.then) ? action.then : []);
     if (loopActions.length > 0) {

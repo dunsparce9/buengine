@@ -1,4 +1,5 @@
 import { ACTION_TYPES } from '../../../js/shared/action-schema.js';
+import { buildExpressionInput } from './expression-input.js';
 import { setNestedValue, getNestedValue } from './utils.js';
 
 const actionTabs = new WeakMap();
@@ -26,7 +27,9 @@ export function createFormBuilders(openActionField) {
     form.className = 'ae-edit-form';
     const meta = ACTION_TYPES[type];
     const formId = `ae-form-${++nextFormId}`;
-    let preferredTab = meta?.tabs ? actionTabs.get(action) || getLastTab(type) : null;
+    let preferredTab = meta?.tabKey
+      ? meta.tabs.find(tab => (tab.valueTypes || [tab.valueType]).includes(typeof getNestedValue(action, meta.tabKey)))?.group
+      : meta?.tabs ? actionTabs.get(action) || getLastTab(type) : null;
     let updateIndicators = () => {};
     const fieldCtx = {
       ...ctx,
@@ -63,8 +66,16 @@ export function createFormBuilders(openActionField) {
       panel.setAttribute('role', 'tabpanel');
       const buttons = new Map();
       let selected = tabs.some(tab => tab.group === preferredTab) ? preferredTab : tabs[0].group;
+      const modeValues = new Map();
 
       function showTab(group, remember = true, focus = false) {
+        if (remember && meta.tabKey && group !== selected) {
+          modeValues.set(selected, getNestedValue(action, meta.tabKey));
+          const tab = tabs.find(tab => tab.group === group);
+          const value = modeValues.has(group) ? modeValues.get(group) : tab.defaultValue;
+          setNestedValue(action, meta.tabKey, value);
+          ctx.onFieldChange();
+        }
         selected = group;
         if (remember) {
           preferredTab = group;
@@ -77,12 +88,13 @@ export function createFormBuilders(openActionField) {
         panel.setAttribute('aria-labelledby', buttons.get(group).id);
         panel.replaceChildren();
         appendFields(panel, fields.filter(field => field.group === group));
+        updateIndicators();
         if (focus) buttons.get(group).focus();
       }
 
       updateIndicators = () => {
         for (const [group, button] of buttons) {
-          const configured = fields.filter(field => field.group === group).some(field => {
+          const configured = (!meta.tabKey || group === selected) && fields.filter(field => field.group === group).some(field => {
             const value = getNestedValue(action, field.key);
             const defaultValue = getNestedValue(meta.defaults, field.key);
             if (field.type === 'boolean') return !!value !== !!defaultValue;
@@ -167,6 +179,14 @@ export function createFormBuilders(openActionField) {
     const value = getNestedValue(action, field.key);
 
     switch (field.type) {
+      case 'condition': {
+        row.classList.add('ae-condition-field');
+        row.appendChild(buildConditionEditor(value, field.operators, ctx, next => {
+          setNestedValue(action, field.key, next);
+          ctx.onFieldChange();
+        }));
+        break;
+      }
       case 'string': {
         const input = document.createElement('input');
         input.type = 'text';
@@ -305,69 +325,85 @@ export function createFormBuilders(openActionField) {
     const values = action.set && typeof action.set === 'object' ? action.set : {};
 
     function render() {
-      wrap.innerHTML = '';
+      wrap.replaceChildren();
       for (const [flag, value] of Object.entries(values)) {
+        let currentFlag = flag;
         const row = document.createElement('div');
         row.className = 'ae-set-edit-row';
-
         const nameInput = document.createElement('input');
-        nameInput.type = 'text';
         nameInput.className = 'ae-field-input';
         nameInput.value = flag;
-        nameInput.placeholder = 'flag name';
-
-        const valueInput = document.createElement('input');
-        valueInput.type = 'text';
-        valueInput.className = 'ae-field-input';
-        valueInput.value = typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
-        valueInput.placeholder = 'value';
-
-        const removeBtn = document.createElement('button');
-        removeBtn.className = 'ae-mini-btn ae-mini-btn-danger';
-        removeBtn.innerHTML = '<span class="material-symbols-outlined">close</span>';
-        removeBtn.dataset.tooltip = 'Remove';
-        removeBtn.setAttribute('aria-label', 'Remove');
-
+        nameInput.placeholder = 'Flag name';
+        nameInput.setAttribute('aria-label', 'Flag name');
+        const legacy = value !== null && typeof value === 'object' && !('expr' in value) && !('add' in value);
+        let operation = 'set';
+        let text = JSON.stringify(value);
+        if (value && typeof value === 'object' && 'expr' in value) {
+          operation = value.operation || 'set'; text = value.expr;
+        } else if (value && typeof value === 'object' && 'add' in value) {
+          operation = 'add'; text = String(value.add);
+        } else if (typeof value === 'string' && /^[+-]\d+$/.test(value)) {
+          operation = value[0] === '-' ? 'subtract' : 'add'; text = value.slice(1);
+        }
+        const select = makeSelect(ACTION_TYPES.set.operations, operation, 'Flag operation');
+        const editor = buildExpressionInput(text, `Value for ${flag}`, ctx, commit, { raw: legacy, guideHost: row });
+        function commit() {
+          if (!editor.validate()) return;
+          if (legacy) values[currentFlag] = JSON.parse(editor.input.value);
+          else {
+            const previous = values[currentFlag];
+            const spec = previous && typeof previous === 'object' ? { ...previous } : {};
+            delete spec.add;
+            spec.expr = editor.input.value;
+            spec.operation = select.value;
+            values[currentFlag] = spec;
+          }
+          action.set = values;
+          ctx.onFieldChange();
+        }
+        select.disabled = legacy;
+        select.addEventListener('change', commit);
         nameInput.addEventListener('change', () => {
-          const nextKey = nameInput.value.trim();
-          if (!nextKey || nextKey === flag) return;
-          const currentValue = action.set[flag];
-          delete action.set[flag];
-          action.set[nextKey] = currentValue;
+          const next = nameInput.value.trim();
+          if (!next || (next !== currentFlag && Object.hasOwn(values, next))) {
+            nameInput.value = currentFlag; return;
+          }
+          if (next === currentFlag) return;
+          values[next] = values[currentFlag];
+          delete values[currentFlag];
+          currentFlag = next;
+          action.set = values;
+          ctx.onFieldChange();
+        });
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'ae-mini-btn ae-mini-btn-danger';
+        remove.textContent = '×';
+        remove.dataset.tooltip = 'Remove flag';
+        remove.setAttribute('aria-label', 'Remove flag');
+        remove.addEventListener('click', () => {
+          delete values[currentFlag];
+          action.set = values;
           ctx.onFieldChange();
           render();
         });
-
-        valueInput.addEventListener('change', () => {
-          action.set[nameInput.value || flag] = parseSetValue(valueInput.value);
-          ctx.onFieldChange();
-        });
-
-        removeBtn.addEventListener('click', () => {
-          delete action.set[flag];
-          ctx.onFieldChange();
-          render();
-        });
-
-        row.append(nameInput, valueInput, removeBtn);
+        row.append(nameInput, select, editor.element);
+        row.appendChild(remove);
         wrap.appendChild(row);
       }
-
       const addBtn = document.createElement('button');
+      addBtn.type = 'button';
       addBtn.className = 'ae-mini-btn';
-      addBtn.innerHTML = '<span class="material-symbols-outlined">add</span> Add flag';
+      addBtn.textContent = '+ Add flag';
       addBtn.addEventListener('click', () => {
+        let name = 'new_flag', suffix = 1;
+        while (Object.hasOwn(values, name)) name = `new_flag_${suffix++}`;
+        values[name] = { expr: 'true', operation: 'set' };
         action.set = values;
-        let name = 'new_flag';
-        let suffix = 1;
-        while (action.set[name]) name = `new_flag_${suffix++}`;
-        action.set[name] = true;
-        ctx.onFieldChange();
-        render();
+        ctx.onFieldChange(); render();
       });
       wrap.appendChild(addBtn);
     }
-
     render();
     return wrap;
   }
@@ -456,16 +492,51 @@ export function createFormBuilders(openActionField) {
   return { buildEditForm };
 }
 
-function parseSetValue(raw) {
-  const text = raw.trim();
-  if (text === 'true') return true;
-  if (text === 'false') return false;
-  if (/^[+-]\d+$/.test(text)) return text;
-  const number = Number(text);
-  if (!Number.isNaN(number) && text !== '') return number;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
+function makeSelect(options, value, label) {
+  const select = document.createElement('select');
+  select.className = 'ae-field-input ae-field-select';
+  select.setAttribute('aria-label', label);
+  for (const [key, text] of options) {
+    const option = document.createElement('option');
+    option.value = key; option.textContent = text;
+    select.appendChild(option);
   }
+  select.value = value;
+  return select;
+}
+
+function legacyOperand(value) {
+  const text = String(value).trim();
+  if (text === 'true' || text === 'false') return text;
+  if (text !== '' && !Number.isNaN(Number(text))) return String(Number(text));
+  return text ? `{${text}}` : '';
+}
+
+function buildConditionEditor(value, operators, ctx, onCommit) {
+  let condition;
+  if (value && typeof value === 'object') condition = value;
+  else {
+    const match = /^(.+?)\s*(==|!=|>=|<=|>|<)\s*(.+)$/.exec(String(value ?? ''));
+    condition = match
+      ? { left: legacyOperand(match[1]), operator: match[2], right: legacyOperand(match[3]) }
+      : { left: legacyOperand(value ?? ''), operator: 'truthy', right: 'true' };
+  }
+  const wrap = document.createElement('div');
+  wrap.className = 'ae-condition-editor';
+  const operator = makeSelect(operators, condition.operator, 'Comparison');
+  const left = buildExpressionInput(condition.left ?? '', 'Left value', ctx, commit, { guideHost: wrap });
+  const right = buildExpressionInput(condition.right ?? 'true', 'Right value', ctx, commit, { guideHost: wrap });
+  function updateLayout() {
+    right.element.hidden = ['truthy', 'falsy'].includes(operator.value);
+    wrap.classList.toggle('ae-condition-unary', right.element.hidden);
+    if (right.element.hidden) right.closeGuide();
+  }
+  function commit() {
+    if (!left.validate() || (!right.element.hidden && !right.validate())) return;
+    onCommit({ left: left.input.value, operator: operator.value, right: right.input.value });
+  }
+  operator.addEventListener('change', () => { updateLayout(); commit(); });
+  wrap.append(left.element, operator, right.element);
+  updateLayout();
+  return wrap;
 }

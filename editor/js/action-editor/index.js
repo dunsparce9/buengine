@@ -51,6 +51,18 @@ const renderers = createActionRenderers(openActionEditor, {
   buildNestedList,
   pickActionType,
   createDefaultAction,
+  registerEmptyActionField(element, owner, key, viewCtx) {
+    const actions = getActionFieldActions(owner, key);
+    const editorState = getInlineEditorState(actions, viewCtx.editorState, viewCtx);
+    editorState.opts.fieldOwner = owner;
+    editorState.opts.fieldKey = key;
+    editorState.opts.onChange = () => {
+      owner[key] = actions;
+      notifyEditorChange(editorState.rootEditorState);
+    };
+    element.classList.add('ae-drop-empty', 'ae-editable-empty');
+    emptyDropZones.set(element, editorState);
+  },
   appendActionToField(owner, key, action) {
     const actions = getActionFieldActions(owner, key);
     actions.push(action);

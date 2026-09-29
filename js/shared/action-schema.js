@@ -1,3 +1,5 @@
+import { formatCondition, COMPARISON_OPERATORS, SET_OPERATIONS } from './expressions.js';
+
 /**
  * Shared action type schema — single source of truth for both engine and editor.
  *
@@ -93,6 +95,7 @@ export const ACTION_TYPES = {
     color: '#fabd2f',
     label: 'Set flag',
     quip: 'flip or count flags',
+    operations: SET_OPERATIONS,
     fields: [],
     defaults: { set: {} },
     summary: (action) => {
@@ -109,10 +112,10 @@ export const ACTION_TYPES = {
     label: 'If',
     quip: 'branch on a condition',
     fields: [
-      { key: 'if', label: 'Condition', type: 'string', required: true },
+      { key: 'if', label: 'Condition', type: 'condition', operators: COMPARISON_OPERATORS, required: true },
     ],
-    defaults: { if: '', then: [], else: [] },
-    summary: (action) => `${action.if || '(condition)'} | then ${action.then?.length || 0} | else ${action.else?.length || 0}`,
+    defaults: { if: { left: '', operator: '==', right: 'true' }, then: [], else: [] },
+    summary: (action) => `${formatCondition(action.if) || '(condition)'} | then ${action.then?.length || 0} | else ${action.else?.length || 0}`,
     badges: () => [],
   },
 
@@ -121,14 +124,21 @@ export const ACTION_TYPES = {
     icon: 'repeat',
     color: '#b16286',
     label: 'Loop',
-    quip: 'repeat while a condition holds',
+    quip: 'repeat by condition or count',
+    tabKey: 'loop',
+    tabs: [
+      { group: 'Condition', icon: 'call_split', valueType: 'string', valueTypes: ['string', 'object', 'boolean'], defaultValue: '' },
+      { group: 'Count', icon: 'repeat', valueType: 'number', defaultValue: 1 },
+    ],
     fields: [
-      { key: 'loop', label: 'Condition', type: 'string', required: true },
+      { key: 'loop', label: 'Condition', type: 'condition', operators: COMPARISON_OPERATORS, required: true, group: 'Condition' },
+      { key: 'loop', label: 'Count', type: 'number', required: true, min: 0, max: 10000, step: 1, group: 'Count' },
     ],
     defaults: { loop: '', do: [] },
     summary: (action) => {
       const loopActions = Array.isArray(action.do) ? action.do : (Array.isArray(action.then) ? action.then : []);
-      return `${action.loop || '(condition)'} | do ${loopActions.length}`;
+      const repeat = typeof action.loop === 'number' ? `${action.loop} times` : formatCondition(action.loop) || '(condition)';
+      return `${repeat} | do ${loopActions.length}`;
     },
     badges: () => [],
   },

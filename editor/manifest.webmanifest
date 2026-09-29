@@ -4,6 +4,7 @@
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["window-controls-overlay"],
   "background_color": "#282828",
   "theme_color": "#1d2021",
   "description": "Static editor for büengine point-and-click adventures.",

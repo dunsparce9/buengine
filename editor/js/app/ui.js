@@ -2,6 +2,7 @@ import { state, hooks } from '../core/state.js';
 import { createFloatingWindow } from '../ui/floating-window.js';
 
 const toastContainer = document.getElementById('toast-container');
+const editorVersion = 'v0.1';
 
 const aboutWindow = createFloatingWindow({
   reusable: true,
@@ -24,7 +25,7 @@ const aboutWindow = createFloatingWindow({
   brand.querySelector('h1').replaceWith(heading);
 
   const version = document.createElement('p');
-  version.textContent = 'v0.1';
+  version.textContent = editorVersion;
   version.style.color = '#e1c8a4';
 
   const copyright = document.createElement('p');
@@ -55,19 +56,23 @@ export function updateMenuVisibility() {
 }
 
 export function isStandalonePWA() {
-  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  return window.matchMedia('(display-mode: standalone), (display-mode: window-controls-overlay)').matches
+    || window.navigator.standalone === true;
 }
 
 export function updateWindowTitle() {
   const appName = 'büengine editor';
-  const context = state.selectedPath || state.rootHandle?.name || '';
+  const fileName = state.selectedPath?.split('/').pop() || '';
+  const gameTitleText = typeof state.manifest?.title === 'string' ? state.manifest.title.trim() : '';
+  const gameName = state.rootHandle ? gameTitleText || state.rootHandle.name : '';
+  const fileTitle = document.getElementById('menu-title-file');
+  const gameTitle = document.getElementById('menu-title-game');
+  fileTitle.textContent = fileName || appName;
+  gameTitle.textContent = gameName || editorVersion;
+  gameTitle.hidden = false;
 
-  if (!context) {
-    document.title = appName;
-    return;
-  }
-
-  document.title = isStandalonePWA() ? context : `${appName} - ${context}`;
+  const context = [fileName, gameName].filter(Boolean).join(' — ');
+  document.title = context || appName;
 }
 
 hooks.updateWindowTitle = updateWindowTitle;
@@ -75,7 +80,6 @@ hooks.updateWindowTitle = updateWindowTitle;
 export function updateRunLabels() {
   const label = isStandalonePWA() ? 'Run in new window' : 'Run in new tab';
   const menuRunBtn = document.querySelector('[data-action="run-in-tab"]');
-  const topRunBtn = document.getElementById('run-btn');
 
   if (menuRunBtn) {
     const textNode = [...menuRunBtn.childNodes].find(
@@ -83,8 +87,6 @@ export function updateRunLabels() {
     );
     if (textNode) textNode.textContent = label;
   }
-
-  if (topRunBtn) topRunBtn.dataset.tooltip = label;
 }
 
 export function showToast(message, type = 'info') {
